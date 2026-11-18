@@ -26,7 +26,9 @@ export type IslandViewName =
   | "wardrobe"
   | "update"
   | "whatsNew"
-  | "launch";
+  | "launch"
+  // JARVIS: the calendar tab (src/views/gcal.ts).
+  | "calendar";
 
 export type BotStateName =
   | "idle"
@@ -103,6 +105,8 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   whatsNew: { height: 222, botX: 62, botY: null, botDiameter: 58, agentMode: "none" },
   // A new Claude Code session: Mochi on the left, the project and the prompt (Mac: .launch).
   launch: { height: 160, botX: 58, botY: null, botDiameter: 52, agentMode: "none" },
+  // JARVIS: the calendar tab. The character steps aside (botPosition) to leave the whole width to the day or week.
+  calendar: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -157,6 +161,7 @@ export function botPosition(
       return { cx: 40, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
+      if (view === "calendar") return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
       if (view === "uploading") {
         return {
           cx: 36 + uploadProgress * 526,

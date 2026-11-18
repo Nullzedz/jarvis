@@ -20,6 +20,7 @@ mod i18n;
 mod identity;
 mod integrations;
 mod calcom;
+mod gcal;
 mod island;
 mod launch;
 mod local_chat;
@@ -898,6 +899,10 @@ pub fn run() {
         .manage(recap::load())
         .invoke_handler(tauri::generate_handler![
             boot,
+            gcal::gcal_connected,
+            gcal::gcal_connect,
+            gcal::gcal_disconnect,
+            gcal::gcal_fetch,
             mail::mail_refresh,
             mail::mail_more,
             mail::mail_search,

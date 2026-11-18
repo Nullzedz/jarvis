@@ -30,6 +30,7 @@ import { buildWhatsAppCard } from "./whatsapp";
 import { WHATSAPP_ID } from "../core/whatsapp";
 import { MAIL_ID } from "../core/mail";
 import { buildMailCard } from "./mail";
+import { buildCalendar } from "./gcal";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
 import type { ViewCommand } from "../island/shortcuts";
@@ -129,6 +130,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
     { class: "tab", title: tl("New Claude Code session"), onclick: () => go("launch") },
     svg(ICONS.terminal, 17, { stroke: 1.7 }),
   );
+  // JARVIS: the calendar (src/views/gcal.ts).
+  const tabCalendar = h("button", { class: "tab", title: tl("Calendar"), onclick: () => go("calendar") }, svg(ICONS.calendar, 17, { stroke: 1.7 }));
 
   const gearBtn = h("button", { title: tl("Settings"), onclick: () => go("settings") }, svg(ICONS.gearLine, 18, { stroke: 1.6 }));
   const soundBtn = h("button", { title: tl("Mute"), onclick: () => actions.toggleSound() }, svg(ICONS.speakerLine, 18, { stroke: 1.6 }));
@@ -149,7 +152,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn, closeBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
@@ -162,6 +165,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       tabLaunch.classList.toggle("on", v === "launch");
+      tabCalendar.classList.toggle("on", v === "calendar");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(v === "settings" ? svg(ICONS.gearFill, 18) : svg(ICONS.gearLine, 18, { stroke: 1.6 }));
@@ -882,6 +886,7 @@ export function buildViews(
   map.set("update", buildUpdate());
   map.set("whatsNew", buildWhatsNew());
   map.set("launch", buildLaunch(actions));
+  map.set("calendar", buildCalendar({ keyboard: (on) => actions.keyboard(on) }));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));
   map.set("searching", buildPlaceholder(tl("Claude is searching…"), ""));

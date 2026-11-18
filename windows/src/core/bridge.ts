@@ -207,6 +207,11 @@ export interface PhoneAnswersStatus {
 
 export const Bridge = {
   boot: () => call<BootInfo>("boot"),
+  // JARVIS: Google Calendar, read-only (src-tauri/src/gcal.rs). The secret link never comes back here.
+  gcalConnected: () => call<boolean>("gcal_connected"),
+  gcalConnect: (url: string) => callOrThrow<void>("gcal_connect", { url }),
+  gcalDisconnect: () => call<void>("gcal_disconnect"),
+  gcalFetch: () => callOrThrow<string>("gcal_fetch"),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */
   setSystemLanguages: (languages: string[]) => call<void>("set_system_languages", { languages }),
 

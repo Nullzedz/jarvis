@@ -7563,6 +7563,242 @@
       "tr": "Yalnızca dikte ederken, bir görüşmeyi kaydederken veya mesaj gelince görünür. Dikte tuşu yine çalışır.",
       "ko": "받아쓰기하거나 통화를 녹음하거나 메시지가 올 때만 표시됩니다. 받아쓰기 키는 그대로 작동합니다.",
       "ja": "音声入力中、通話の録音中、メッセージが届いたときだけ表示されます。音声入力キーはそのまま使えます。"
+    },
+    "Calendar": {
+      "zh-Hans": "日历",
+      "hi": "कैलेंडर",
+      "es": "Calendario",
+      "ar": "التقويم",
+      "fr": "Calendrier",
+      "bn": "ক্যালেন্ডার",
+      "pt-BR": "Calendário",
+      "ru": "Календарь",
+      "id": "Kalender",
+      "de": "Kalender",
+      "tr": "Takvim",
+      "ko": "캘린더",
+      "ja": "カレンダー"
+    },
+    "All day": {
+      "zh-Hans": "全天",
+      "hi": "पूरे दिन",
+      "es": "Todo el día",
+      "ar": "طوال اليوم",
+      "fr": "Toute la journée",
+      "bn": "সারাদিন",
+      "pt-BR": "Dia inteiro",
+      "ru": "Весь день",
+      "id": "Sepanjang hari",
+      "de": "Ganztägig",
+      "tr": "Tüm gün",
+      "ko": "하루 종일",
+      "ja": "終日"
+    },
+    "Reading your calendar…": {
+      "zh-Hans": "正在读取你的日历…",
+      "hi": "आपका कैलेंडर पढ़ा जा रहा है…",
+      "es": "Leyendo tu calendario…",
+      "ar": "جارٍ قراءة تقويمك…",
+      "fr": "Lecture de votre calendrier…",
+      "bn": "আপনার ক্যালেন্ডার পড়া হচ্ছে…",
+      "pt-BR": "Lendo sua agenda…",
+      "ru": "Читаю ваш календарь…",
+      "id": "Membaca kalender Anda…",
+      "de": "Kalender wird gelesen…",
+      "tr": "Takviminiz okunuyor…",
+      "ko": "캘린더를 읽는 중…",
+      "ja": "カレンダーを読み込み中…"
+    },
+    "Paste your secret iCal address": {
+      "zh-Hans": "粘贴你的 iCal 私密地址",
+      "hi": "अपना गुप्त iCal पता चिपकाएँ",
+      "es": "Pega tu dirección secreta en formato iCal",
+      "ar": "الصق عنوان iCal السري",
+      "fr": "Collez votre adresse iCal secrète",
+      "bn": "আপনার গোপন iCal ঠিকানা পেস্ট করুন",
+      "pt-BR": "Cole seu endereço secreto iCal",
+      "ru": "Вставьте секретный адрес iCal",
+      "id": "Tempel alamat iCal rahasia Anda",
+      "de": "Geheime iCal-Adresse einfügen",
+      "tr": "Gizli iCal adresinizi yapıştırın",
+      "ko": "비공개 iCal 주소를 붙여넣으세요",
+      "ja": "非公開の iCal アドレスを貼り付け"
+    },
+    "Connect your Google Calendar (read-only).": {
+      "zh-Hans": "连接你的 Google 日历（只读）。",
+      "hi": "अपना Google कैलेंडर जोड़ें (केवल पढ़ने के लिए)।",
+      "es": "Conecta tu Google Calendar (solo lectura).",
+      "ar": "اربط تقويم Google (للقراءة فقط).",
+      "fr": "Connectez votre Google Agenda (lecture seule).",
+      "bn": "আপনার Google ক্যালেন্ডার যুক্ত করুন (শুধু পড়ার জন্য)।",
+      "pt-BR": "Conecte sua Google Agenda (somente leitura).",
+      "ru": "Подключите Google Календарь (только чтение).",
+      "id": "Hubungkan Google Kalender Anda (hanya baca).",
+      "de": "Google Kalender verbinden (nur lesen).",
+      "tr": "Google Takvim'inizi bağlayın (salt okunur).",
+      "ko": "Google 캘린더를 연결하세요(읽기 전용).",
+      "ja": "Google カレンダーを接続（読み取り専用）。"
+    },
+    "Checking…": {
+      "zh-Hans": "正在检查…",
+      "hi": "जाँच हो रही है…",
+      "es": "Comprobando…",
+      "ar": "جارٍ التحقق…",
+      "fr": "Vérification…",
+      "bn": "যাচাই করা হচ্ছে…",
+      "pt-BR": "Verificando…",
+      "ru": "Проверка…",
+      "id": "Memeriksa…",
+      "de": "Wird geprüft…",
+      "tr": "Kontrol ediliyor…",
+      "ko": "확인 중…",
+      "ja": "確認中…"
+    },
+    "Where is it?": {
+      "zh-Hans": "在哪里找？",
+      "hi": "यह कहाँ है?",
+      "es": "¿Dónde está?",
+      "ar": "أين أجده؟",
+      "fr": "Où la trouver ?",
+      "bn": "এটি কোথায়?",
+      "pt-BR": "Onde encontro?",
+      "ru": "Где его найти?",
+      "id": "Di mana?",
+      "de": "Wo finde ich sie?",
+      "tr": "Nerede?",
+      "ko": "어디에 있나요?",
+      "ja": "どこにありますか？"
+    },
+    "Use another link": {
+      "zh-Hans": "使用其他链接",
+      "hi": "दूसरा लिंक उपयोग करें",
+      "es": "Usar otro enlace",
+      "ar": "استخدم رابطًا آخر",
+      "fr": "Utiliser un autre lien",
+      "bn": "অন্য লিঙ্ক ব্যবহার করুন",
+      "pt-BR": "Usar outro link",
+      "ru": "Другая ссылка",
+      "id": "Gunakan tautan lain",
+      "de": "Anderen Link verwenden",
+      "tr": "Başka bir bağlantı kullan",
+      "ko": "다른 링크 사용",
+      "ja": "別のリンクを使用"
+    },
+    "Nothing planned.": {
+      "zh-Hans": "没有安排。",
+      "hi": "कुछ भी तय नहीं है।",
+      "es": "Nada previsto.",
+      "ar": "لا شيء مخطط له.",
+      "fr": "Rien de prévu.",
+      "bn": "কিছু পরিকল্পিত নেই।",
+      "pt-BR": "Nada planejado.",
+      "ru": "Ничего не запланировано.",
+      "id": "Tidak ada rencana.",
+      "de": "Nichts geplant.",
+      "tr": "Plan yok.",
+      "ko": "일정 없음.",
+      "ja": "予定なし。"
+    },
+    "in {n} min": {
+      "zh-Hans": "{n} 分钟后",
+      "hi": "{n} मिनट में",
+      "es": "en {n} min",
+      "ar": "بعد {n} دقيقة",
+      "fr": "dans {n} min",
+      "bn": "{n} মিনিটে",
+      "pt-BR": "em {n} min",
+      "ru": "через {n} мин",
+      "id": "dalam {n} mnt",
+      "de": "in {n} Min.",
+      "tr": "{n} dk sonra",
+      "ko": "{n}분 후",
+      "ja": "{n} 分後"
+    },
+    "Next: {title}, {when}": {
+      "zh-Hans": "下一个：{title}，{when}",
+      "hi": "अगला: {title}, {when}",
+      "es": "Siguiente: {title}, {when}",
+      "ar": "التالي: {title}، {when}",
+      "fr": "Ensuite : {title}, {when}",
+      "bn": "পরবর্তী: {title}, {when}",
+      "pt-BR": "Próximo: {title}, {when}",
+      "ru": "Далее: {title}, {when}",
+      "id": "Berikutnya: {title}, {when}",
+      "de": "Als Nächstes: {title}, {when}",
+      "tr": "Sıradaki: {title}, {when}",
+      "ko": "다음: {title}, {when}",
+      "ja": "次: {title}、{when}"
+    },
+    "+{count} more": {
+      "zh-Hans": "还有 {count} 个",
+      "hi": "+{count} और",
+      "es": "+{count} más",
+      "ar": "+{count} أخرى",
+      "fr": "+{count} de plus",
+      "bn": "+{count}টি আরও",
+      "pt-BR": "+{count} mais",
+      "ru": "ещё {count}",
+      "id": "+{count} lagi",
+      "de": "+{count} weitere",
+      "tr": "+{count} daha",
+      "ko": "+{count}개 더",
+      "ja": "他 {count} 件"
+    },
+    "{count} events": {
+      "zh-Hans": {
+        "other": "{count} 个日程"
+      },
+      "hi": {
+        "one": "{count} कार्यक्रम",
+        "other": "{count} कार्यक्रम"
+      },
+      "es": {
+        "one": "{count} evento",
+        "other": "{count} eventos"
+      },
+      "ar": {
+        "zero": "{count} حدث",
+        "one": "حدث واحد",
+        "two": "حدثان",
+        "few": "{count} أحداث",
+        "many": "{count} حدثًا",
+        "other": "{count} حدث"
+      },
+      "fr": {
+        "one": "{count} événement",
+        "other": "{count} événements"
+      },
+      "bn": {
+        "one": "{count}টি ইভেন্ট",
+        "other": "{count}টি ইভেন্ট"
+      },
+      "pt-BR": {
+        "one": "{count} evento",
+        "other": "{count} eventos"
+      },
+      "ru": {
+        "one": "{count} событие",
+        "few": "{count} события",
+        "many": "{count} событий",
+        "other": "{count} события"
+      },
+      "id": {
+        "other": "{count} acara"
+      },
+      "de": {
+        "one": "{count} Termin",
+        "other": "{count} Termine"
+      },
+      "tr": {
+        "one": "{count} etkinlik",
+        "other": "{count} etkinlik"
+      },
+      "ko": {
+        "other": "일정 {count}개"
+      },
+      "ja": {
+        "other": "予定 {count} 件"
+      }
     }
   }
 }
