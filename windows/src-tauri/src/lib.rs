@@ -21,6 +21,7 @@ mod identity;
 mod integrations;
 mod calcom;
 mod gcal;
+mod live;
 mod island;
 mod launch;
 mod local_chat;
@@ -903,6 +904,7 @@ pub fn run() {
             gcal::gcal_connect,
             gcal::gcal_disconnect,
             gcal::gcal_fetch,
+            live::live_read,
             mail::mail_refresh,
             mail::mail_more,
             mail::mail_search,

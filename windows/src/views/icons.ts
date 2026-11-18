@@ -89,6 +89,8 @@ export const ICONS = {
   folder: "M3 6.6a2 2 0 0 1 2-2h4.3l2 2.2H19a2 2 0 0 1 2 2v8.6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6.6z",
   // chevron.down (stroked)
   chevronDown: "M5.5 9 12 15.5 18.5 9",
+  // JARVIS: </> (stroked), the session card's button to the live code view
+  code: "M8.5 7 3.5 12l5 5M15.5 7l5 5-5 5M13.5 5l-3 14",
   // JARVIS: calendar (stroked), the header tab of the calendar
   calendar: "M5.5 5.5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2zM3.5 10h17M8 3.5v4M16 3.5v4",
 } as const;

@@ -16,6 +16,7 @@ import { parseClaudePlan, restorePlanUsage } from "../core/plan";
 import { setClaudePlanUsage, storedClaudePlanUsage } from "../views/usage";
 import { N_, t } from "../i18n/i18n";
 import { Launch } from "../core/launch";
+import * as Live from "../core/live";
 
 const CLAUDE_ID = "integration_claude";
 const CURSOR_ID = "agent_cursor";
@@ -167,6 +168,8 @@ interface HookPayload {
   last_assistant_message?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
+  /** JARVIS: the end of a finished command's output (the relay, hook/src/main.rs). */
+  jarvis_output?: string;
   /** Set by the relay when an edit was too big to forward whole (> 256 KB). */
   coucou_diff_truncated?: boolean;
   /** Optional agent tag: lowercase, digits and hyphens, ≤ 24 chars. */
@@ -466,6 +469,7 @@ function handleHook(island: Island, payload: HookPayload) {
       clearFinalLine(agentId);
       State.updateTask(agentId, "thinking");
       // The field is `prompt`; reading `message` meant this step was always blank.
+      if (!isExternalAgent) Live.turn(agentId, cwd);
       const asked = promptStep(payload.prompt ?? payload.message ?? "");
       if (asked) State.appendStep(agentId, asked);
       // A new turn: the finished card would show the prompt as if it were the answer.
@@ -488,6 +492,8 @@ function handleHook(island: Island, payload: HookPayload) {
       } else {
         State.updateTask(agentId, "working");
         State.appendStep(agentId, stepLabel(tool, payload.tool_input ?? {}));
+        // JARVIS: the live code view follows what the session is doing.
+        if (!isExternalAgent) Live.pre(agentId, cwd, tool, payload.tool_input ?? {});
         surface("overview", false);
       }
       break;
@@ -505,12 +511,14 @@ function handleHook(island: Island, payload: HookPayload) {
       }
       State.updateTask(agentId, "working");
       recordDiff(agentId, payload);
+      Live.post(agentId, payload.tool_name ?? "", payload.tool_input ?? {}, payload.jarvis_output);
       break;
 
     case "PostToolUseFailure":
       supersedeStop();
       State.updateTask(agentId, "working");
       State.appendStep(agentId, t("⚠ failed"));
+      Live.post(agentId, payload.tool_name ?? "", payload.tool_input ?? {}, payload.jarvis_output, true);
       break;
 
     case "Notification": {
@@ -541,8 +549,12 @@ function handleHook(island: Island, payload: HookPayload) {
         if (t) t.finalLine = finalText;
       }
       Sound.play("finish");
+      Live.stop(agentId);
+      // JARVIS: watching it live, the code view shows Done and the answer itself.
+      const watchingLive = State.mode === "expanded" && State.view === "live" && focused;
       // A card waiting for an answer is never covered by another alert.
-      if (showsAlert(agentId, focused)) surface("finished", true);
+      if (watchingLive) State.notify();
+      else if (showsAlert(agentId, focused)) surface("finished", true);
       else State.setPillBadge(agentId, "finished");
       cancelStopTimer(agentId);
       stopTimers.set(
@@ -584,6 +596,7 @@ function handleHook(island: Island, payload: HookPayload) {
       // pill recreated within 5.2 s would be removed by it.
       cancelStopTimer(agentId);
       State.clearSessionDiffs(agentId);
+      Live.clear(agentId);
       if (isExternalAgent) {
         State.removeTask(agentId);
       } else {

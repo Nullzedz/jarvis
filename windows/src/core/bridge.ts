@@ -11,6 +11,15 @@ import type { SpotifyState } from "./spotify";
 import type { UpdateStatus } from "./update";
 import type { WaIslandView, WaSettingsView, WaTestResult } from "./whatsapp";
 
+/** JARVIS: lines of a file around where Claude works (live.rs Window). */
+export interface LiveWindow {
+  lines: string[];
+  start: number;
+  total: number;
+  focusStart: number;
+  focusEnd: number;
+}
+
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -212,6 +221,9 @@ export const Bridge = {
   gcalConnect: (url: string) => callOrThrow<void>("gcal_connect", { url }),
   gcalDisconnect: () => call<void>("gcal_disconnect"),
   gcalFetch: () => callOrThrow<string>("gcal_fetch"),
+  // JARVIS: a few lines of the file a Claude Code session works on (src-tauri/src/live.rs).
+  liveRead: (path: string, cwd: string, find: string | null, line: number | null) =>
+    callOrThrow<LiveWindow>("live_read", { path, cwd, find, line }),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */
   setSystemLanguages: (languages: string[]) => call<void>("set_system_languages", { languages }),
 
