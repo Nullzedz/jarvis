@@ -65,13 +65,16 @@ interface Particle {
 
 const EYE_W = 0.25;
 const EYE_H = 0.27;
-const EYE_P = -0.12;
+const EYE_P = 0; // JARVIS: the eye rests dead centre
 const MINI_INK = "rgb(16,19,26)"; // #10131A
 
 // JARVIS Visor: a dark helmet visor with a single light-bar eye.
-const VISOR_TOP: RGB = [0.204, 0.212, 0.231]; // #34363B
-const VISOR_BOTTOM: RGB = [0.098, 0.102, 0.114]; // #191A1D
-const VISOR_LIGHT: RGB = [0.522, 0.718, 0.922]; // #85B7EB — the idle eye
+// JARVIS: a white visor; the eye and a halo around the shell carry the mood.
+export const VISOR_TOP: RGB = [1, 1, 1]; // #FFFFFF
+export const VISOR_BOTTOM: RGB = [0.89, 0.898, 0.918]; // #E3E5EA
+/** The visor has no hands: Mochi's wave left with Mochi. */
+const NO_HANDS = true;
+export const VISOR_LIGHT: RGB = [0.216, 0.541, 0.867]; // #378ADD — the idle eye, deep enough on white
 
 const C = {
   idle: [0.902, 0.914, 0.933] as RGB,
@@ -262,6 +265,33 @@ export class BotEngine {
   lookX = 0;
   lookY = 0;
 
+  /** JARVIS: the halo around the shell (0…1), eased toward the state's level. */
+  haloV = 0;
+  /** JARVIS: until then the eye stays centred (after the startup), on the now() clock. */
+  private holdLookUntil = 0;
+
+  /** Keeps the eye dead centre for `seconds`, then lets it follow again. */
+  holdLook(seconds: number) {
+    this.holdLookUntil = now() + seconds;
+    this.yaw = 0;
+    this.pitch = 0;
+    setTimeout(() => this.blink(), Math.max(0, seconds * 1000 - 250));
+  }
+
+  /** How strong the halo should be now: none at rest, a pulse when JARVIS needs you. */
+  private haloTarget(t: number): number {
+    if (this.isMini || this.bodyColor) return 0;
+    switch (this.state) {
+      case "idle":
+      case "sleeping":
+        return 0;
+      case "approval":
+        return 0.55 + 0.35 * Math.sin(t * 4);
+      default:
+        return 0.45;
+    }
+  }
+
   lastTime = now();
   private t0 = now() - Math.random() * 5;
   private nextBlink = now() + 1.5 + Math.random() * 2;
@@ -290,8 +320,10 @@ export class BotEngine {
 
     switch (next) {
       case "finished":
-        this.doRoll(950, 1);
-        setTimeout(() => this.emit("spark", 5), 500);
+        // JARVIS: a squash-and-hop instead of Mochi's roll, then sparks.
+        this.squash();
+        this.anim("oy", [[-0.18, 140, Ease.out], [0, 320, Ease.back]]);
+        setTimeout(() => this.emit("spark", 5), 300);
         break;
       case "error":
         this.anim("ox", [
@@ -569,6 +601,9 @@ export class BotEngine {
       this.particles.length > 0 ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
       this.isMini ||
+      // JARVIS: the thinking sweep moves, and the halo eases in and out.
+      this.state === "thinking" ||
+      Math.abs(this.haloV - this.haloTarget(now() - this.t0)) > 0.01 ||
       this.isDancing || this.dancingLevel > 0.001 ||
       Math.abs(this.tgYaw - this.yaw) > 0.002 ||
       Math.abs(this.tgPitch - this.pitch) > 0.002 ||
@@ -643,6 +678,10 @@ export class BotEngine {
       tp = this.miniLookTarget.y * 0.5;
     }
 
+    if (n < this.holdLookUntil) {
+      ty = 0;
+      tp = 0;
+    }
     this.tgYaw = ty;
     this.tgPitch = tp;
     this.tgTilt = this.cfg.tilt;
@@ -679,6 +718,7 @@ export class BotEngine {
     if (!this.locks.has("es")) this.es += (this.tgEs - this.es) * kGen;
 
     this.col = mix3(this.col, this.colT, 1 - Math.pow(0.002, dt));
+    this.haloV += (this.haloTarget(t) - this.haloV) * kGen;
 
     if (n > this.nextBlink) {
       if (this.state !== "sleeping" && this.state !== "dizzy") {
@@ -892,16 +932,27 @@ export class BotEngine {
       x.fill(body);
       if (pumpkin <= 0.001) return;
     } else {
+      // Halo: the mood around the shell — none at rest, a pulse when JARVIS needs you.
+      const halo = this.haloV * (1 - this.morph);
+      if (halo > 0.02) {
+        x.save();
+        x.strokeStyle = rgba(this.col, halo);
+        x.lineWidth = Math.max(1.5, R * 0.07);
+        x.shadowColor = rgba(this.col, 1);
+        x.shadowBlur = R * 0.3;
+        x.scale(1 + 0.09 * 1.14, 1 + 0.09 * 1.4);
+        x.stroke(body);
+        x.restore();
+      }
+      x.save();
+      x.shadowColor = "rgba(0,0,0,0.45)";
+      x.shadowBlur = R * 0.22;
+      x.shadowOffsetY = R * 0.07;
       const g = x.createLinearGradient(0, -ry, 0, ry);
       g.addColorStop(0, rgba(VISOR_TOP));
       g.addColorStop(1, rgba(VISOR_BOTTOM));
       x.fillStyle = g;
       x.fill(body);
-      // Rim: the state colour, faint at rest, stronger when something happens.
-      x.save();
-      x.lineWidth = Math.max(1, R * 0.06);
-      x.strokeStyle = rgba(this.eyeLight, 0.35 + 0.5 * this.tint * (1 - this.morph));
-      x.stroke(body);
       x.restore();
     }
     x.save();
@@ -916,22 +967,16 @@ export class BotEngine {
       x.globalAlpha = this.bodyColor ? pumpkin : 1;
     }
 
-    const effectiveTint = this.tint * (1 - this.morph);
-    if (effectiveTint > 0.01) {
-      // A soft glow of the state colour behind the light bar.
-      const tg = x.createRadialGradient(0, -ry * 0.05, 0, 0, -ry * 0.05, R * 1.1);
-      tg.addColorStop(0, rgba(this.col, 0.28 * effectiveTint));
-      tg.addColorStop(1, rgba(this.col, 0));
-      x.fillStyle = tg;
-      x.fill(body);
+    // Glass: a bright line across the top of the shell.
+    if (!this.bodyColor && R > 10) {
+      x.strokeStyle = "rgba(255,255,255,0.95)";
+      x.lineWidth = Math.max(1, R * 0.05);
+      x.lineCap = "round";
+      x.beginPath();
+      x.moveTo(-rx * 0.62, -ry * 0.66);
+      x.quadraticCurveTo(0, -ry * 0.78, rx * 0.62, -ry * 0.66);
+      x.stroke();
     }
-
-    // Glass: a thin reflection across the top of the visor.
-    const hl = x.createLinearGradient(0, -ry, 0, -ry * 0.35);
-    hl.addColorStop(0, `rgba(255,255,255,${this.bodyColor ? 0 : 0.14})`);
-    hl.addColorStop(1, "rgba(255,255,255,0)");
-    x.fillStyle = hl;
-    x.fill(body);
     x.restore();
   }
 
@@ -981,9 +1026,21 @@ export class BotEngine {
     };
     switch (shape) {
       case "pill":
-      case "cup":
-        bar(w, Math.max(h * this.open, h * 0.3));
+      case "cup": {
+        const bh = Math.max(h * this.open, h * 0.3);
+        if (this.state === "thinking" && shape === "pill" && !this.isMini) {
+          // Thinking: a dim bar with a bright segment sweeping along it.
+          const a = x.globalAlpha;
+          x.globalAlpha = a * 0.35;
+          bar(w, bh);
+          x.globalAlpha = a;
+          const p = Math.sin(now() * 2.6) * 0.5 + 0.5;
+          const sw = w * 0.38;
+          roundRectPath(x, -w / 2 + p * (w - sw), -bh / 2, sw, bh, bh / 2);
+          x.fill();
+        } else bar(w, bh);
         break;
+      }
       case "wide":
         bar(w * 1.12, h * 1.35 * Math.max(this.open, 0.3));
         break;
@@ -991,8 +1048,16 @@ export class BotEngine {
         bar(w * 0.35, h * 1.2);
         break;
       case "line":
-      case "flat":
         bar(w * 0.85, h * 0.45);
+        break;
+      case "flat":
+        // Error: the eye bends down into a frown.
+        x.lineWidth = h;
+        x.lineCap = "round";
+        x.beginPath();
+        x.moveTo(-w * 0.42, h * 1.1);
+        x.quadraticCurveTo(0, -h * 1.9, w * 0.42, h * 1.1);
+        x.stroke();
         break;
       case "tired":
         bar(w * 0.8, h * 0.5, h * 0.4);
@@ -1005,10 +1070,12 @@ export class BotEngine {
         bar(w * 0.45, h, 0);
         break;
       case "happy":
+        // Done, happy: the eye curves up into a smile.
         x.lineWidth = h;
         x.lineCap = "round";
         x.beginPath();
-        x.arc(0, w * 0.55, w * 0.62, Math.PI * 1.2, Math.PI * 1.8);
+        x.moveTo(-w * 0.42, -h * 0.4);
+        x.quadraticCurveTo(0, h * 2.6, w * 0.42, -h * 0.4);
         x.stroke();
         break;
       default:
@@ -1170,7 +1237,8 @@ export class BotEngine {
     x: CanvasRenderingContext2D,
     R: number, rx: number, ry: number, cx: number, cy: number,
   ) {
-    if (this.hands <= 0.01 || this.isMini) return;
+    // JARVIS: the visor has no hands (Mochi's wave is gone with Mochi).
+    if (NO_HANDS || this.hands <= 0.01 || this.isMini) return;
     if (R <= 14) return; // meaningless at compact/peek sizes
 
     const n = now();
@@ -1379,7 +1447,7 @@ export class BotEngine {
 }
 
 /** Ray → rounded-rect boundary intersection, for the mailbox morph. */
-function rrPoint(ca: number, sa: number, W: number, H: number, cr: number): { x: number; y: number } {
+export function rrPoint(ca: number, sa: number, W: number, H: number, cr: number): { x: number; y: number } {
   const eps = 1e-6;
   const kx = ca >= 0 ? 1 : -1;
   const ky = sa >= 0 ? 1 : -1;

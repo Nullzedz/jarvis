@@ -17,7 +17,8 @@ import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { SPOTIFY_ID, Spotify, islandDances } from "../core/spotify";
 import { BotEngine, hexToRGB } from "../mochi/engine";
-import { Greeting } from "../mochi/greeting";
+// JARVIS: the Reactor startup replaces coucou's greeting (same contract).
+import { ReactorGreeting as Greeting, REACTOR_POSE } from "../mochi/reactor";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
 import { SeasonCache, parseOutfit } from "../mochi/wardrobe";
 import { UploadCanvas } from "../upload/canvas";
@@ -165,6 +166,8 @@ export class Island {
     this.wireInput();
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => {
+      // JARVIS: the eye wakes up dead centre, holds a beat and blinks, then follows.
+      this.engine.holdLook(1.4); // the island folds 0.6 s after this: about 0.7 s of hold on the compact island
       this.fsm.greetComplete();
       this.onGreetingDone?.();
     };
@@ -416,7 +419,14 @@ export class Island {
           this.setMode("hidden");
           break;
         case "petit":
-          if (from === "coucou") this.greeting.interrupt();
+          if (from === "coucou") {
+            this.greeting.interrupt();
+            // JARVIS: the island's own visor takes over exactly where the startup
+            // left it (big, centred) and rides the fold down to the compact spot.
+            this.botCx.set(this.width.value / 2);
+            this.botCy.set(REACTOR_POSE.y);
+            this.botSize.set(REACTOR_POSE.R / 0.3);
+          }
           else if (from === "hidden" && !this.silentReveal) Sound.play("peek");
           this.setMode("compact");
           if (from === "coucou") State.view = State.defaultView();
