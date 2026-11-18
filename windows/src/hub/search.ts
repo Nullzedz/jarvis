@@ -105,13 +105,13 @@ export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
   { id: "general.demo", page: "general", title: "demo.groupbox.title", terms: [] },
   { id: "general.sound", page: "general", title: "Sound", terms: ["Enable sounds", "Volume", "Open sounds folder", "Reload sounds"] },
   { id: "general.behavior", page: "general", title: "Behavior", terms: ["Open on hover", "Close after", "Hide after", "alerts.all-pills"] },
-  { id: "general.display", page: "general", title: "Display", terms: ["Show Mochi on", "Screen with the notch", "Main screen (menu bar)", "Follow the mouse"] },
+  { id: "general.display", page: "general", title: "Display", terms: ["Show JARVIS on", "Screen with the notch", "Main screen (menu bar)", "Follow the mouse"] },
   { id: "general.vitals", page: "general", title: "vitals.title", terms: ["vitals.toggle"] },
   { id: "general.hotkey", page: "general", title: "Hotkey", terms: ["Show island with shortcut", "Shortcut"] },
   { id: "general.startup", page: "general", title: "Startup", terms: ["Launch at Mac startup"] },
   { id: "general.update", page: "general", title: "update.settings.title", terms: [] },
   { id: "general.recap", page: "general", title: "Weekly recap", terms: ["Keep a history of my coding sessions", "Hide project names in shared images", "Clear history"] },
-  { id: "general.language", page: "general", title: "Language", terms: ["Restart Coucou"] },
+  { id: "general.language", page: "general", title: "Language", terms: ["Restart JARVIS"] },
 
   // Notch → Pills, Agents, Chat, Integrations, Phone, Voice, Shortcuts
   { id: "pills.main", page: "pills", title: "settings.main-pill", terms: ["Active pills"] },

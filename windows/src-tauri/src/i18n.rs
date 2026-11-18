@@ -133,8 +133,13 @@ thread_local! {
     static TEST_LANG: std::cell::Cell<&'static str> = const { std::cell::Cell::new("en") };
 }
 
+/// JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS.
+pub fn brand(text: &str) -> String {
+    text.replace("OK Coucou", "Hey JARVIS").replace("Coucou", "JARVIS").replace("Mochi", "JARVIS")
+}
+
 fn interpolate(text: &str, vars: &[(&str, &str)]) -> String {
-    let mut out = text.to_string();
+    let mut out = brand(text);
     for (name, value) in vars {
         out = out.replace(&format!("{{{name}}}"), value);
     }
@@ -254,7 +259,7 @@ mod tests {
         // From the Mac's catalog.
         assert_eq!(t("Allow"), "Autoriser");
         // From extra.json.
-        assert_eq!(t("Open Coucou"), "Ouvrir Coucou");
+        assert_eq!(t("Open Coucou"), "Ouvrir JARVIS");
         assert_eq!(t("A string nobody translated"), "A string nobody translated");
         assert_eq!(tf("Open {name}", &[("name", "Vercel")]), "Ouvrir Vercel");
         set_for_test("en");

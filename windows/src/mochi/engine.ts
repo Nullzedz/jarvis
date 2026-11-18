@@ -65,12 +65,13 @@ interface Particle {
 
 const EYE_W = 0.25;
 const EYE_H = 0.27;
-const EYE_SP = 0.37;
 const EYE_P = -0.12;
-const BASE_TOP: RGB = [0.929, 0.929, 0.937]; // #EDEDEF
-const BASE_BOTTOM: RGB = [0.769, 0.773, 0.792]; // #C4C5CA
-const INK = "rgb(26,20,18)"; // #1A1412
 const MINI_INK = "rgb(16,19,26)"; // #10131A
+
+// JARVIS Visor: a dark helmet visor with a single light-bar eye.
+const VISOR_TOP: RGB = [0.204, 0.212, 0.231]; // #34363B
+const VISOR_BOTTOM: RGB = [0.098, 0.102, 0.114]; // #191A1D
+const VISOR_LIGHT: RGB = [0.522, 0.718, 0.922]; // #85B7EB — the idle eye
 
 const C = {
   idle: [0.902, 0.914, 0.933] as RGB,
@@ -825,20 +826,6 @@ export class BotEngine {
     const body = this.bodyPath(rx, ry, R);
     this.drawBody(x, body, R, rx, ry);
 
-    const blushVal = Math.max(this.blush, this.tint * 0.5) * (1 - this.morph);
-    if (blushVal > 0.01) {
-      x.save();
-      x.clip(body);
-      const yOffset = Math.sin(this.yaw) * rx * 0.8;
-      x.fillStyle = `rgba(255,120,150,${0.5 * blushVal})`;
-      for (const sd of [-1, 1]) {
-        x.beginPath();
-        x.ellipse(sd * rx * 0.55 + yOffset, ry * 0.2, R * 0.17, R * 0.1, 0, 0, Math.PI * 2);
-        x.fill();
-      }
-      x.restore();
-    }
-
     this.drawEyes(x, body, R, rx, ry);
     if (this.morph > 0.05) this.drawMouth(x, body, R);
 
@@ -854,19 +841,24 @@ export class BotEngine {
   }
 
   private bodyPath(rx: number, ry: number, R: number): Path2D {
-    const n = 72;
-    const expN = 2.0 / 2.7;
+    const n = 96;
     const tw = R * 1.0;
     const th = R * 0.94;
     const tr = R * 0.42;
     const p = new Path2D();
     const m = this.morph;
+    // The visor: a wide rounded rectangle, a little narrower at the chin.
+    const vw = rx * 0.96;
+    const vh = ry * 0.86;
+    const vr = R * 0.38;
     for (let i = 0; i <= n; i++) {
       const a = (i / n) * Math.PI * 2;
       const ca = Math.cos(a);
       const sa = Math.sin(a);
-      const px0 = rx * (ca >= 0 ? Math.pow(ca, expN) : -Math.pow(-ca, expN));
-      const py0 = ry * (sa >= 0 ? Math.pow(sa, expN) : -Math.pow(-sa, expN));
+      const v = rrPoint(ca, sa, vw, vh, vr);
+      const chin = sa > 0 ? 1 - 0.1 * sa * sa : 1;
+      const px0 = v.x * chin;
+      const py0 = v.y;
       let px = px0;
       let py = py0;
       if (m >= 0.005) {
@@ -887,6 +879,11 @@ export class BotEngine {
     return Math.min(1, this.outfitPresence * 2.5) * (1 - this.morph);
   }
 
+  /** The light bar's colour: JARVIS blue at rest, the state colour when something happens. */
+  private get eyeLight(): RGB {
+    return mix3(VISOR_LIGHT, this.col, Math.min(1, this.tint / 0.7));
+  }
+
   private drawBody(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
     const pumpkin = this.pumpkinAlpha;
     if (this.bodyColor) {
@@ -895,11 +892,17 @@ export class BotEngine {
       x.fill(body);
       if (pumpkin <= 0.001) return;
     } else {
-      const g = x.createLinearGradient(rx * 0.7, -ry * 0.85, -rx * 0.8, ry * 0.9);
-      g.addColorStop(0, rgba(BASE_TOP));
-      g.addColorStop(1, rgba(BASE_BOTTOM));
+      const g = x.createLinearGradient(0, -ry, 0, ry);
+      g.addColorStop(0, rgba(VISOR_TOP));
+      g.addColorStop(1, rgba(VISOR_BOTTOM));
       x.fillStyle = g;
       x.fill(body);
+      // Rim: the state colour, faint at rest, stronger when something happens.
+      x.save();
+      x.lineWidth = Math.max(1, R * 0.06);
+      x.strokeStyle = rgba(this.eyeLight, 0.35 + 0.5 * this.tint * (1 - this.morph));
+      x.stroke(body);
+      x.restore();
     }
     x.save();
     if (pumpkin > 0.001) {
@@ -915,22 +918,17 @@ export class BotEngine {
 
     const effectiveTint = this.tint * (1 - this.morph);
     if (effectiveTint > 0.01) {
-      const tg = x.createLinearGradient(0, ry, 0, -ry);
-      tg.addColorStop(0, rgba(this.col, 0.72 * effectiveTint));
+      // A soft glow of the state colour behind the light bar.
+      const tg = x.createRadialGradient(0, -ry * 0.05, 0, 0, -ry * 0.05, R * 1.1);
+      tg.addColorStop(0, rgba(this.col, 0.28 * effectiveTint));
       tg.addColorStop(1, rgba(this.col, 0));
       x.fillStyle = tg;
       x.fill(body);
     }
 
-    const sh = x.createRadialGradient(0, 0, R * 0.15, 0, 0, R * 1.25);
-    sh.addColorStop(0, "rgba(0,0,0,0)");
-    sh.addColorStop(0.6, "rgba(0,0,0,0)");
-    sh.addColorStop(1, "rgba(0,0,0,0.2)");
-    x.fillStyle = sh;
-    x.fill(body);
-
-    const hl = x.createRadialGradient(rx * 0.34, -ry * 0.46, 0, rx * 0.34, -ry * 0.46, R * 0.42);
-    hl.addColorStop(0, "rgba(255,255,255,0.55)");
+    // Glass: a thin reflection across the top of the visor.
+    const hl = x.createLinearGradient(0, -ry, 0, -ry * 0.35);
+    hl.addColorStop(0, `rgba(255,255,255,${this.bodyColor ? 0 : 0.14})`);
     hl.addColorStop(1, "rgba(255,255,255,0)");
     x.fillStyle = hl;
     x.fill(body);
@@ -950,33 +948,73 @@ export class BotEngine {
 
     x.save();
     x.clip(body);
-    const ink = this.isMini ? MINI_INK : INK;
+    const ink = this.isMini ? MINI_INK : rgba(this.eyeLight);
     x.fillStyle = ink;
     x.strokeStyle = ink;
 
-    for (const sd of [-1, 1]) {
-      const eyeYaw = sd * EYE_SP + this.yaw;
-      // Rolling with an outfit on, the whole body turns: the eyes must not roll again.
-      let eyePitch = EYE_P + this.pitch + (this.rigidRoll ? 0 : this.roll);
-      eyePitch = (((eyePitch + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
-      const cp = Math.cos(eyePitch);
-      if (Math.cos(eyeYaw) * cp <= 0.04) continue;
-
-      const ex = Math.sin(eyeYaw) * cp * rx;
-      const ey = -Math.sin(eyePitch) * ry + (this.morph > 0 ? ry * 0.14 * this.morph : 0);
-      const fx = lerp(Math.max(0.18, Math.cos(eyeYaw)), 1, this.morph * 0.7);
-      const fy = lerp(Math.max(0.18, cp), 1, this.morph * 0.7);
-      const eyeMult = this.isMini ? 1.9 : 1.0;
-      const ew = R * EYE_W * this.es * eyeMult;
-      const eh = R * EYE_H * this.es * eyeMult;
-
+    // One light bar, sliding across the visor towards where JARVIS looks.
+    const eyeYaw = this.yaw;
+    let eyePitch = EYE_P + this.pitch + (this.rigidRoll ? 0 : this.roll);
+    eyePitch = (((eyePitch + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    const cp = Math.cos(eyePitch);
+    if (Math.cos(eyeYaw) * cp > 0.04) {
+      const ex = Math.sin(eyeYaw) * cp * rx * 0.7;
+      const ey = -Math.sin(eyePitch) * ry * 0.8 + (this.morph > 0 ? ry * 0.14 * this.morph : 0);
+      const fx = lerp(Math.max(0.3, Math.cos(eyeYaw)), 1, this.morph * 0.7);
+      const eyeMult = this.isMini ? 1.6 : 1.0;
       x.save();
       x.translate(ex, ey);
-      x.scale(fx, fy);
-      this.drawEyeShape(x, shape, ew, eh, sd, ink);
+      x.scale(fx, 1);
+      this.drawVisorEye(x, shape, R * eyeMult * this.es, ink);
       x.restore();
     }
     x.restore();
+  }
+
+  /** The visor's light bar, in each of the eye shapes the states and emotes ask for. */
+  private drawVisorEye(x: CanvasRenderingContext2D, shape: EyeShape, R: number, ink: string) {
+    const w = R * 0.95; // bar length
+    const h = R * 0.16; // bar thickness
+    const bar = (bw: number, bh: number, dy = 0) => {
+      roundRectPath(x, -bw / 2, dy - bh / 2, bw, bh, bh / 2);
+      x.fill();
+    };
+    switch (shape) {
+      case "pill":
+      case "cup":
+        bar(w, Math.max(h * this.open, h * 0.3));
+        break;
+      case "wide":
+        bar(w * 1.12, h * 1.35 * Math.max(this.open, 0.3));
+        break;
+      case "dot":
+        bar(w * 0.35, h * 1.2);
+        break;
+      case "line":
+      case "flat":
+        bar(w * 0.85, h * 0.45);
+        break;
+      case "tired":
+        bar(w * 0.8, h * 0.5, h * 0.4);
+        break;
+      case "closed":
+        x.globalAlpha *= 0.45;
+        bar(w * 0.7, h * 0.3, h * 0.5);
+        break;
+      case "wink":
+        bar(w * 0.45, h, 0);
+        break;
+      case "happy":
+        x.lineWidth = h;
+        x.lineCap = "round";
+        x.beginPath();
+        x.arc(0, w * 0.55, w * 0.62, Math.PI * 1.2, Math.PI * 1.8);
+        x.stroke();
+        break;
+      default:
+        // spiral, heart, star: drawn as a single symbol in the middle of the visor.
+        this.drawEyeShape(x, shape, R * EYE_W * 1.1, R * EYE_H * 1.1, 1, ink);
+    }
   }
 
   private drawEyeShape(
@@ -1183,8 +1221,8 @@ export class BotEngine {
         g.addColorStop(0, rgba(mix3(this.bodyColor, [1, 1, 1], 0.35)));
         g.addColorStop(1, rgba(this.bodyColor));
       } else {
-        g.addColorStop(0, rgba(BASE_TOP));
-        g.addColorStop(1, rgba(BASE_BOTTOM));
+        g.addColorStop(0, rgba(VISOR_TOP));
+        g.addColorStop(1, rgba(VISOR_BOTTOM));
       }
       x.beginPath();
       x.ellipse(0, 0, hew, heh, 0, 0, Math.PI * 2);

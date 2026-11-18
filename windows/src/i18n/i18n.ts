@@ -126,7 +126,13 @@ export function applyDocumentLanguage() {
   if (root.dataset) root.dataset.dir = isRtl() ? "rtl" : "ltr";
 }
 
+/** JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS. */
+export function brand(text: string): string {
+  return text.replace(/OK Coucou/g, "Hey JARVIS").replace(/Coucou|Mochi/g, "JARVIS");
+}
+
 function interpolate(text: string, vars?: Vars): string {
+  text = brand(text);
   if (!vars) return text;
   return text.replace(/\{(\w+)\}/g, (m, name: string) => (name in vars ? String(vars[name]) : m));
 }

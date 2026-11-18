@@ -125,8 +125,8 @@ pub fn system_prompt(web_search: bool) -> String {
 
 fn system_prompt_for(first_name: Option<&str>, web_search: bool) -> String {
     let opening = match first_name {
-        Some(name) => format!("You are Mochi, {name}'s personal AI assistant living at the top of their screen."),
-        None => "You are Mochi, a personal AI assistant living at the top of the user's screen.".to_string(),
+        Some(name) => format!("You are JARVIS, {name}'s personal AI assistant living at the top of their screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address {name} as \"sir\"."),
+        None => "You are JARVIS, a personal AI assistant living at the top of the user's screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address the user as \"sir\".".to_string(),
     };
     let abilities = if web_search {
         "You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions."
@@ -346,11 +346,11 @@ mod tests {
     #[test]
     fn the_prompt_greets_by_first_name_and_claims_web_search_only_for_claude() {
         let p = system_prompt_for(Some("Louis"), true);
-        assert!(p.starts_with("You are Mochi, Louis's personal AI assistant living at the top of their screen."));
+        assert!(p.starts_with("You are JARVIS, Louis's personal AI assistant living at the top of their screen."));
         assert!(p.contains("web search access"));
         assert!(p.contains("light Markdown"));
         let p = system_prompt_for(None, false);
-        assert!(p.starts_with("You are Mochi, a personal AI assistant living at the top of the user's screen."));
+        assert!(p.starts_with("You are JARVIS, a personal AI assistant living at the top of the user's screen."));
         assert!(!p.contains("web search"));
         assert!(p.contains("no web access"));
     }

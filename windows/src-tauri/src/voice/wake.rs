@@ -1,4 +1,4 @@
-// « OK Coucou »: hearing the wake phrase in what Parakeet wrote, and telling
+// « Hey JARVIS » (or « OK JARVIS »): hearing the wake phrase in what Parakeet wrote, and telling
 // speech from silence on the microphone. Nothing here touches the OS.
 
 /// Lower case, accents gone, everything but letters and digits a space.
@@ -27,41 +27,18 @@ fn is_ok(word: &str) -> bool {
     matches!(word, "ok" | "okay" | "oke" | "okey" | "hey")
 }
 
-/// How Parakeet may write "coucou", in one word. Said with a Brazilian
-/// Portuguese accent it comes out as "cocku" (#813), with a Spanish accent as
-/// "coco" (the Mac's spotter takes "coco" too); the others are the close spellings
-/// of those accents. Not "cool": "okay, cool" is too common to wake on, nor
-/// "gogo": "okay, go go" is something people say.
+/// How Parakeet may write "Jarvis", in one word (the close spellings an
+/// accent or a fast "Hey Jarvis" can produce).
 fn is_coucou(word: &str) -> bool {
     matches!(
         word,
-        "coucou"
-            | "coucous"
-            | "cuckoo"
-            | "cucu"
-            | "kuku"
-            | "koukou"
-            | "cookoo"
-            | "coocoo"
-            | "cocou"
-            | "kukuu"
-            | "couscous"
-            | "cocku"
-            | "cocu"
-            | "cuco"
-            | "cuku"
-            | "coku"
-            | "kuko"
-            | "coco"
+        "jarvis" | "jarviss" | "jarvus" | "jarvas" | "javis" | "jervis" | "jarves" | "jarvys" | "jarvise"
     )
 }
 
 /// …or in two.
 fn is_coucou_pair(a: &str, b: &str) -> bool {
-    matches!(
-        (a, b),
-        ("cou", "cou") | ("coo", "coo") | ("ku", "ku") | ("cu", "cu") | ("koo", "koo") | ("cuck", "oo") | ("co", "co")
-    )
+    matches!((a, b), ("jar", "vis") | ("jar", "viss") | ("jar", "this") | ("jarv", "is"))
 }
 
 /// When `text` holds the wake phrase, what was said after it (maybe nothing).
@@ -219,26 +196,16 @@ mod tests {
 
     #[test]
     fn the_wake_phrase_however_parakeet_writes_it() {
-        assert_eq!(after_wake("OK Coucou, play some music.").as_deref(), Some("play some music."));
-        assert_eq!(after_wake("Okay, coucou! Quelle heure est-il ?").as_deref(), Some("Quelle heure est-il ?"));
-        assert_eq!(after_wake("O.K. Cuckoo what's the weather").as_deref(), Some("what's the weather"));
-        assert_eq!(after_wake("ok cou cou ajoute Stripe").as_deref(), Some("ajoute Stripe"));
-        assert_eq!(after_wake("OK Coucou.").as_deref(), Some(""));
-        assert_eq!(after_wake("Hey coucou, ça va ?").as_deref(), Some("ça va ?"));
-        // A Brazilian speaker's « OK Coucou », as Parakeet wrote it (#813).
-        assert_eq!(after_wake("Okay, cocku.").as_deref(), Some(""));
-        assert_eq!(after_wake("Ok, cocku, que horas são?").as_deref(), Some("que horas são?"));
-        assert_eq!(after_wake("Okay, cuco.").as_deref(), Some(""));
-        // "cool" stays out: it is what people say, not the wake phrase.
+        assert_eq!(after_wake("Hey Jarvis, play some music.").as_deref(), Some("play some music."));
+        assert_eq!(after_wake("OK JARVIS what's the weather").as_deref(), Some("what's the weather"));
+        assert_eq!(after_wake("Okay, Jarvis! Quelle heure est-il ?").as_deref(), Some("Quelle heure est-il ?"));
+        assert_eq!(after_wake("hey jar vis open my mail").as_deref(), Some("open my mail"));
+        assert_eq!(after_wake("Hey Jervis.").as_deref(), Some(""));
+        assert_eq!(after_wake("O.K. Javis, status report").as_deref(), Some("status report"));
+        // Other phrases and other assistants' wake words stay out.
         assert_eq!(after_wake("Okay, cool."), None);
-        assert_eq!(after_wake("Okay, cool cool."), None);
-        // A Spanish speaker's « OK Coucou », as Parakeet wrote it.
-        assert_eq!(after_wake("Okay, coco.").as_deref(), Some(""));
-        assert_eq!(after_wake("Okay, Co Co, ¿qué hora es?").as_deref(), Some("¿qué hora es?"));
-        // "go go" stays out, and another assistant's wake phrase never wakes Coucou.
-        assert_eq!(after_wake("Okay, go go."), None);
         assert_eq!(after_wake("Okay, Google."), None);
-        assert_eq!(after_wake("on a dit coucou à Paul"), None);
+        assert_eq!(after_wake("I told Jarvis about it"), None);
         assert_eq!(after_wake("ok let's go"), None);
         assert_eq!(normalize("Ça VA, Élodie ?"), "ca va elodie");
     }

@@ -1,6 +1,6 @@
 [package]
 name = "coucou"
-description = "Coucou for Windows and Linux — Mochi lives at the top of your screen"
+description = "JARVIS for Windows — your assistant at the top of the screen (a fork of Coucou)"
 authors = ["Louis Raille"]
 version.workspace = true
 edition.workspace = true

@@ -745,7 +745,7 @@ pub async fn notes_export(window: tauri::WebviewWindow, taker: State<'_, Arc<Not
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    let name = if safe.is_empty() { "Coucou notes" } else { &safe };
+    let name = if safe.is_empty() { "JARVIS notes" } else { &safe };
     #[cfg(windows)]
     {
         let owner = window.hwnd().map_err(|error| error.to_string())?.0 as isize;
