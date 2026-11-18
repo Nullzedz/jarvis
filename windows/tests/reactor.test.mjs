@@ -1,6 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reactorPose, REACTOR_END } from "../src/mochi/reactor.ts";
+import { reactorPose, REACTOR_END, BlackHole, BOOM } from "../src/mochi/reactor.ts";
+
+/** A repeatable random sequence, so the physics test always runs the same. */
+function seeded(n) {
+  return () => ((n = (n * 1664525 + 1013904223) % 4294967296) / 4294967296);
+}
+
+test("the black hole swallows the specks while the ring spins, then blasts them all out", () => {
+  const rnd = seeded(7);
+  const hole = new BlackHole();
+  hole.seed(rnd);
+  const dt = 1 / 120;
+  let t = 0;
+  for (; t < BOOM - dt; t += dt) hole.step(t, dt, rnd);
+  assert.ok(hole.absorbed >= 60, `most specks swallowed before the blast (${hole.absorbed}/90)`);
+  assert.ok(hole.charge > 0.6);
+  for (; t < BOOM + 0.3; t += dt) hole.step(t, dt, rnd);
+  assert.equal(hole.boomed, true);
+  assert.equal(hole.charge, 0);
+  assert.ok(hole.specks.every((p) => !p.gone), "every speck comes back out");
+  // Measured in the blast's own elliptical space (it is wide, like the island).
+  const far = hole.specks.filter((p) => Math.hypot(p.x, p.y * 2.6) > 150).length;
+  assert.ok(far > 80, `they fly outward (${far}/90)`);
+});
 
 test("the ring draws and bends into the visor, which stays big and centred for the island to fold", () => {
   const start = reactorPose(0);

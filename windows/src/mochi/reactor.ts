@@ -126,7 +126,8 @@ function roundRect(x: CanvasRenderingContext2D, X: number, Y: number, W: number,
   x.closePath();
 }
 
-export function drawReactor(x: CanvasRenderingContext2D, p: ReactorPose) {
+/** `charge` (0…1): how much the black hole has swallowed — the ring burns brighter with it. */
+export function drawReactor(x: CanvasRenderingContext2D, p: ReactorPose, charge = 0) {
   const { R } = p;
   const ring = R * 0.95;
   const path = shape(R, ring, p.morph);
@@ -150,10 +151,10 @@ export function drawReactor(x: CanvasRenderingContext2D, p: ReactorPose) {
   }
   if (p.ringW > 0.15) {
     x.save();
-    x.lineWidth = p.ringW * (R / BIG.R);
+    x.lineWidth = p.ringW * (R / BIG.R) * (1 + 0.5 * charge);
     x.strokeStyle = RING;
     x.shadowColor = RING;
-    x.shadowBlur = lerp(16, 6, p.morph);
+    x.shadowBlur = lerp(16, 6, p.morph) + 30 * charge;
     if (p.morph < 0.98) x.setLineDash([lerp(26, 260, p.morph) * (R / BIG.R), lerp(9, 0, p.morph) * (R / BIG.R)]);
     if (p.draw < 1) {
       // The ring draws itself clockwise from the top.
@@ -209,6 +210,181 @@ export function drawReactor(x: CanvasRenderingContext2D, p: ReactorPose) {
   x.restore();
 }
 
+// ── The black hole ────────────────────────────────────────────────────────────
+//
+// Specks of light drift across the island. While the ring spins, gravity grows
+// at its centre: every speck spirals in, streaking, and is swallowed by a core
+// that brightens with each one. At BOOM, the instant the ring bends into the
+// visor, the core explodes: a flash, two shockwaves, and every speck blasts
+// back out, slows and fades. Simulated in a space twice the canvas (the
+// mock-up's), drawn at half scale.
+
+const N = 90;
+export const BOOM = 1.62;
+const SIM = 2; // simulation units per canvas pixel
+
+interface Speck {
+  x: number; y: number; vx: number; vy: number;
+  px: number; py: number;
+  s: number; hot: boolean; tw: number;
+  gone: boolean; life: number;
+}
+
+export class BlackHole {
+  specks: Speck[] = [];
+  absorbed = 0;
+  boomed = false;
+
+  seed(random: () => number = Math.random) {
+    this.absorbed = 0;
+    this.boomed = false;
+    this.specks = Array.from({ length: N }, () => {
+      const a = random() * Math.PI * 2;
+      const d = 0.35 + random() * 0.65;
+      const x = Math.cos(a) * d * 600;
+      const y = Math.sin(a) * d * 130;
+      return { x, y, px: x, py: y, vx: (random() - 0.5) * 8, vy: (random() - 0.5) * 4, s: random() * 2 + 1, hot: random() < 0.3, tw: random() * 6.3, gone: false, life: 0 };
+    });
+  }
+
+  /** How much has been swallowed, 0…1 (back to 0 once it has exploded). */
+  get charge(): number {
+    return this.boomed ? 0 : this.absorbed / N;
+  }
+
+  step(t: number, dt: number, random: () => number = Math.random) {
+    const grav = seg(t, 0.15, 1.4);
+    if (!this.boomed && t >= BOOM) {
+      this.boomed = true;
+      for (const p of this.specks) {
+        const a = random() * Math.PI * 2;
+        const sp = 900 + random() * 1300;
+        p.gone = false;
+        p.x = Math.cos(a) * 8;
+        p.y = Math.sin(a) * 4;
+        p.px = p.x;
+        p.py = p.y;
+        p.vx = Math.cos(a) * sp;
+        p.vy = Math.sin(a) * sp * 0.36;
+        p.life = 0;
+      }
+    }
+    for (const p of this.specks) {
+      p.px = p.x;
+      p.py = p.y;
+      if (p.gone) continue;
+      const d = Math.hypot(p.x, p.y * 2.6) || 1;
+      if (!this.boomed) {
+        const g = grav * grav;
+        const pull = (900 + 40000 / Math.max(d, 30)) * g;
+        p.vx += (-p.x / d) * pull * dt * 3.2;
+        p.vy += ((-p.y * 2.6) / d) * pull * dt * 1.25;
+        const tan = g * (0.6 + 90 / Math.max(d, 25));
+        p.vx += ((-p.y * 2.6) / d) * tan * dt * 60;
+        p.vy += (p.x / d) * tan * dt * 23;
+        p.vx *= Math.pow(0.2, dt);
+        p.vy *= Math.pow(0.2, dt);
+        if (d < 32 * SIM && grav > 0.25) {
+          p.gone = true;
+          this.absorbed++;
+        }
+      } else {
+        p.life += dt;
+        p.vx *= Math.pow(0.06, dt);
+        p.vy *= Math.pow(0.06, dt);
+      }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+  }
+
+  /** Everything behind the visor: specks, the dark well, the core, the flash, the shockwaves, the glow. */
+  draw(x: CanvasRenderingContext2D, t: number, cx: number, cy: number, fade: number) {
+    if (fade <= 0) return;
+    const k = 1 / SIM;
+    x.save();
+    x.globalAlpha = fade;
+    x.lineCap = "round";
+    for (const p of this.specks) {
+      if (p.gone) continue;
+      let a = seg(t, 0, 0.45) * (0.6 + 0.4 * Math.sin(t * 3 + p.tw)) * (p.hot ? 1 : 0.6);
+      if (this.boomed) a *= 1 - seg(p.life, 0.5, 2.4);
+      if (a <= 0) continue;
+      const col = p.hot ? "181,212,244" : "133,183,235";
+      const w = p.s * (p.hot ? 1.5 : 1) * k * 1.4;
+      x.strokeStyle = `rgba(${col},${a})`;
+      x.fillStyle = x.strokeStyle;
+      x.shadowColor = RING;
+      x.shadowBlur = p.hot ? 6 : 0;
+      const sx = cx + p.px * k;
+      const sy = cy + p.py * k;
+      const ex = cx + p.x * k;
+      const ey = cy + p.y * k;
+      x.lineWidth = w;
+      x.beginPath();
+      if (Math.hypot(ex - sx, ey - sy) < 0.8) {
+        x.arc(ex, ey, w * 0.6, 0, Math.PI * 2);
+        x.fill();
+      } else {
+        x.moveTo(sx - (ex - sx) * 1.5, sy - (ey - sy) * 1.5);
+        x.lineTo(ex, ey);
+        x.stroke();
+      }
+    }
+    x.shadowBlur = 0;
+
+    const grav = seg(t, 0.15, 1.4);
+    if (!this.boomed && grav > 0) {
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, 70);
+      g.addColorStop(0, "rgba(0,0,0,0.95)");
+      g.addColorStop(0.5, `rgba(0,0,0,${0.5 * grav})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = g;
+      x.fillRect(cx - 160, cy - 80, 320, 160);
+    }
+    const charge = this.charge;
+    if (charge > 0) {
+      x.fillStyle = `rgba(181,212,244,${0.35 + 0.6 * charge})`;
+      x.shadowColor = RING;
+      x.shadowBlur = 15 * charge + 3;
+      x.beginPath();
+      x.arc(cx, cy, (2 + 10 * charge) * (0.9 + 0.1 * Math.sin(t * 30)), 0, Math.PI * 2);
+      x.fill();
+      x.shadowBlur = 0;
+    }
+    if (t >= BOOM && t < BOOM + 0.45) {
+      const q = seg(t, BOOM, BOOM + 0.45);
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, 40 + q * 300);
+      g.addColorStop(0, `rgba(230,242,252,${(1 - q) * 0.9})`);
+      g.addColorStop(0.4, `rgba(133,183,235,${(1 - q) * 0.45})`);
+      g.addColorStop(1, "rgba(133,183,235,0)");
+      x.fillStyle = g;
+      x.fillRect(0, 0, REACTOR_W, REACTOR_H);
+    }
+    for (const [delay, strength] of [[0, 1], [0.12, 0.7]]) {
+      if (t >= BOOM + delay && t < BOOM + delay + 0.75) {
+        const f = seg(t, BOOM + delay, BOOM + delay + 0.75);
+        const q = Ease.out(f);
+        x.strokeStyle = `rgba(133,183,235,${(1 - f) * 0.75 * strength})`;
+        x.lineWidth = (2.5 * (1 - f) + 0.5) * strength;
+        x.beginPath();
+        x.ellipse(cx, cy, 15 + q * 320, 7 + q * 100, 0, 0, Math.PI * 2);
+        x.stroke();
+      }
+    }
+    const glow = seg(t, BOOM, BOOM + 0.2) * (1 - seg(t, BOOM + 0.3, 3.6) * 0.6);
+    if (glow > 0) {
+      const R = BIG.R;
+      const g = x.createRadialGradient(cx, cy, 0, cx, cy, R * 4.2);
+      g.addColorStop(0, `rgba(133,183,235,${0.4 * glow})`);
+      g.addColorStop(1, "rgba(55,138,221,0)");
+      x.fillStyle = g;
+      x.fillRect(cx - R * 5, cy - R * 5, R * 10, R * 10);
+    }
+    x.restore();
+  }
+}
+
 // ── Controller (same contract as greeting.ts's Greeting) ─────────────────────
 
 export class ReactorGreeting {
@@ -216,11 +392,15 @@ export class ReactorGreeting {
   private tc = Number.POSITIVE_INFINITY;
   private fired = false;
   private timers: number[] = [];
+  private hole = new BlackHole();
+  private lastT = 0;
 
   onComplete: (() => void) | null = null;
 
   start() {
     this.startMs = performance.now();
+    this.hole.seed();
+    this.lastT = 0;
     this.tc = Number.POSITIVE_INFINITY;
     this.fired = false;
     this.cancelTimers();
@@ -271,6 +451,19 @@ export class ReactorGreeting {
     const t = this.elapsed;
     if (!this.fired && t >= T.end && this.tc >= T.autoLeave) this.fire();
     x.clearRect(0, 0, REACTOR_W, REACTOR_H);
-    drawReactor(x, reactorPose(t, this.tc));
+    const pose = reactorPose(t, this.tc);
+    // Fixed small steps, so a slow frame never lets a speck jump past the core.
+    let dt = Math.min(0.1, Math.max(0, t - this.lastT));
+    this.lastT = t;
+    while (dt > 1e-6) {
+      const h = Math.min(dt, 1 / 120);
+      this.hole.step(t - dt + h, h);
+      dt -= h;
+    }
+    // Leaving early: the specks fade out with the fold.
+    const cut = Number.isFinite(this.tc) && t >= this.tc;
+    const fade = cut ? 1 - seg(t, this.tc, this.tc + 0.25) : 1;
+    this.hole.draw(x, t, pose.x, pose.y, fade);
+    drawReactor(x, pose, this.hole.charge);
   }
 }
