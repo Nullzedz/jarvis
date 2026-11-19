@@ -11,6 +11,28 @@ import type { SpotifyState } from "./spotify";
 import type { UpdateStatus } from "./update";
 import type { WaIslandView, WaSettingsView, WaTestResult } from "./whatsapp";
 
+/** JARVIS: a step of voice training (voice/print.rs TrainEvent). */
+export interface TrainEvent {
+  phase: "listening" | "retry" | "done" | "error";
+  count: number;
+  total: number;
+  prompt: string;
+  message: string;
+}
+
+/** JARVIS: the Kokoro voice model (tts.rs). */
+export type VoiceModelState =
+  | { state: "missing" }
+  | { state: "downloading"; fraction: number }
+  | { state: "ready" }
+  | { state: "failed"; error: string };
+
+export interface VoiceModel {
+  status: VoiceModelState;
+  voices: { id: string; name: string }[];
+  size: number;
+}
+
 /** JARVIS: lines of a file around where Claude works (live.rs Window). */
 export interface LiveWindow {
   lines: string[];
@@ -222,6 +244,22 @@ export const Bridge = {
   gcalDisconnect: () => call<void>("gcal_disconnect"),
   gcalFetch: () => callOrThrow<string>("gcal_fetch"),
   // JARVIS: a few lines of the file a Claude Code session works on (src-tauri/src/live.rs).
+  // JARVIS: his own voice, Kokoro on this computer (src-tauri/src/tts.rs).
+  voiceModel: () => call<VoiceModel>("voice_model"),
+  voiceModelDownload: () => call<void>("voice_model_download"),
+  voiceModelRemove: () => call<void>("voice_model_remove"),
+  /** Loads the voice and renders `voice`'s preview in the background, so ▶ is instant. */
+  voiceWarmUp: (voice: string) => call<void>("voice_warm_up", { voice }),
+  // JARVIS: voice training (src-tauri/src/voice/print.rs).
+  voicePrintStatus: () => call<{ trained: boolean; takes: number; training: boolean }>("voice_print_status"),
+  voiceTrainStart: () => callOrThrow<void>("voice_train_start"),
+  voiceTrainCancel: () => call<void>("voice_train_cancel"),
+  voicePrintForget: () => call<void>("voice_print_forget"),
+  /** Starts (or keeps alive) the Settings loudness bar on `mic` ("" = automatic); stops 5 s after the last call. */
+  micMeter: (mic: string) => call<void>("mic_meter", { mic }),
+  micMeterStop: () => call<void>("mic_meter_stop"),
+  /** A short line in `voice`, as WAV bytes. */
+  voicePreview: (voice: string) => callOrThrow<ArrayBuffer>("voice_preview", { voice }),
   liveRead: (path: string, cwd: string, find: string | null, line: number | null) =>
     callOrThrow<LiveWindow>("live_read", { path, cwd, find, line }),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */
@@ -346,6 +384,8 @@ export const Bridge = {
    * is missing, not signed in or slow (15 s).
    */
   codexPlanUsage: () => call<unknown>("codex_plan_usage"),
+  /** JARVIS: Claude's plan limits (the status line's `rate_limits` shape), from one tiny Claude Code question. */
+  claudePlanUsage: () => call<unknown>("claude_plan_usage"),
 
   approvalDecision: (requestId: string, decision: "allow" | "deny") =>
     call<void>("approval_decision", { requestId, decision }),

@@ -1174,3 +1174,109 @@ button.hub-icon svg {
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(255, 255, 255, 0.3);
 }
+
+/* ── JARVIS: voice training (hub/pages/voicetrain.ts) ─────────────────── */
+
+.vt-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  animation: vt-fade 0.2s ease-out both;
+}
+
+.vt-panel {
+  width: 340px;
+  padding: 26px 26px 20px;
+  border-radius: 22px;
+  background: #0e0f11;
+  border: 1px solid #232427;
+  text-align: center;
+  color: #d3d1c7;
+  animation: vt-pop 0.35s cubic-bezier(0.3, 1.2, 0.4, 1) both;
+}
+
+.vt-panel h2 { margin: 14px 0 6px; font-size: 17px; font-weight: 600; color: #f1efe8; }
+.vt-panel p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: #888780; min-height: 20px; }
+.vt-panel p.vt-error { color: #f09595; }
+
+.vt-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.vt-primary, .vt-secondary {
+  height: 32px; padding: 0 18px; border-radius: 9px; font: 600 13px inherit; cursor: pointer;
+  transition: transform 0.08s ease-out;
+}
+.vt-primary { border: 0; background: #85b7eb; color: #042c53; }
+.vt-secondary { border: 1px solid #444441; background: transparent; color: #d3d1c7; }
+.vt-primary:active, .vt-secondary:active { transform: scale(0.96); }
+
+.vt-visor {
+  position: relative;
+  width: 84px;
+  height: 60px;
+  margin: 0 auto;
+  border-radius: 22px;
+  background: linear-gradient(#ffffff, #e3e5ea);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  display: grid;
+  place-items: center;
+}
+
+.vt-eye { width: 40px; height: 7px; border-radius: 4px; background: #378add; box-shadow: 0 0 8px #378add; }
+.vt-visor.listen .vt-eye {
+  transform: scaleY(calc(1 + var(--level, 0) * 2.2)) scaleX(calc(1 - var(--level, 0) * 0.25));
+  transition: transform 0.09s ease-out;
+}
+.vt-panel p.vt-step { margin: 12px 0 0; min-height: 0; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.vt-panel h2.vt-phrase { margin-top: 2px; font-size: 18px; color: #b5d4f4; }
+.vt-visor.smile .vt-eye {
+  width: 36px; height: 14px; background: none; box-shadow: none;
+  border: 5px solid #1d9e75; border-top: 0; border-radius: 0 0 20px 20px; margin-top: -6px;
+}
+.vt-visor.smile { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(29, 158, 117, 0.5); }
+
+.vt-stage { position: relative; width: 130px; height: 130px; margin: 0 auto; display: grid; place-items: center; }
+.vt-progress {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(#85b7eb calc(var(--p, 0) * 360deg), #232427 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 6px), #000 calc(100% - 5px));
+  transition: --p 0.4s ease-out;
+}
+
+.vt-dots { display: flex; gap: 8px; justify-content: center; margin-top: 8px; }
+.vt-dots span { width: 9px; height: 9px; border-radius: 50%; background: #2c2c2a; transition: background 0.3s; }
+.vt-dots span.on { background: #5dcaa5; }
+.vt-dots span.now { background: #85b7eb; animation: vt-pulse 1.2s ease-in-out infinite; }
+
+@keyframes vt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes vt-pop { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+@keyframes vt-talk { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.7) scaleY(1.6); } }
+@keyframes vt-pulse { 50% { transform: scale(1.35); } }
+
+/* ── JARVIS: the microphone loudness bar (hub/pages/voice.ts) ─────────── */
+.mic-bar {
+  position: relative;
+  width: 200px;
+  height: 8px;
+  border-radius: 4px;
+  background: #232427;
+  overflow: visible;
+}
+.mic-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 4px;
+  background: #5f5e5a;
+  transition: width 0.09s ease-out, background 0.2s;
+}
+.mic-bar.speech .mic-fill { background: #5dcaa5; box-shadow: 0 0 8px rgba(93, 202, 165, 0.6); }
+.mic-mark {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  border-radius: 1px;
+  background: #85b7eb;
+}

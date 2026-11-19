@@ -54,6 +54,11 @@ export interface FlowPrefs {
   voice: boolean;
   voiceOutput: VoiceOutput;
   voiceGender: "female" | "male";
+  /** JARVIS's own voice (Kokoro): "george", "lewis", "daniel" or "fable". */
+  voiceName: string;
+  /** JARVIS: answer only the trained voice. */
+  voiceOnlyMe: boolean;
+  voiceStrictness: "relaxed" | "balanced" | "strict";
   /** The other apps go quiet while Coucou listens to you (Windows). */
   muteOthers: boolean;
   /** One short press of the key starts hands-free dictation, instead of two. */
@@ -198,9 +203,11 @@ export interface VoiceView {
   phase: "listening" | "thinking" | "speaking";
   heard: string;
   answer: string;
+  /** JARVIS: ms each newly added word takes to say (0: show at once). */
+  paceMs?: number;
 }
 
-export type VoiceOutput = "system" | "elevenlabs" | "off";
+export type VoiceOutput = "jarvis" | "system" | "elevenlabs" | "off";
 
 export const FlowBridge = {
   status: () => call<FlowStatus>("flow_status"),

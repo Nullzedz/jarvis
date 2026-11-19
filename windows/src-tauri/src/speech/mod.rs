@@ -44,7 +44,7 @@ impl ModelSet {
         models_dir().join(self.id)
     }
 
-    fn path(&self, name: &str) -> String {
+    pub fn path(&self, name: &str) -> String {
         self.dir().join(name).to_string_lossy().to_string()
     }
 

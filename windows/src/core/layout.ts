@@ -109,13 +109,16 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   launch: { height: 160, botX: 58, botY: null, botDiameter: 52, agentMode: "none" },
   // JARVIS: the calendar tab. The character steps aside (botPosition) to leave the whole width to the day or week.
   calendar: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
-  // JARVIS: the live code view — the visor top-left above the session and its steps.
-  live: { height: 252, botX: 64, botY: 76, botDiameter: 46, agentMode: "none" },
+  // JARVIS: the live code view, one file card — his eye small in the card's header, top left.
+  live: { height: 252, botX: 44, botY: 58, botDiameter: 22, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
 // dropped the whole sequence — Mochi included — is drawn by src/upload, which
 // owns its own constants (USC) straight from UploadSequenceEngine.swift.
+
+/** JARVIS: the live code view folded to its summary once the session is done. */
+export const LIVE_FOLDED_H = 128;
 
 /** The question view with options to pick from: room for two rows of them. */
 export const QUESTION_PICKER_H = 200;

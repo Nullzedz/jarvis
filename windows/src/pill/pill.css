@@ -376,3 +376,12 @@ body {
     transform: scale(1);
   }
 }
+
+/* JARVIS: words light up as they are said (pill/main.ts answerWords). */
+.bubble.voice .answer .w.say {
+  opacity: 0.28;
+  animation: jarvis-say 0.18s ease-out forwards;
+}
+@keyframes jarvis-say {
+  to { opacity: 1; }
+}

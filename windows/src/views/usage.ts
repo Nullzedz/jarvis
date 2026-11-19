@@ -11,8 +11,8 @@
 
 import { Bridge } from "../core/bridge";
 import {
-  PLAN_TEXT, claudeSubtitle, codexIsStale, codexResetsLabel, codexSubtitle, dominantPct,
-  effectivePct, parseCodexPlan, pillLabel, planColor, resetLabel,
+  CLAUDE_STALE_MS, PLAN_TEXT, claudeIsStale, claudeSubtitle, codexIsStale, codexResetsLabel, codexSubtitle, dominantPct,
+  effectivePct, parseClaudePlan, parseCodexPlan, pillLabel, planColor, resetLabel,
   type CodexPlanUsage, type PlanUsage, type PlanWindow,
 } from "../core/plan";
 import { State } from "../core/state";
@@ -88,6 +88,32 @@ export function storedClaudePlanUsage(): string | null {
   }
 }
 
+// JARVIS: without a terminal, the numbers come from Claude Code's own replies:
+// pushed after each of JARVIS's own (`claude-plan`, voice/warm.rs), and asked
+// for with one tiny question when the card or pill shows numbers over 10 minutes
+// old — at most once every 10 minutes, never while paused.
+let claudeInFlight = false;
+let claudeAskedAt = 0;
+
+/** Numbers pushed from JARVIS's own Claude Code (status line shape). */
+export function takeClaudePlanLimits(rateLimits: unknown): void {
+  const usage = parseClaudePlan(rateLimits);
+  if (usage) setClaudePlanUsage(usage);
+}
+
+export function refreshClaudePlanUsage(now = Date.now()): void {
+  if (claudeInFlight || State.paused) return;
+  if (!claudeIsStale(State.planUsage, now) || now - claudeAskedAt < CLAUDE_STALE_MS) return;
+  claudeInFlight = true;
+  claudeAskedAt = now;
+  void Bridge.claudePlanUsage()
+    .then(takeClaudePlanLimits)
+    .catch(() => {})
+    .finally(() => {
+      claudeInFlight = false;
+    });
+}
+
 // ── Codex numbers ─────────────────────────────────────────────────────────────
 
 let codexInFlight = false;
@@ -133,6 +159,7 @@ export function buildPlanPill(codex: boolean): PlanPill {
       State.planDetailIsCodex = codex;
       State.showingPlanDetail = !open;
       if (codex) refreshCodexPlanUsage();
+      else refreshClaudePlanUsage();
       State.notify();
     },
   }, dotEl, label);
@@ -187,6 +214,8 @@ export class PlanCard {
   /** Re-renders when the numbers change, or every 30 s for the countdowns. */
   sync(now = Date.now()) {
     const codex = State.planDetailIsCodex;
+    // JARVIS: old or missing Claude numbers are asked for (at most every 10 min).
+    if (!codex) refreshClaudePlanUsage(now);
     const u = codex ? State.codexPlanUsage : State.planUsage;
     const key = `${language()}|${codex}|${JSON.stringify(u)}|${Math.floor(now / 30_000)}`;
     if (key === this.key) return;

@@ -67,3 +67,27 @@ test("paths are shown relative to the session, with a type badge", () => {
   assert.equal(extBadge("main.rs"), "RS");
   assert.equal(extBadge("Makefile"), "TXT");
 });
+
+test("an edit plays at a pace you can follow: struck line by line, typed, never too long", async () => {
+  const { strikeAt, typeDuration } = await import("../src/views/live.ts");
+  assert.ok(strikeAt(1, 3) > strikeAt(0, 3), "one line after another");
+  assert.ok(strikeAt(39, 40) <= 150 + 1400, "a long removal still strikes through in under 1.6 s");
+  assert.equal(typeDuration(0), 600, "a tiny edit still shows itself");
+  assert.ok(typeDuration(110) >= 1000, "about 110 characters a second");
+  assert.equal(typeDuration(100_000), 4500, "a whole file types in 4.5 s at most");
+});
+
+test("the done card fits its summary, and shows it as plain words", async () => {
+  const { foldedHeight, plainSummary } = await import("../src/views/live.ts");
+  assert.equal(plainSummary("I rewrote isValidMaxHeap in [task1.cpp](task1.cpp#L115) with **care** and `code`."), "I rewrote isValidMaxHeap in task1.cpp with care and code.");
+  assert.ok(foldedHeight(60) > foldedHeight(20), "a longer summary gets more room");
+  assert.equal(foldedHeight(5000), 252, "never taller than the full view (it scrolls)");
+});
+
+test("Claude's plan numbers are asked for again only once they are 10 minutes old", async () => {
+  const { claudeIsStale, CLAUDE_STALE_MS } = await import("../src/core/plan.ts");
+  const now = 1_800_000_000_000;
+  assert.equal(claudeIsStale(null, now), true, "none yet");
+  assert.equal(claudeIsStale({ updatedAt: now - 60_000 }, now), false);
+  assert.equal(claudeIsStale({ updatedAt: now - CLAUDE_STALE_MS }, now), true);
+});

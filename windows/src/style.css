@@ -4149,86 +4149,6 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   box-sizing: border-box;
 }
 
-.lv-left {
-  flex: 0 0 128px;
-  padding: 60px 0 0 6px;
-  min-width: 0;
-}
-
-.lv-proj {
-  font: 600 13px var(--font);
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lv-sub {
-  font: 400 10.5px var(--font);
-  color: var(--dim-3);
-  margin-top: 1px;
-}
-
-.lv-steps {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.lv-step {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font: 400 11.5px var(--font);
-  color: var(--dim-3);
-  min-width: 0;
-  animation: lv-in 0.28s cubic-bezier(0.3, 1.2, 0.4, 1) both;
-}
-
-.lv-step.running {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.lv-step.done .lv-step-label {
-  color: var(--dim-2);
-}
-
-.lv-step-target {
-  font: 400 9.5px var(--font);
-  color: var(--dim-3);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lv-step-icon {
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 1.5px solid #5f5e5a;
-  box-sizing: border-box;
-}
-
-.lv-step-icon.done {
-  border-color: #5dcaa5;
-  background: #5dcaa5;
-  box-shadow: inset 0 0 0 2px #141518;
-}
-
-.lv-step-icon.running {
-  border-color: #7f77dd;
-  border-right-color: transparent;
-  animation: lv-spin 0.8s linear infinite;
-}
-
-.lv-step-icon.failed {
-  border-color: #e24b4a;
-  background: #e24b4a;
-}
-
 .lv-right {
   flex: 1 1 auto;
   min-width: 0;
@@ -4241,42 +4161,9 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   overflow: hidden;
 }
 
-.lv-tabbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px 4px;
-  border-bottom: 1px solid #1b1c1f;
-}
 
-.lv-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px;
-  border-radius: 7px;
-  background: #1b1c1f;
-  font: 400 11px ui-monospace, "Cascadia Code", Consolas, monospace;
-  color: #d3d1c7;
-}
 
-.lv-badge {
-  font: 700 7.5px var(--font);
-  color: #e6f1fb;
-  background: #378add;
-  padding: 1px 3px;
-  border-radius: 3px;
-}
 
-.lv-path {
-  margin-left: auto;
-  font: 400 9.5px ui-monospace, "Cascadia Code", Consolas, monospace;
-  color: #5f5e5a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  direction: rtl;
-}
 
 .lv-codebody {
   flex: 1 1 auto;
@@ -4382,17 +4269,6 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   line-height: 1.45;
 }
 
-.lv-done-check {
-  flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: rgba(29, 158, 117, 0.2);
-  color: #5dcaa5;
-  font-weight: 700;
-}
 
 @keyframes lv-spin { to { transform: rotate(360deg); } }
 @keyframes lv-blink { 50% { opacity: 0; } }
@@ -4457,27 +4333,6 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   transform: scale(0.92);
 }
 
-/* The back button sits in the code panel's top-right corner: the tab bar makes room. */
-.lv-tabbar {
-  padding-right: 40px;
-}
-
-/* Steps can be clicked to show them. */
-.lv-step {
-  cursor: pointer;
-  border-radius: 6px;
-  margin-left: -4px;
-  padding: 1px 4px;
-  transition: background 0.18s;
-}
-
-.lv-step:hover {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.lv-step.picked {
-  background: rgba(133, 183, 235, 0.14);
-}
 
 /* An edit: removed code in a red outlined box, struck through; new code in a green one. */
 .lv-block {
@@ -4520,7 +4375,7 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   width: 100%;
   background: #f09595;
   transform-origin: left center;
-  animation: lv-strike 0.35s ease-out 0.12s both;
+  animation: lv-strike 0.3s ease-out var(--strike, 0.15s) both;
 }
 
 @keyframes lv-strike {
@@ -4528,20 +4383,7 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   to { transform: scaleX(1); }
 }
 
-/* Everything in the live view scrolls: the steps, the code, the output, the answer. */
-.lv-left {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.lv-steps {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding-bottom: 2px;
-}
-
+/* Everything in the live view scrolls: the code, the output, the answer. */
 .lv-codebody,
 .lv-term,
 .lv-done {
@@ -4554,14 +4396,12 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   align-items: flex-start;
 }
 
-.lv-steps::-webkit-scrollbar,
 .lv-codebody::-webkit-scrollbar,
 .lv-term::-webkit-scrollbar,
 .lv-done::-webkit-scrollbar {
   width: 6px;
 }
 
-.lv-steps::-webkit-scrollbar-thumb,
 .lv-codebody::-webkit-scrollbar-thumb,
 .lv-term::-webkit-scrollbar-thumb,
 .lv-done::-webkit-scrollbar-thumb {
@@ -4569,17 +4409,53 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
   border-radius: 3px;
 }
 
-.lv-steps::-webkit-scrollbar-track,
 .lv-codebody::-webkit-scrollbar-track,
 .lv-term::-webkit-scrollbar-track,
 .lv-done::-webkit-scrollbar-track {
   background: transparent;
 }
 
-/* Panel bar badges: a terminal, Done, anything else. */
-.lv-badge.term { background: #0f6e56; color: #e1f5ee; font-family: ui-monospace, Consolas, monospace; }
-.lv-badge.done { background: #1d9e75; color: #e1f5ee; }
-.lv-badge.note { background: #444441; color: #d3d1c7; }
+/* The file card's header: JARVIS's eye (drawn by the island) on the left, what
+   he is doing and to what, the lines changed so far, room for ‹ back. */
+.lv-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 40px 0 42px;
+  border-bottom: 1px solid #1b1c1f;
+  font: 400 11.5px var(--font);
+  color: var(--ink);
+  min-width: 0;
+}
+
+.lv-verb { color: var(--dim-2); flex: 0 0 auto; }
+
+.lv-target {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 400 11px ui-monospace, "Cascadia Code", Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-diff {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  font: 600 11px ui-monospace, "Cascadia Code", Consolas, monospace;
+  animation: lv-fade 0.25s ease-out both;
+}
+
+.lv-plus { color: #97c459; }
+.lv-minus { color: #f09595; }
+
+/* Done: the card folds to the summary (island.ts, LIVE_FOLDED_H). */
+.view.live.folded { padding-bottom: 6px; }
+.view.live.folded .lv-done { padding: 8px 14px 10px; font-size: 12px; line-height: 1.5; flex: 0 0 auto; }
+.lv-line.del.more { color: #f09595; padding-left: 52px; }
 
 /* Under a bar, the answer and the notes start at the top instead of floating mid-panel. */
 .lv-done,

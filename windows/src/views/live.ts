@@ -1,10 +1,12 @@
-// JARVIS: the live code view. While a Claude Code session works, the open
-// island shows the session on the left (the visor, drawn by the island, the
-// project and its steps) and, on the right, what it is doing right now:
+// JARVIS: the live code view, a file card. While a Claude Code session works,
+// the open island is one card that shows what it is doing right now, under a
+// header with JARVIS's eye (drawn by the island), what he is doing and to what,
+// and the lines changed so far (+added −removed):
 // - reading or editing a file: that file around the spot, the edit marked
-//   (removed lines red, new ones green; about to change: highlighted);
+//   (removed lines struck through in red, the new ones typing in in green;
+//   about to change: highlighted);
 // - running a command: a small terminal with the command and the end of its output;
-// - done: Claude's answer.
+// - done: the card folds into a short summary (island.ts asks liveFolded()).
 // The steps come from core/live.ts (fed by the hooks); file lines from Rust (live.rs).
 
 import { Bridge, type LiveWindow } from "../core/bridge";
@@ -13,6 +15,7 @@ import * as Live from "../core/live";
 import { h, clear, svg } from "./dom";
 import { ICONS } from "./icons";
 import { t } from "../i18n/i18n";
+import { LIVE_FOLDED_H, VIEW_LAYOUTS } from "../core/layout";
 import type { ViewActions, ViewHost } from "./views";
 
 
@@ -69,23 +72,43 @@ export function highlight(line: string): HTMLElement {
 /** Edits already animated (by their key): reopening the view shows them finished. */
 const animated = new Set<string>();
 
-/** Typing speed, and the longest the typing may take whatever the size of the edit. */
-const CHARS_PER_SEC = 520;
-const MAX_TYPE_MS = 1600;
-/** The removed lines show alone for a beat before the new code starts typing. */
-const TYPE_DELAY_MS = 380;
+/** Typing speed, and the shortest and longest the typing may take whatever the size of the edit. */
+const CHARS_PER_SEC = 110;
+const MIN_TYPE_MS = 600;
+const MAX_TYPE_MS = 4500;
+/** The removed lines are struck through one after another, this far apart (the whole run at most STRIKE_MAX_MS). */
+const STRIKE_STEP_MS = 140;
+const STRIKE_MAX_MS = 1400;
+/** How long one line's strike takes (style.css lv-strike). */
+const STRIKE_MS = 300;
+/** After the edit has played, it stays this long before the next step shows. */
+const LINGER_MS = 900;
+/** Removed lines shown at most; the rest are counted. */
+const MAX_REMOVED = 40;
+
+/** When removed line `i` (of `n`) is struck through, from the start of the edit (ms). */
+export function strikeAt(i: number, n: number): number {
+  const step = n > 1 ? Math.min(STRIKE_STEP_MS, STRIKE_MAX_MS / (n - 1)) : 0;
+  return 150 + i * step;
+}
+
+/** How long typing `chars` characters of new code takes (ms). */
+export function typeDuration(chars: number): number {
+  return Math.min(MAX_TYPE_MS, Math.max(MIN_TYPE_MS, (chars / CHARS_PER_SEC) * 1000));
+}
 
 /**
- * Types the green (added) lines of `body` in: they start empty, then fill
- * character by character, highlighted as they grow, with a cursor at the end;
- * a soft flash when done. Red (removed) lines are there from the start.
+ * Types the green (added) lines of `body` in, `delay` ms from now (once the
+ * removed lines are struck through): they start empty, then fill character by
+ * character, highlighted as they grow, with a cursor at the end; a soft flash
+ * when done. Returns how long the whole thing takes (ms).
  */
-function typeIn(body: HTMLElement) {
+function typeIn(body: HTMLElement, delay: number): number {
   const rows = [...body.querySelectorAll<HTMLElement>(".lv-line.add")];
-  if (!rows.length) return;
+  if (!rows.length) return delay;
   const texts = rows.map((row) => row.querySelector(".lv-code")?.textContent ?? "");
   const total = texts.reduce((n, s) => n + s.length, 0);
-  const duration = Math.min(MAX_TYPE_MS, Math.max(250, (total / CHARS_PER_SEC) * 1000));
+  const duration = typeDuration(total);
   const caret = h("span", { class: "lv-typecaret" });
   const setText = (row: HTMLElement, text: string) => {
     const old = row.querySelector(".lv-code");
@@ -100,7 +123,7 @@ function typeIn(body: HTMLElement) {
   });
   // Where each row's text starts in the whole typed run.
   const starts = texts.map((_, i) => texts.slice(0, i).reduce((n, s) => n + s.length, 0));
-  const t0 = performance.now() + TYPE_DELAY_MS;
+  const t0 = performance.now() + delay;
   const step = (now: number) => {
     if (!body.isConnected) return; // the view moved on: nothing to finish
     const shown = Math.max(0, Math.floor(((now - t0) / duration) * total));
@@ -127,14 +150,47 @@ function typeIn(body: HTMLElement) {
     });
   };
   requestAnimationFrame(step);
+  return delay + duration;
 }
 
-function stepIcon(status: Live.LiveStatus | "todo"): HTMLElement {
-  return h("span", { class: `lv-step-icon ${status}` });
+/** The answer as plain words: markdown links become their text, ** and ` go. */
+export function plainSummary(text: string): string {
+  return text
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\*\*|__|`/g, "")
+    .trim();
 }
 
-export function buildLive(actions: ViewActions): ViewHost {
-  const left = h("div", { class: "lv-left" });
+/** Lines in `text` (a trailing newline does not count). */
+function lineCount(text: string | undefined): number {
+  return text ? text.replace(/\n$/, "").split("\n").length : 0;
+}
+
+/** Lines added and removed by a session's edits so far. */
+export function diffTotals(actions: Live.LiveAction[]): { added: number; removed: number } {
+  let added = 0;
+  let removed = 0;
+  for (const a of actions) {
+    if (a.kind !== "edit" || a.status === "failed") continue;
+    added += lineCount(a.newText);
+    removed += lineCount(a.oldText);
+  }
+  return { added, removed };
+}
+
+/** The finished session's summary is showing: the island's height for it (fitted to the text), else 0. */
+let folded = 0;
+export function liveFolded(): number {
+  return folded;
+}
+
+/** The island's height around a summary `textH` tall (at least LIVE_FOLDED_H, at most the full view). */
+export function foldedHeight(textH: number): number {
+  // 42: the island's tabs; 2 + 6: the view's padding; 2: the card's border; 28: its header; 10: the island's bottom edge.
+  return Math.round(Math.min(VIEW_LAYOUTS.live.height, Math.max(LIVE_FOLDED_H, 42 + 2 + 2 + 28 + textH + 6 + 10)));
+}
+
+export function buildLive(actions: ViewActions, onResize: () => void = () => {}): ViewHost {
   const right = h("div", { class: "lv-right" });
   // Back to the overview: the ‹ button, or Esc.
   const back = () => {
@@ -142,7 +198,7 @@ export function buildLive(actions: ViewActions): ViewHost {
     actions.setView("overview");
   };
   const backBtn = h("button", { class: "icon-btn lv-back", title: t("Back"), onclick: back }, svg(ICONS.chevronLeft, 11, { stroke: 2.4 }));
-  const el = h("div", { class: "view live" }, backBtn, left, right);
+  const el = h("div", { class: "view live" }, backBtn, right);
   window.addEventListener(
     "keydown",
     (e) => {
@@ -155,80 +211,58 @@ export function buildLive(actions: ViewActions): ViewHost {
 
   let shownKey = "";
   let fileToken = 0;
-  /** The step clicked in the list (by its time), shown instead of the latest; null = follow live. */
-  let selectedAt: number | null = null;
-  /** Steps in the list at the last draw, to follow new ones. */
-  let stepCount = 0;
-  /** A step clicked again plays its edit again. */
-  let replayAt: number | null = null;
-
-  function select(at: number | null) {
-    actions.blip();
-    selectedAt = at;
-    replayAt = at;
-    shownKey = "";
-    render();
-  }
   let cache: { key: string; win: LiveWindow | null; error: string | null } = { key: "", win: null, error: null };
 
-  function renderLeft(task: NonNullable<typeof State.focusTask>, s: Live.LiveSession) {
-    // The list scrolls: keep where you were, unless you were at the bottom (then follow the new steps).
-    const prev = left.querySelector<HTMLElement>(".lv-steps");
-    const prevTop = prev?.scrollTop ?? 0;
-    const atBottom = !prev || prev.scrollTop + prev.clientHeight >= prev.scrollHeight - 4;
-    const prevCount = stepCount;
-    stepCount = s.actions.length;
-    clear(left);
-    const mins = Math.max(0, Math.round((Date.now() - s.startedAt) / 60_000));
-    left.append(
-      h("div", { class: "lv-proj", text: task.name }),
-      h("div", { class: "lv-sub", text: `Claude Code · ${mins < 1 ? t("just now") : t("{n} min", { n: mins })}` }),
+  /** `h`: the island's height that shows the whole summary; 0 unfolds. */
+  function setFolded(h: number) {
+    el.classList.toggle("folded", h > 0);
+    if (h === folded) return;
+    folded = h;
+    onResize();
+  }
+
+  /** An edit playing (struck through, then typed in): it stays on screen until `until`, newer steps wait. */
+  let held: { at: number; until: number } | null = null;
+  let holdTimer = 0;
+  function hold(at: number, ms: number) {
+    held = { at, until: Date.now() + ms };
+    clearTimeout(holdTimer);
+    holdTimer = window.setTimeout(() => {
+      shownKey = "";
+      render();
+    }, ms + 20);
+  }
+
+  /** The card's header: room for the eye, what he is doing and to what, the lines changed so far. */
+  function head(verb: string, target: string, s?: Live.LiveSession, title = "") {
+    const bar = h("div", { class: "lv-head", title },
+      h("span", { class: "lv-verb", text: verb }),
+      h("span", { class: "lv-target", text: target }),
     );
-    const list = h("div", { class: "lv-steps" });
-    for (const a of s.actions) {
-      const target = a.file ? baseName(a.file) : a.command ? a.command.split(/\s+/)[0] : a.query ?? "";
-      const picked = selectedAt === a.at ? " picked" : "";
-      list.append(
-        h("div", { class: `lv-step ${a.status}${picked}`, title: t("Show this step"), onclick: () => select(a.at) },
-          stepIcon(a.status),
-          h("span", { class: "lv-step-label", text: a.label }),
-          h("span", { class: "lv-step-target", text: target }),
-        ),
-      );
+    const d = s ? diffTotals(s.actions) : { added: 0, removed: 0 };
+    if (d.added || d.removed) {
+      bar.append(h("span", { class: "lv-diff" },
+        h("span", { class: "lv-plus", text: `+${d.added}` }),
+        h("span", { class: "lv-minus", text: `−${d.removed}` }),
+      ));
     }
-    list.append(
-      h("div", { class: `lv-step ${s.done ? "done" : "todo"}${s.done && selectedAt == null ? " picked" : ""}`, onclick: () => select(null) },
-        stepIcon(s.done ? "done" : "todo"), h("span", { class: "lv-step-label", text: t("Done") })),
-    );
-    left.append(list);
-    list.scrollTop = atBottom || stepCount !== prevCount && selectedAt == null ? list.scrollHeight : prevTop;
+    right.append(bar);
   }
 
-  function tab(file: string, cwd: string): HTMLElement {
-    return panelBar(extBadge(file), baseName(file), relPath(file, cwd));
-  }
-
-  /** The bar on top of every panel: a tab (badge + name), a note on the right, room for ‹ back. */
-  function panelBar(badge: string, name: string, note = "", badgeClass = ""): HTMLElement {
-    return h("div", { class: "lv-tabbar" },
-      h("div", { class: "lv-tab" }, h("span", { class: `lv-badge ${badgeClass}`, text: badge }), h("span", { text: name })),
-      h("span", { class: "lv-path", text: note }),
-    );
-  }
-
-  /** The session folder's name, for the bar of panels that are not a file. */
+  /** The session folder's name, for commands. */
   function folderName(): string {
     const task = State.focusTask;
     const s = task ? Live.get(task.id) : undefined;
     return s?.cwd ? baseName(s.cwd.replace(/[\\/]+$/, "")) : "";
   }
 
-  function codePanel(a: Live.LiveAction, cwd: string) {
+  function codePanel(a: Live.LiveAction, s: Live.LiveSession) {
     const file = a.file!;
+    const cwd = s.cwd;
     const editing = a.kind === "edit";
     const find = editing ? (a.status === "running" ? a.oldText : a.newText) ?? null : null;
     const key = JSON.stringify([file, a.status, find, a.line, a.at]);
-    right.append(tab(file, cwd));
+    head(editing ? (a.status === "running" ? t("Editing") : t("Edited")) : t("Reading"), relPath(file, cwd), s, file);
     const body = h("div", { class: "lv-codebody" });
     right.append(body);
     const paint = () => {
@@ -251,8 +285,15 @@ export function buildLive(actions: ViewActions): ViewHost {
         const inFocus = w.focusStart > 0 && n >= w.focusStart && n <= w.focusEnd;
         if (n === w.focusStart && removed.length) {
           const delBlock = h("div", { class: "lv-block del" });
-          for (const old of removed.slice(0, 6)) {
-            delBlock.append(h("div", { class: "lv-line del" }, h("span", { class: "lv-num", text: "" }), h("span", { class: "lv-sign", text: "−" }), highlight(old)));
+          const shownOld = removed.slice(0, MAX_REMOVED);
+          shownOld.forEach((old, j) => {
+            const row = h("div", { class: "lv-line del" }, h("span", { class: "lv-num", text: "" }), h("span", { class: "lv-sign", text: "−" }), highlight(old));
+            // Each line is struck through in turn (style.css lv-strike reads --strike).
+            row.style.setProperty("--strike", `${strikeAt(j, shownOld.length)}ms`);
+            delBlock.append(row);
+          });
+          if (removed.length > shownOld.length) {
+            delBlock.append(h("div", { class: "lv-line del more", text: `… ${removed.length - shownOld.length}` }));
           }
           body.append(delBlock);
         }
@@ -271,15 +312,13 @@ export function buildLive(actions: ViewActions): ViewHost {
       });
       const focusEl = body.querySelector(".lv-block, .lv-line.pending");
       if (focusEl instanceof HTMLElement) body.scrollTop = Math.max(0, focusEl.offsetTop - body.clientHeight / 3);
-      // A finished edit seen for the first time (or clicked again): the new code types itself in.
-      if (replayAt === a.at) {
-        animated.delete(key);
-        replayAt = null;
-      }
+      // A finished edit seen for the first time: the new code types itself in.
       if (editing && a.status === "done" && !animated.has(key)) {
         animated.add(key);
         if (animated.size > 200) animated.delete(animated.values().next().value!);
-        typeIn(body);
+        const n = Math.min(removed.length, MAX_REMOVED);
+        const struck = n ? strikeAt(n - 1, n) + STRIKE_MS + 250 : 250;
+        hold(a.at, typeIn(body, struck) + LINGER_MS);
       }
     };
     paint();
@@ -303,10 +342,8 @@ export function buildLive(actions: ViewActions): ViewHost {
     );
   }
 
-  function terminal(a: Live.LiveAction) {
-    // The bar: a terminal badge and the command's name ("cd", "npm"…), the folder on the right.
-    const name = (a.command ?? a.tool).trim().split(/\s+/)[0] || a.tool;
-    right.append(panelBar(">_", name, folderName(), "term"));
+  function terminal(a: Live.LiveAction, s: Live.LiveSession) {
+    head(a.status === "running" ? t("Running") : t("Ran"), a.command ?? a.tool, s, folderName());
     const term = h("div", { class: "lv-term" });
     term.append(h("div", { class: "lv-cmd" }, h("span", { class: "lv-prompt", text: "❯" }), h("span", { text: a.command ?? a.tool })));
     if (a.output) {
@@ -322,43 +359,52 @@ export function buildLive(actions: ViewActions): ViewHost {
     term.scrollTop = term.scrollHeight;
   }
 
-  function note(text: string, sub = "", badge = "•") {
-    right.append(panelBar(badge, text, folderName(), "note"));
-    right.append(h("div", { class: "lv-plain" }, h("b", { text }), sub ? h("span", { text: sub }) : document.createTextNode("")));
+  function note(s: Live.LiveSession, verb: string, target = "") {
+    head(verb, target, s);
+    right.append(h("div", { class: "lv-plain" }, h("span", { class: "lv-caret" })));
   }
 
   function render() {
     const task = State.focusTask;
     const s = task ? Live.get(task.id) : undefined;
     if (!task || !s) {
-      clear(left);
       clear(right);
+      setFolded(0);
       return;
     }
-    if (selectedAt != null && !s.actions.some((x) => x.at === selectedAt)) selectedAt = null;
-    const picked = selectedAt != null ? s.actions.find((x) => x.at === selectedAt) : undefined;
-    const a = picked ?? Live.current(task.id);
-    const key = JSON.stringify([task.id, task.name, selectedAt, s.actions.map((x) => [x.at, x.status, x.output?.length ?? 0]), s.done, task.finalLine, Math.floor(Date.now() / 60_000)]);
+    // An edit still playing stays on screen; what came after it waits its turn.
+    const playing = held && Date.now() < held.until ? s.actions.find((x) => x.at === held!.at) : undefined;
+    if (!playing) held = null;
+    const a = playing ?? Live.current(task.id);
+    const key = JSON.stringify([task.id, playing?.at ?? null, s.actions.map((x) => [x.at, x.status, x.output?.length ?? 0]), s.done, task.finalLine]);
     if (key === shownKey) return;
     shownKey = key;
-    renderLeft(task, s);
     clear(right);
-    if (!picked && s.done && task.finalLine) {
-      right.append(panelBar("✓", t("Done"), folderName(), "done"));
-      right.append(h("div", { class: "lv-done" }, h("span", { class: "lv-done-check", text: "✓" }), h("span", { text: task.finalLine })));
+    if (!playing && s.done && task.finalLine) {
+      // Done: the summary under the eye, the lines changed on the right; the
+      // island folds to just what the summary needs.
+      head(t("Done"), "", s);
+      const done = h("div", { class: "lv-done", text: plainSummary(task.finalLine) });
+      right.append(done);
+      el.classList.add("folded");
+      setFolded(foldedHeight(done.scrollHeight));
       return;
     }
-    if (!a) return note(t("Thinking…"));
-    if ((a.kind === "read" || a.kind === "edit") && a.file) return codePanel(a, s.cwd);
-    if (a.kind === "command") return terminal(a);
-    if (a.kind === "search") return note(t("Searching"), a.query ?? "");
-    return note(a.label);
+    setFolded(0);
+    if (!a) return note(s, t("Thinking…"));
+    if ((a.kind === "read" || a.kind === "edit") && a.file) return codePanel(a, s);
+    if (a.kind === "command") return terminal(a, s);
+    if (a.kind === "search") return note(s, t("Searching"), a.query ?? "");
+    return note(s, a.label);
   }
 
   return {
     el,
     sync() {
-      if (State.view !== "live") return;
+      if (State.view !== "live") {
+        if (folded) setFolded(0);
+        return;
+      }
       // Nothing to show any more (the session ended): back to the usual view.
       const task = State.focusTask;
       if (State.mode === "expanded" && (!task || !Live.get(task.id))) {

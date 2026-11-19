@@ -112,10 +112,16 @@ pub struct Prefs {
     pub voice: bool,
     /// The other apps' sound is muted while Coucou listens to you (Windows).
     pub mute_others: bool,
-    /// How Coucou answers out loud: "system", "elevenlabs" or "off".
+    /// How Coucou answers out loud: "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
     pub voice_output: String,
     /// The ElevenLabs voice: "female" or "male".
     pub voice_gender: String,
+    /// JARVIS's own voice (tts.rs VOICES): "george", "lewis", "daniel" or "fable".
+    pub voice_name: String,
+    /// JARVIS: answer only the trained voice (voice/print.rs).
+    pub voice_only_me: bool,
+    /// How close a voice must be to the trained one: "relaxed", "balanced" or "strict".
+    pub voice_strictness: String,
     /// One short press of the key starts hands-free dictation, instead of two.
     pub one_tap_hands_free: bool,
 }
@@ -136,8 +142,11 @@ impl Default for Prefs {
             open_at_launch: true,
             voice: false,
             mute_others: true,
-            voice_output: "system".into(),
-            voice_gender: "female".into(),
+            voice_output: "jarvis".into(),
+            voice_gender: "male".into(),
+            voice_name: crate::tts::DEFAULT_VOICE.into(),
+            voice_only_me: false,
+            voice_strictness: "balanced".into(),
             one_tap_hands_free: false,
         }
     }

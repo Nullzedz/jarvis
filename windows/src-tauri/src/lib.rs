@@ -8,6 +8,7 @@ mod chat;
 mod claude;
 mod claude_code;
 mod cli_relay;
+mod claude_plan;
 mod codex_plan;
 mod config_file;
 mod desktop;
@@ -22,6 +23,7 @@ mod integrations;
 mod calcom;
 mod gcal;
 mod live;
+mod tts;
 mod island;
 mod launch;
 mod local_chat;
@@ -510,6 +512,12 @@ fn status_line_apply(
 /// Codex plan usage, asked of the Codex CLI (`codex app-server`) when its pill
 /// shows. Off the main thread: it can take a few seconds.
 #[tauri::command]
+async fn claude_plan_usage() -> Option<serde_json::Value> {
+    // JARVIS: Claude plan limits from one tiny Claude Code question (claude_plan.rs).
+    tauri::async_runtime::spawn_blocking(claude_plan::read).await.ok().flatten()
+}
+
+#[tauri::command]
 async fn codex_plan_usage() -> Option<serde_json::Value> {
     tauri::async_runtime::spawn_blocking(codex_plan::read).await.ok().flatten()
 }
@@ -905,6 +913,17 @@ pub fn run() {
             gcal::gcal_disconnect,
             gcal::gcal_fetch,
             live::live_read,
+            tts::voice_model,
+            tts::voice_model_download,
+            tts::voice_model_remove,
+            tts::voice_preview,
+            tts::voice_warm_up,
+            voice::print::voice_print_status,
+            voice::print::voice_train_start,
+            voice::print::voice_train_cancel,
+            voice::print::voice_print_forget,
+            voice::meter::mic_meter,
+            voice::meter::mic_meter_stop,
             mail::mail_refresh,
             mail::mail_more,
             mail::mail_search,
@@ -950,6 +969,7 @@ pub fn run() {
             status_line_preview,
             status_line_apply,
             codex_plan_usage,
+            claude_plan_usage,
             approval_decision,
             approval_answer,
             approval_ack,
@@ -1091,6 +1111,7 @@ pub fn run() {
         ])
         .setup(move |app| {
             let handle = app.handle().clone();
+            claude_plan::init(&handle);
             secrets::warm_up();
             app.manage(phone_link::PhoneLink::new(handle.clone()));
             tray::build(&handle)?;

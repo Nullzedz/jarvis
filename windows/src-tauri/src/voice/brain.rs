@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
 
-const FAST_MODEL: &str = "claude-haiku-4-5";
+pub const FAST_MODEL: &str = "claude-haiku-4-5";
 const FORGET_AFTER: Duration = Duration::from_secs(90);
 
 pub struct Brain {
@@ -24,7 +24,6 @@ impl Default for Brain {
 }
 
 pub struct Reply {
-    pub text: String,
     pub acted: bool,
 }
 
@@ -84,11 +83,20 @@ fn tools() -> Vec<Value> {
 
 fn system_prompt(pills: &str) -> String {
     let t = crate::platform::local_time();
+    format!("{} It is {:04}-{:02}-{:02} {:02}:{:02}.\n{}", persona(), t.year, t.month, t.day, t.hour, t.minute, instructions(pills))
+}
+
+fn persona() -> String {
     let os = if cfg!(windows) { "Windows" } else { "Linux" };
     format!(
         "You are JARVIS, the user's personal voice assistant living at the top of the screen of their {os} computer: \
-formal, composed and courteous, like a refined British butler, quietly witty, never gushing. Address the user as \"sir\". It is {:04}-{:02}-{:02} {:02}:{:02}.\n\
-Everything you write is read aloud: answer in the language the user spoke, in one or two short sentences, \
+formal, composed and courteous, like a refined British butler, quietly witty, never gushing. Address the user as \"sir\"."
+    )
+}
+
+fn instructions(pills: &str) -> String {
+    format!(
+        "Everything you write is read aloud: answer in the language the user spoke, in one or two short sentences, \
 no markdown, no lists, no emojis, no links.\n\
 Act with the tools instead of describing: pills, music, service_info for the user's own data, open_app, \
 prepare_email, and web_search for anything current (weather, news, scores, prices, facts you are not sure of). \
@@ -97,17 +105,32 @@ Email: gather the recipient's address, the subject and what to say (write the te
 wants to say, in the language they used), asking for what is missing one short question at a time, then call \
 prepare_email. The email is never sent by you: the user checks it in their mail app and sends it.\n\
 When you need an answer from the user, end with one short question. Otherwise never end with a question.\n\
-Pills: {pills}",
-        t.year, t.month, t.day, t.hour, t.minute
+Pills: {pills}"
+    )
+}
+
+/// JARVIS: the prompt of the kept-warm Claude Code (warm.rs). It has no time in
+/// it, so the same process serves every question: each question carries the time.
+pub fn claude_code_system() -> String {
+    format!(
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. Each message starts with the current date and time in brackets.",
+        persona(),
+        instructions("(not available)")
     )
 }
 
 impl Brain {
-    pub fn respond(&mut self, app: &AppHandle, transcript: &str) -> Option<Reply> {
+    /// Answers `transcript`; `on_text` gets the answer's words as they come
+    /// (all at once with the API, as they are written with Claude Code).
+    pub fn respond(&mut self, app: &AppHandle, transcript: &str, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
         if self.last.elapsed() > FORGET_AFTER {
             self.messages.clear();
         }
         self.last = Instant::now();
+        // JARVIS: no Claude key — your own Claude Code answers (words and web search, no tools).
+        if !crate::secrets::present(crate::claude::KEY) {
+            return self.respond_with_claude_code(transcript, on_text);
+        }
         self.messages.push(json!({ "role": "user", "content": transcript }));
         self.trim();
         let pills = super::ask_island(app, "pills", json!({ "action": "list" })).unwrap_or_default();
@@ -137,7 +160,7 @@ impl Brain {
                     if self.messages.last().is_some_and(|m| m["content"].is_string()) {
                         self.messages.pop();
                     }
-                    return acted.then(|| Reply { text: String::new(), acted });
+                    return acted.then(|| Reply { acted });
                 }
             };
             let content = turn["content"].as_array().cloned().unwrap_or_default();
@@ -164,7 +187,27 @@ impl Brain {
             spoken.clear();
         }
         self.repair();
-        Some(Reply { text: spoken_text(&spoken), acted })
+        let text = spoken_text(&spoken);
+        if !text.is_empty() {
+            on_text(&text);
+        }
+        Some(Reply { acted })
+    }
+
+    /// JARVIS: the answer through the user's own Claude Code, kept running
+    /// between questions (warm.rs) so its words come as they are written: web
+    /// search allowed, nothing else — it cannot press pills or open apps, it
+    /// answers. The conversation lives in that process.
+    fn respond_with_claude_code(&mut self, transcript: &str, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
+        let t = crate::platform::local_time();
+        let question = format!("[{:04}-{:02}-{:02} {:02}:{:02}] {transcript}", t.year, t.month, t.day, t.hour, t.minute);
+        match super::warm::ask(FAST_MODEL, &claude_code_system(), &question, on_text) {
+            Ok(_) => Some(Reply { acted: false }),
+            Err(err) => {
+                crate::log::line(format!("voice: Claude Code failed: {err}"));
+                None
+            }
+        }
     }
 
     /// Keeps the last exchanges, never cutting between a tool call and its result.
