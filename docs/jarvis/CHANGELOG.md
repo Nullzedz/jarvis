@@ -6,6 +6,24 @@ Windows app. Newest first.
 
 Tracking issue: [#1 — Give JARVIS its own UI, while keeping coucou's animation quality](https://github.com/Nullzedz/jarvis/issues/1).
 
+## Voice, file drop, live code card and plan usage — `06dedb2` ([#3](https://github.com/Nullzedz/jarvis/issues/3))
+
+- **« Hey JARVIS »:** his own offline British voice (Kokoro, via sherpa-onnx, downloaded on
+  click); voice training (say « Hey JARVIS » five times; « Only answer my voice » ignores
+  anyone else); a microphone meter in Settings. Answers come faster: Claude Code is kept warm,
+  thinking is off, and each sentence is spoken as soon as it is written. The pill lights up
+  words as they are said and leaves after a reading time. Kokoro still takes about 7 s for
+  the first sentence on a CPU.
+- **File drop:** Mochi is replaced by JARVIS as a white folder. He follows the file, his front
+  panel tips forward to take it, then snaps shut and smiles.
+- **Live code view:** one file card instead of the step list. The header shows his eye, the
+  action, the file or command and the lines changed so far. Removed lines are struck through
+  one by one, new code types in at about 110 characters a second, and the next step waits for
+  the edit to finish. When done, the island folds to fit the summary.
+- **Claude plan usage without a terminal:** the limits come with every reply of JARVIS's own
+  Claude Code (`rate_limit_event`). When the card's numbers are over 10 minutes old, one tiny
+  Haiku question refreshes them (at most every 10 minutes, never while paused).
+
 ## Live code view — `218124e`
 
 Watch a Claude Code session work, from the top bar. Opened with the new **`</>`** button on the

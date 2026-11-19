@@ -900,7 +900,7 @@ export function buildViews(
   map.set("whatsNew", buildWhatsNew());
   map.set("launch", buildLaunch(actions));
   map.set("calendar", buildCalendar({ keyboard: (on) => actions.keyboard(on) }));
-  map.set("live", buildLive(actions));
+  map.set("live", buildLive(actions, onChatHeightChange));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));
   map.set("searching", buildPlaceholder(tl("Claude is searching…"), ""));

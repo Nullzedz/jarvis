@@ -200,6 +200,11 @@ export const CODEX_STALE_MS = 60_000;
 export const codexIsStale = (u: CodexPlanUsage | null, now = Date.now()): boolean =>
   !u || now - u.updatedAt >= CODEX_STALE_MS;
 
+/** JARVIS: Claude's numbers older than this are asked for again when the card shows. */
+export const CLAUDE_STALE_MS = 10 * 60_000;
+export const claudeIsStale = (u: PlanUsage | null, now = Date.now()): boolean =>
+  !u || now - u.updatedAt >= CLAUDE_STALE_MS;
+
 /** A stored Claude usage, if it still looks like one (the last numbers survive a restart). */
 export function restorePlanUsage(raw: string | null): PlanUsage | null {
   if (!raw) return null;

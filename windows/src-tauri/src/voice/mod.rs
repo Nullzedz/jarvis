@@ -13,7 +13,11 @@
 // speaks itself.
 
 pub mod brain;
+pub mod meter;
+pub mod print;
+pub mod stream;
 pub mod wake;
+pub mod warm;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -38,6 +42,9 @@ pub struct VoiceView {
     pub heard: String,
     /// Coucou's answer.
     pub answer: String,
+    /// JARVIS: how long each newly added word of `answer` takes to say (ms), so
+    /// the pill lights the words up as he says them; 0 shows them at once.
+    pub pace_ms: u64,
 }
 
 struct Running {
@@ -53,14 +60,16 @@ fn pending() -> &'static Mutex<HashMap<u64, mpsc::Sender<String>>> {
 }
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Whether « OK Coucou » can run: the voice model and a Claude key.
+/// Whether « OK Coucou » can run: the voice model, and a Claude key or (JARVIS)
+/// the user's own Claude Code to answer with.
 pub fn requirements_met() -> bool {
-    speech::is_ready() && crate::secrets::present(crate::claude::KEY)
+    speech::is_ready() && (crate::secrets::present(crate::claude::KEY) || crate::claude_code::available())
 }
 
 /// Starts or stops listening to follow the preference.
 pub fn sync(app: &AppHandle) {
-    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice);
+    // JARVIS: voice training listens too, even with « Hey JARVIS » off.
+    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice) || print::training_active();
     let mut running = RUNNING.lock().unwrap();
     match (wanted && requirements_met(), running.is_some()) {
         (true, false) => {
@@ -70,6 +79,8 @@ pub fn sync(app: &AppHandle) {
             std::thread::Builder::new().name("coucou-voice".into()).spawn(move || run(app2, stop2)).ok();
             *running = Some(Running { stop });
             speech::preload();
+            // JARVIS: his voice loaded before the first answer.
+            crate::tts::preload();
             crate::log::line("voice: « OK Coucou » listening");
         }
         (false, true) => {
@@ -133,6 +144,12 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
     // Silence for the question that follows « OK Coucou » (flow/hush.rs).
     let mut hush: Option<crate::flow::hush::Guard> = None;
     let quiet = || crate::flow::get(&app).is_some_and(|f| f.store.lock().unwrap().prefs.mute_others);
+    // JARVIS (diagnosis): the microphone's loudest level every 10 s, against what counts as speech.
+    let mut level_peak = 0.0f32;
+    let mut level_since = Instant::now();
+    let mut level_emit = Instant::now();
+    // JARVIS: Claude Code started ahead of the first question.
+    prewarm();
     while !stop.load(Ordering::Relaxed) {
         // Listening for a question or an answer: the other apps are quiet.
         let asking = matches!(mode, Mode::Command { .. } | Mode::FollowUp { .. });
@@ -147,10 +164,14 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         };
         let now = Instant::now();
-        // The pill's last answer goes away after a while.
+        // The pill's last answer goes away after a while (JARVIS: not while the pointer is on it).
         if hide_at.is_some_and(|t| now > t) {
-            hide_at = None;
-            show(&app, None);
+            if pill::pointer_over() {
+                hide_at = Some(now + Duration::from_millis(800));
+            } else {
+                hide_at = None;
+                show(&app, None);
+            }
         }
         match &mode {
             Mode::Command { until, .. } | Mode::FollowUp { until } if now > *until => {
@@ -166,30 +187,76 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             continue;
         }
         let Some(chunk) = chunk else { continue };
+        if !chunk.is_empty() {
+            let rms = (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32).sqrt();
+            level_peak = level_peak.max(rms);
+        }
+        // JARVIS: the training screen's meter, ten times a second.
+        if print::training_active() && level_emit.elapsed() > Duration::from_millis(100) {
+            let rms = if chunk.is_empty() { 0.0 } else { (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32).sqrt() };
+            let level = (rms / (vad.threshold() * 4.0)).min(1.0);
+            let _ = app.emit("voice-level", level);
+            level_emit = Instant::now();
+        }
+        if level_since.elapsed() > Duration::from_secs(10) {
+            // JARVIS: a fresh Claude Code once the conversation is forgotten, or if it stopped.
+            prewarm();
+            crate::log::line(format!("voice: mic level peak {level_peak:.4} (speech from {:.4})", vad.threshold()));
+            level_peak = 0.0;
+            level_since = Instant::now();
+        }
         for segment in vad.feed(&chunk) {
             if segment.len() < speech::SAMPLE_RATE as usize * 35 / 100 {
                 continue;
             }
+            // JARVIS: a quiet microphone's speech brought up to a normal level first.
+            let segment = wake::boost(&segment);
             let Some(heard) = speech::transcribe(&segment).map(|t| t.text.trim().to_string()) else { continue };
             if heard.is_empty() {
                 continue;
             }
+            // JARVIS: while training, every stretch of speech is a take.
+            if print::training_active() {
+                print::take(&app, &segment, &heard);
+                continue;
+            }
             let question = match &mut mode {
-                Mode::Wake => match wake::after_wake(&heard) {
+                Mode::Wake => match wake::after_wake(&heard).or_else(|| print::learned_wake(&heard)) {
                     Some(rest) => {
+                        // JARVIS: « Only answer my voice » — someone else, the TV, a video: ignored.
+                        let (only_me, strictness) = crate::flow::get(&app)
+                            .map(|f| {
+                                let p = &f.store.lock().unwrap().prefs;
+                                (p.voice_only_me, p.voice_strictness.clone())
+                            })
+                            .unwrap_or((false, "balanced".into()));
+                        if only_me {
+                            let (mine, score) = print::is_my_voice(&segment, &strictness);
+                            if !mine {
+                                crate::log::line(format!("voice: wake phrase in another voice ({score:.2}), ignored"));
+                                continue;
+                            }
+                            crate::log::line(format!("voice: your voice ({score:.2})"));
+                        }
                         crate::log::line("voice: « OK Coucou » heard");
                         hide_at = None;
                         if crate::flow::text::word_count(&rest) >= 2 {
                             Some(rest)
                         } else {
-                            show(&app, Some(VoiceView { phase: "listening".into(), heard: rest.clone(), answer: String::new() }));
+                            show(&app, Some(VoiceView { phase: "listening".into(), heard: rest.clone(), ..Default::default() }));
                             mode = Mode::Command { text: rest, until: now + Duration::from_secs(7) };
                             // A question may come with pauses in it.
                             vad.hangover = 40;
                             None
                         }
                     }
-                    None => None,
+                    None => {
+                        // JARVIS (diagnosis): what was heard when it was not the wake phrase, so a
+                        // missed « Hey JARVIS » shows how Parakeet wrote it. Kept in the local log only.
+                        let first: String = heard.split_whitespace().take(6).collect::<Vec<_>>().join(" ");
+                        crate::log::line(format!("voice: not the wake phrase: « {first} »"));
+                        None
+                    }
                 },
                 Mode::Command { text, .. } => {
                     let full = format!("{text} {heard}").trim().to_string();
@@ -200,35 +267,166 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             let Some(question) = question else { continue };
             mode = Mode::Wake;
             vad.hangover = 25;
-            show(&app, Some(VoiceView { phase: "thinking".into(), heard: question.clone(), answer: String::new() }));
-            let reply = brain.respond(&app, &question);
-            let answer = reply.as_ref().map(|r| r.text.clone()).unwrap_or_default();
-            if answer.is_empty() {
+            show(&app, Some(VoiceView { phase: "thinking".into(), heard: question.clone(), ..Default::default() }));
+            // JARVIS: each sentence is said as soon as it is written, while the rest is still coming.
+            let asked = Instant::now();
+            let speech = Speech::start(&app, &question, asked);
+            let mut splitter = stream::Splitter::default();
+            let reply = brain.respond(&app, &question, &mut |delta| {
+                for piece in splitter.push(delta) {
+                    speech.say(piece);
+                }
+            });
+            if let Some(rest) = splitter.finish() {
+                speech.say(rest);
+            }
+            crate::log::line(format!("voice: answer written in {} ms", asked.elapsed().as_millis()));
+            let said = speech.finish();
+            vad.reset();
+            // Drop what the microphone heard of Coucou's own voice.
+            while rx.try_recv().is_ok() {}
+            if said.is_empty() {
                 let done = reply.is_some_and(|r| r.acted);
                 show(&app, Some(VoiceView {
                     phase: "speaking".into(),
                     heard: question,
                     answer: if done { "✓".into() } else { crate::i18n::t("Coucou couldn't answer: check your Claude key in Notch → Chat.") },
+                    pace_ms: 0,
                 }));
                 hide_at = Some(Instant::now() + Duration::from_secs(5));
                 continue;
             }
-            show(&app, Some(VoiceView { phase: "speaking".into(), heard: question.clone(), answer: answer.clone() }));
-            speak(&app, &answer);
-            vad.reset();
-            // Drop what the microphone heard of Coucou's own voice.
-            while rx.try_recv().is_ok() {}
-            if answer.trim_end().ends_with('?') {
+            if said.trim_end().ends_with('?') {
+                // He asked something: listen for the answer, the text folded away.
                 mode = Mode::FollowUp { until: Instant::now() + Duration::from_secs(8) };
                 vad.hangover = 40;
-                show(&app, Some(VoiceView { phase: "listening".into(), heard: String::new(), answer }));
+                show(&app, Some(VoiceView { phase: "listening".into(), ..Default::default() }));
             } else {
-                hide_at = Some(Instant::now() + Duration::from_secs(6));
+                hide_at = Some(Instant::now() + reading_time(&said));
             }
         }
     }
     capture.stop();
     show(&app, None);
+    warm::shutdown();
+}
+
+/// JARVIS: keeps a Claude Code ready when it is the one answering (no API key).
+fn prewarm() {
+    if !crate::secrets::present(crate::claude::KEY) && crate::claude_code::available() {
+        warm::prewarm(brain::FAST_MODEL, &brain::claude_code_system());
+    }
+}
+
+/// JARVIS: how long the answer stays once said: time to read it (about a third
+/// of a second a word), at least 3 s, at most 14 s.
+fn reading_time(text: &str) -> Duration {
+    let words = crate::flow::text::word_count(text) as u64;
+    Duration::from_millis((words * 320).clamp(3000, 14_000))
+}
+
+// ── JARVIS: speaking as the answer is written ──────────────────────────────────
+
+/// One piece of the answer, ready to play.
+struct Rendered {
+    text: String,
+    /// The audio (base64) and its type; None for the system voice.
+    audio: Option<String>,
+    mime: &'static str,
+    /// How long it lasts (ms), measured for JARVIS's voice, estimated otherwise.
+    ms: u64,
+    /// Answers as text only: nothing to play.
+    silent: bool,
+}
+
+/// The pieces of one answer: rendered on one thread, played in order on another,
+/// so the next sentence is ready while this one is said.
+struct Speech {
+    tx: Option<mpsc::Sender<String>>,
+    player: Option<std::thread::JoinHandle<String>>,
+}
+
+impl Speech {
+    fn start(app: &AppHandle, heard: &str, asked: Instant) -> Self {
+        let (output, gender, voice_name) = crate::flow::get(app)
+            .map(|f| {
+                let p = &f.store.lock().unwrap().prefs;
+                (p.voice_output.clone(), p.voice_gender.clone(), p.voice_name.clone())
+            })
+            .unwrap_or_else(|| ("jarvis".into(), "male".into(), crate::tts::DEFAULT_VOICE.into()));
+        let (tx, rx) = mpsc::channel::<String>();
+        let (ready_tx, ready) = mpsc::channel::<Rendered>();
+        let render_gender = gender.clone();
+        std::thread::spawn(move || {
+            for piece in rx {
+                if ready_tx.send(render(piece, &output, &voice_name, &render_gender)).is_err() {
+                    break;
+                }
+            }
+        });
+        let (app, heard) = (app.clone(), heard.to_string());
+        let player = std::thread::spawn(move || {
+            let mut said = String::new();
+            for r in ready {
+                if said.is_empty() {
+                    crate::log::line(format!("voice: first words after {} ms", asked.elapsed().as_millis()));
+                } else {
+                    said.push(' ');
+                }
+                said.push_str(&r.text);
+                let words = crate::flow::text::word_count(&r.text).max(1) as u64;
+                show(&app, Some(VoiceView { phase: "speaking".into(), heard: heard.clone(), answer: said.clone(), pace_ms: r.ms / words }));
+                if r.silent {
+                    std::thread::sleep(Duration::from_millis(r.ms));
+                } else {
+                    say_one(&app, &r.text, r.audio, r.mime, gender.clone(), Duration::from_millis(r.ms + 2500));
+                }
+            }
+            said
+        });
+        Self { tx: Some(tx), player: Some(player) }
+    }
+
+    fn say(&self, piece: String) {
+        if let Some(tx) = &self.tx {
+            let _ = tx.send(piece);
+        }
+    }
+
+    /// Waits until everything is said; returns what was said.
+    fn finish(mut self) -> String {
+        drop(self.tx.take());
+        self.player.take().and_then(|h| h.join().ok()).unwrap_or_default()
+    }
+}
+
+/// A piece in the chosen voice: JARVIS's own (Kokoro), ElevenLabs, the
+/// system's, or none. JARVIS's voice falls back to the system's if it fails.
+fn render(text: String, output: &str, voice: &str, gender: &str) -> Rendered {
+    let words = crate::flow::text::word_count(&text).max(1) as u64;
+    let estimate = words * 380;
+    match output {
+        "off" => Rendered { text, audio: None, mime: "audio/mpeg", ms: words * 320, silent: true },
+        "jarvis" if crate::tts::is_ready() => match crate::tts::speak(&text, voice, 1.0) {
+            Some(wav) => {
+                let ms = wav_ms(&wav).unwrap_or(estimate);
+                Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
+            }
+            None => Rendered { text, audio: None, mime: "audio/mpeg", ms: estimate, silent: false },
+        },
+        "elevenlabs" => {
+            let audio = elevenlabs(&text, gender).map(|mp3| base64(&mp3));
+            Rendered { text, audio, mime: "audio/mpeg", ms: estimate, silent: false }
+        }
+        _ => Rendered { text, audio: None, mime: "audio/mpeg", ms: estimate, silent: false },
+    }
+}
+
+/// The length of a 16-bit mono WAV made by tts::wav (ms).
+fn wav_ms(wav: &[u8]) -> Option<u64> {
+    let rate = u32::from_le_bytes(wav.get(24..28)?.try_into().ok()?) as u64;
+    let data = wav.len().checked_sub(44)? as u64;
+    (rate > 0).then(|| data / 2 * 1000 / rate)
 }
 
 // ── Speaking ──────────────────────────────────────────────────────────────────
@@ -239,30 +437,20 @@ struct Say {
     id: u64,
     text: String,
     lang: Option<&'static str>,
-    /// ElevenLabs' MP3, base64.
+    /// ElevenLabs' MP3 or JARVIS's own voice (Kokoro, WAV), base64.
     audio: Option<String>,
+    /// The audio's type: "audio/mpeg" or "audio/wav".
+    mime: &'static str,
     gender: String,
 }
 
-/// Says `text` and returns once it is said (or after a sensible time).
-fn speak(app: &AppHandle, text: &str) {
-    let (output, gender) = crate::flow::get(app)
-        .map(|f| {
-            let p = &f.store.lock().unwrap().prefs;
-            (p.voice_output.clone(), p.voice_gender.clone())
-        })
-        .unwrap_or_else(|| ("system".into(), "female".into()));
-    if output == "off" {
-        std::thread::sleep(Duration::from_millis(1500));
-        return;
-    }
-    let audio = if output == "elevenlabs" { elevenlabs(text, &gender).map(|mp3| base64(&mp3)) } else { None };
+/// Says one piece through the pill and returns once it is said (or after a sensible time).
+fn say_one(app: &AppHandle, text: &str, audio: Option<String>, mime: &'static str, gender: String, longest: Duration) {
     let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
     let (tx, rx) = mpsc::channel();
     pending().lock().unwrap().insert(id, tx);
-    let _ = app.emit_to(pill::LABEL, "voice-say", Say { id, text: text.into(), lang: wake::speech_lang(text), audio, gender });
-    let words = crate::flow::text::word_count(text) as u64;
-    let _ = rx.recv_timeout(Duration::from_millis(4000 + words * 600));
+    let _ = app.emit_to(pill::LABEL, "voice-say", Say { id, text: text.into(), lang: wake::speech_lang(text), audio, mime, gender });
+    let _ = rx.recv_timeout(longest);
     pending().lock().unwrap().remove(&id);
 }
 

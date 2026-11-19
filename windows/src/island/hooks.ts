@@ -13,7 +13,7 @@ import { pillDefinition } from "../core/pills";
 import { agentColor, agentName, takesCard, validateAgent } from "./agents";
 import type { Island } from "./island";
 import { parseClaudePlan, restorePlanUsage } from "../core/plan";
-import { setClaudePlanUsage, storedClaudePlanUsage } from "../views/usage";
+import { setClaudePlanUsage, storedClaudePlanUsage, takeClaudePlanLimits } from "../views/usage";
 import { N_, t } from "../i18n/i18n";
 import { Launch } from "../core/launch";
 import * as Live from "../core/live";
@@ -356,6 +356,8 @@ export function registerHookHandlers(island: Island) {
   // The last plan numbers seen survive a restart, as on the Mac.
   State.planUsage ??= restorePlanUsage(storedClaudePlanUsage());
   void onEvent<HookPayload>("hook", (payload) => handleHook(island, payload));
+  // JARVIS: the plan limits that come with each reply of his own Claude Code (claude_plan.rs).
+  void onEvent<unknown>("claude-plan", takeClaudePlanLimits);
   // The relay stopped waiting without a decision and the terminal has taken
   // over: a card still up for that request would be lying (#857).
   void onEvent<string>("approval-expired", (requestId) => {

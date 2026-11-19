@@ -17,6 +17,9 @@ export const USC = {
   CARD_R: 20,
   REST_X: 140,
   REST_Y: 104,
+  /** JARVIS: where the folder waits (the middle of the card, above the drop text) before it follows the file. */
+  FOLDER_X: 320,
+  FOLDER_Y: 92,
   D_BOX: 62,
   FOLLOW_MIN: 60, // CARD_X + 50
   FOLLOW_MAX: 580, // CARD_X + CARD_W - 50
@@ -27,7 +30,7 @@ export const USC = {
   BAR_Y: 118,
   CHOOSE_X: 60,
   CHOOSE_Y: 101,
-  CHOOSE_D: 62,
+  CHOOSE_D: 50, // JARVIS: the folder is wider than Mochi was
   LOCK_IN: 60,
   LOCK_OUT: 90,
   MOUTH_AJAR: 0.2,
@@ -93,6 +96,40 @@ export function uploadProgressCurve(u: number): number {
 
 export function progressAt(t: number, progStart: number, progEnd: number): number {
   return t < progStart ? 0 : uploadProgressCurve(seg(t, progStart, progEnd));
+}
+
+// ── JARVIS's folder ─────────────────────────────────────────────────────────
+
+/**
+ * JARVIS takes a dropped file as a white folder whose front panel tips forward
+ * from the top. Sizes are in points at full size (d = D_BOX); the folder is
+ * centred on (x, y).
+ */
+export const FOLDER = {
+  W: 90,
+  H: 58,
+  /** The tab on the back panel rises this far above the body. */
+  TAB: 10,
+  /** The front panel's top, closed (the back shows 2 pt above it). */
+  FRONT_TOP: -27,
+  /** How far the front panel's height shrinks when fully open (tipped forward). */
+  TIP: 0.28,
+  /** How far each top corner of the front leans out when open. */
+  LEAN: 10,
+} as const;
+
+/** How open the folder is, 0 (shut) to 1, from the mouth spring. */
+export const folderOpen = (mouth: number) => Math.max(0, Math.min(1, mouth / USC.MOUTH_MAX));
+
+/** Where the front panel's top edge is (local y, full size): the file vanishes below it. */
+export function frontTop(open: number): number {
+  const bottom = FOLDER.H / 2;
+  return bottom - (bottom - FOLDER.FRONT_TOP) * (1 - FOLDER.TIP * open);
+}
+
+/** Drawn size relative to full size: the diameter, and a pop on arrival (morph). */
+export function folderScale(d: number, morph: number): number {
+  return (d / USC.D_BOX) * lerp(0.7, 1, Math.max(0, Math.min(morph, 1.08)));
 }
 
 // ── Spring ──────────────────────────────────────────────────────────────────
@@ -216,8 +253,8 @@ class UploadSequence {
   private dropWall: number | null = null;
 
   private t = 0;
-  private bx = new USSpring(USC.REST_X);
-  private by = new USSpring(USC.REST_Y);
+  private bx = new USSpring(USC.FOLDER_X);
+  private by = new USSpring(USC.FOLDER_Y);
   private tilt = 0;
   private mouth = new USSpring(0);
   private locked = false;
@@ -247,8 +284,8 @@ class UploadSequence {
 
     this.t = USC.ENTRY_T_REF;
     this.entered = USC.ENTRY_T_REF;
-    this.bx = new USSpring(USC.REST_X);
-    this.by = new USSpring(USC.REST_Y);
+    this.bx = new USSpring(USC.FOLDER_X);
+    this.by = new USSpring(USC.FOLDER_Y);
     this.tilt = 0;
     this.mouth = new USSpring(0);
     this.locked = false;
@@ -341,11 +378,12 @@ class UploadSequence {
         this.lockAt = this.t;
       }
       if (this.locked && dist > USC.LOCK_OUT) this.locked = false;
+      // JARVIS: the folder starts in the middle and follows the file along the card.
       const tx = Math.max(USC.FOLLOW_MIN, Math.min(USC.FOLLOW_MAX, this.cursorX));
       const response = this.locked ? 0.18 : 0.35;
       const damping = this.locked ? 0.75 : 0.7;
       this.bx.step(tx, response, damping, dt);
-      this.by.step(USC.REST_Y, response, damping, dt);
+      this.by.step(USC.FOLDER_Y, response, damping, dt);
     }
 
     // Tilt follows how fast Mochi is sliding.
@@ -488,7 +526,8 @@ class UploadSequence {
     // Content alphas.
     f.zoneOver = this.entered >= 0 && pt < USC.T_CHEW_END;
     f.zoneAlpha = 1 - seg(pt, USC.T_CHEW_END, USC.T_CHEW_END + 0.2);
-    f.textAlpha = f.zoneAlpha * (x > USC.TEXT_X - 40 && isDragging ? 0.25 : 1);
+    // JARVIS: the text sits under the folder, never behind it.
+    f.textAlpha = f.zoneAlpha;
     f.barReveal =
       eOut(seg(pt, USC.T_BAR_IN, USC.T_BAR_IN + 0.25)) * (1 - seg(pt, growStart, growStart + 0.2));
     f.barAlpha =
@@ -508,18 +547,17 @@ class UploadSequence {
     f.greenWash = Math.max(hoverGreen, uploadGreen);
     f.chooseAlpha = seg(pt, growStart + 0.15, growEnd);
 
-    // Mouth rect in island coordinates — the file is clipped against it.
-    const R = f.d / 2 / 1.04;
-    const mc = Math.max(0, Math.min(f.morph, 1));
-    const rx = R * (1.04 - 0.04 * mc);
-    const ry = R * (0.97 - 0.03 * mc);
-    const mh = f.mouth * R * mc;
-    const mw = 2 * rx - 0.24 * R;
+    // The folder's opening in island coordinates: the file is clipped at its
+    // middle line, which is the front panel's top edge.
+    const k = folderScale(f.d, f.morph);
+    const top = -FOLDER.H / 2;
+    const edge = frontTop(folderOpen(f.mouth));
+    const ix = FOLDER.W / 2 - 5;
     f.mouthRect = {
-      x: x + (-mw / 2) * sx,
-      y: y + f.hop + (-ry + 0.1 * R) * sy,
-      w: mw * sx,
-      h: mh * sy,
+      x: x - ix * k * sx,
+      y: y + f.hop + top * k * sy,
+      w: 2 * ix * k * sx,
+      h: 2 * (edge - top) * k * sy,
     };
     return f;
   }

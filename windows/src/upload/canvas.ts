@@ -1,17 +1,18 @@
 // The upload canvas — port of UploadCanvasView.swift.
 //
 // While the sequence engine is active this canvas draws the whole island body:
-// card, dashed drop frame, drop text, progress bar, the choose card, Mochi and
-// the file being sucked in. The island's own Mochi is hidden for the duration,
-// exactly as on macOS, because this canvas draws its own.
+// card, dashed drop frame, drop text, progress bar, the choose card, JARVIS's
+// folder and the file dropping into it. The island's own JARVIS is hidden for
+// the duration, exactly as on macOS, because this canvas draws its own.
 
 import { State } from "../core/state";
 import { SCRIPT_FONTS } from "../core/fonts";
-import { N_, isRtl, t } from "../i18n/i18n";
+import { isRtl, t } from "../i18n/i18n";
 import {
-  USC, eIn, eInOut, eOut, lerp, progressAt,
+  FOLDER, USC, eIn, eInOut, eOut, folderOpen, folderScale, frontTop, lerp, progressAt,
   type UploadEyeShape, type UploadFrame,
 } from "./sequence";
+import { VISOR_BOTTOM, VISOR_LIGHT, VISOR_TOP } from "../mochi/engine";
 
 const FONT = `system-ui, "Segoe UI Variable Text", "Segoe UI", ${SCRIPT_FONTS}, sans-serif`;
 
@@ -20,34 +21,14 @@ const TEXT_RIGHT = USC.CARD_X + USC.CARD_W - 16;
 /** The two choose buttons, as drawn and as hit areas. */
 const ASK_BTN = { x: 114, w: 168 };
 const CANCEL_BTN = { x: 290, w: 120 };
-/** Drop-zone chips (English keys, shown with `t()`). */
-const CHIPS = [N_("PDF"), N_("Images"), N_("Code"), N_("Docs")];
+/** JARVIS: the drop text's baseline, under the folder. */
+const DROP_TEXT_Y = 144;
 
 /** Mirrors the reference `rr()`: a rounded rect, radius clamped to the box. */
 function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const rad = Math.max(0, Math.min(r, w / 2, h / 2));
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, rad);
-}
-
-/** Superellipse body — port of usBodyPath(m, R). */
-function bodyPath(ctx: CanvasRenderingContext2D, m: number, R: number): { rx: number; ry: number } {
-  const mc = Math.max(0, Math.min(m, 1));
-  const n = 2.15 + (5.5 - 2.15) * mc;
-  const rx = R * (1.04 - 0.04 * mc);
-  const ry = R * (0.97 - 0.03 * mc);
-  ctx.beginPath();
-  for (let i = 0; i <= 96; i++) {
-    const a = (i / 96) * Math.PI * 2;
-    const ca = Math.cos(a);
-    const sa = Math.sin(a);
-    const px = rx * Math.sign(ca) * Math.pow(Math.abs(ca), 2 / n);
-    const py = ry * Math.sign(sa) * Math.pow(Math.abs(sa), 2 / n);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  return { rx, ry };
 }
 
 function text(
@@ -217,41 +198,19 @@ export class UploadCanvas {
     if (f.barAlpha > 0 || f.barReveal > 0) this.drawProgressBar(ctx, f);
     if (f.chooseAlpha > 0) this.drawChoose(ctx, f);
 
-    this.drawMochi(ctx, f);
+    this.drawFolder(ctx, f);
     if (f.fileVisible) this.drawFile(ctx, f);
   }
 
   // ── Drop zone text and chips ──────────────────────────────────────────────
 
   private drawDropText(ctx: CanvasRenderingContext2D, f: UploadFrame) {
+    // JARVIS: one line, centred under the folder (and clear of the sessions list).
     ctx.save();
     ctx.globalAlpha = f.textAlpha;
-    const title = fitted(ctx, t("Drop your files here"), this.textRight - USC.TEXT_X, 500, 13);
-    text(ctx, title.s, USC.TEXT_X, USC.TEXT_Y - 4, title.font, "#D5D7DB");
-
-    // The macOS port measures chips the same rough way, so the row lines up; a
-    // translation wider than that estimate gets the room it needs.
-    const labels = CHIPS.map((chip) => t(chip));
-    let chipPx = 11;
-    const widths = () => {
-      ctx.font = `500 ${chipPx}px ${FONT}`;
-      return labels.map((l) => Math.max(l.length * 6.5 + 16, Math.ceil(ctx.measureText(l).width) + 16));
-    };
-    let ws = widths();
-    const rowW = () => ws.reduce((a, b) => a + b, 0) + 6 * (ws.length - 1);
-    while (rowW() > this.textRight - USC.TEXT_X && chipPx > 8.5) {
-      chipPx -= 0.5;
-      ws = widths();
-    }
-    let cx = USC.TEXT_X;
-    labels.forEach((chip, i) => {
-      const w = ws[i];
-      ctx.fillStyle = "rgba(255,255,255,0.07)";
-      rr(ctx, cx, USC.TEXT_Y + 9, w, 18, 9);
-      ctx.fill();
-      text(ctx, chip, cx + 8, USC.TEXT_Y + 18, `500 ${chipPx}px ${FONT}`, "#B9BDC4");
-      cx += w + 6;
-    });
+    const maxW = 2 * (this.textRight - USC.FOLDER_X) - 8;
+    const title = fitted(ctx, t("Drop your files here"), maxW, 500, 13);
+    text(ctx, title.s, USC.FOLDER_X, DROP_TEXT_Y, title.font, "#D5D7DB", "center");
     ctx.restore();
   }
 
@@ -360,91 +319,69 @@ export class UploadCanvas {
     ctx.restore();
   }
 
-  // ── Mochi ─────────────────────────────────────────────────────────────────
+  // ── JARVIS's folder ───────────────────────────────────────────────────────
 
-  private drawMochi(ctx: CanvasRenderingContext2D, f: UploadFrame) {
-    const R = f.d / 2 / 1.04;
-    const mc = Math.max(0, Math.min(f.morph, 1));
+  /** A white folder: grey tabbed back panel, white front that tips forward to open, the blue bar as his eye. */
+  private drawFolder(ctx: CanvasRenderingContext2D, f: UploadFrame) {
+    const k = folderScale(f.d, f.morph);
+    if (k <= 0.01) return;
+    const open = folderOpen(f.mouth);
+    const { W, H } = FOLDER;
+    const top = -H / 2;
+    const bottom = H / 2;
 
     ctx.save();
     ctx.translate(f.x, f.y + f.hop);
     ctx.rotate(f.tilt);
-    ctx.scale(f.sx, f.sy);
+    ctx.scale(k * f.sx, k * f.sy);
 
-    const { rx, ry } = bodyPath(ctx, f.morph, R);
-
-    // Body.
-    const bg = ctx.createLinearGradient(rx * 0.7, -ry * 0.9, -rx * 0.8, ry * 0.9);
-    bg.addColorStop(0, "#EDEDEF");
-    bg.addColorStop(1, "#C4C5CA");
-    ctx.fillStyle = bg;
+    // Back panel and its tab.
+    ctx.beginPath();
+    ctx.moveTo(-W / 2, top + 6);
+    ctx.lineTo(-W / 2, top - FOLDER.TAB + 4);
+    ctx.quadraticCurveTo(-W / 2, top - FOLDER.TAB, -W / 2 + 4, top - FOLDER.TAB);
+    ctx.lineTo(-W / 2 + 26, top - FOLDER.TAB);
+    ctx.quadraticCurveTo(-W / 2 + 29, top - FOLDER.TAB, -W / 2 + 31, top - FOLDER.TAB + 3);
+    ctx.lineTo(-W / 2 + 34, top - 4);
+    ctx.lineTo(W / 2 - 4, top - 4);
+    ctx.quadraticCurveTo(W / 2, top - 4, W / 2, top);
+    ctx.lineTo(W / 2, top + 6);
+    ctx.closePath();
+    ctx.fillStyle = BACK;
+    ctx.fill();
+    rr(ctx, -W / 2, top, W, H, 9);
     ctx.fill();
 
-    // Edge shadow.
-    const sg = ctx.createRadialGradient(0, 0, R * 0.2, 0, 0, R * 1.3);
-    sg.addColorStop(0, "rgba(0,0,0,0)");
-    sg.addColorStop(0.62, "rgba(0,0,0,0)");
-    sg.addColorStop(1, "rgba(0,0,0,0.12)");
-    ctx.fillStyle = sg;
-    ctx.fill();
-
-    // The body path is reused as a clip for everything drawn inside it.
-    ctx.save();
-    bodyPath(ctx, f.morph, R);
-    ctx.clip();
-
-    // Top rim, once Mochi is box-shaped enough to have one.
-    if (mc > 0.3) {
-      const a = Math.max(0, Math.min(1, (mc - 0.3) / 0.7));
-      ctx.beginPath();
-      ctx.moveTo(-rx * 0.72, -ry + 0.9);
-      ctx.lineTo(rx * 0.72, -ry + 0.9);
-      ctx.strokeStyle = `rgba(255,255,255,${0.6 * a})`;
-      ctx.lineWidth = 1.2;
-      ctx.lineCap = "round";
-      ctx.stroke();
-    }
-
-    // Mouth hole.
-    const mh = f.mouth * R * mc;
-    if (mh > 0.3) {
-      const mw = 2 * rx - 0.24 * R;
-      const mx = -mw / 2;
-      const my = -ry + 0.1 * R;
-      const g = ctx.createLinearGradient(0, my, 0, my + mh);
-      g.addColorStop(0, "#030304");
-      g.addColorStop(1, "#101114");
-      ctx.fillStyle = g;
-      rr(ctx, mx, my, mw, mh, Math.min(mw / 2, mh / 2));
+    // The inside, seen once the front leans away.
+    if (open > 0.02) {
+      ctx.fillStyle = "#06121F";
+      rr(ctx, -W / 2 + 5, top + 4, W - 10, H - 8, 6);
       ctx.fill();
-      if (mh > 4) {
-        const r = Math.min(mw / 2, mh / 2);
-        ctx.beginPath();
-        ctx.moveTo(mx + r, my + mh + 0.5);
-        ctx.lineTo(mx + mw - r, my + mh + 0.5);
-        ctx.strokeStyle = "rgba(255,255,255,0.55)";
-        ctx.lineWidth = 1;
-        ctx.lineCap = "round";
-        ctx.stroke();
-      }
     }
 
-    // Eyes.
-    const ew = R * 0.25;
-    const eh = R * (0.62 - 0.16 * mc);
-    const ey = R * (0.02 + 0.28 * mc);
-    const sp = R * 0.3;
-    const lx = f.lookX * R * (0.34 - 0.08 * mc);
-    const ly = f.lookY * R * (0.16 - 0.09 * mc);
-    for (const sd of [-1, 1]) {
-      ctx.save();
-      ctx.translate(sd * sp + lx, ey + ly);
-      drawEye(ctx, f.eye, ew, eh);
-      ctx.restore();
-    }
+    // Front panel, hinged at the bottom: shorter and leaning out as it opens.
+    const edge = frontTop(open);
+    const lean = FOLDER.LEAN * open;
+    ctx.beginPath();
+    ctx.moveTo(-W / 2 - lean, edge);
+    ctx.lineTo(W / 2 + lean, edge);
+    ctx.lineTo(W / 2, bottom - 6);
+    ctx.quadraticCurveTo(W / 2, bottom, W / 2 - 6, bottom);
+    ctx.lineTo(-W / 2 + 6, bottom);
+    ctx.quadraticCurveTo(-W / 2, bottom, -W / 2, bottom - 6);
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, edge, 0, bottom);
+    g.addColorStop(0, rgb(VISOR_TOP));
+    g.addColorStop(1, rgb(VISOR_BOTTOM));
+    ctx.fillStyle = g;
+    ctx.fill();
 
-    ctx.restore(); // body clip
-    ctx.restore(); // transform
+    // His eye, on the front panel, looking towards the file.
+    const sV = (bottom - edge) / (bottom - FOLDER.FRONT_TOP);
+    const ey = bottom - (bottom - 4) * sV + f.lookY * 5 * sV;
+    drawEye(ctx, f.eye, f.lookX * 8, ey, sV);
+
+    ctx.restore();
   }
 
   // ── The file, and the suction ─────────────────────────────────────────────
@@ -521,41 +458,35 @@ export class UploadCanvas {
   }
 }
 
-// ── Eye shapes ──────────────────────────────────────────────────────────────
+// ── JARVIS's eye ────────────────────────────────────────────────────────────
 
-const INK = "#0E0F12";
+const BACK = "#D5D8DE";
+const BLUE = rgb(VISOR_LIGHT);
 
-function drawEye(ctx: CanvasRenderingContext2D, shape: UploadEyeShape, w: number, h: number) {
-  switch (shape) {
-    case "pill":
-      ctx.fillStyle = INK;
-      rr(ctx, -w / 2, -h / 2, w, h, w / 2);
-      ctx.fill();
-      break;
+function rgb(c: readonly number[]): string {
+  return `rgb(${c.map((v) => Math.round(v * 255)).join(",")})`;
+}
 
-    case "cup": {
-      // Flat top, semicircular bottom.
-      const hh = h * 0.55;
-      ctx.beginPath();
-      ctx.moveTo(-w / 2, -hh / 2);
-      ctx.lineTo(w / 2, -hh / 2);
-      ctx.lineTo(w / 2, hh / 2 - w / 2);
-      ctx.arc(0, hh / 2 - w / 2, w / 2, 0, Math.PI, false);
-      ctx.closePath();
-      ctx.fillStyle = INK;
-      ctx.fill();
-      break;
-    }
-
-    case "content":
-      ctx.beginPath();
-      ctx.arc(0, -h * 0.12, w * 0.85, Math.PI * 0.15, Math.PI * 0.85, false);
-      ctx.strokeStyle = INK;
-      ctx.lineWidth = w * 0.5;
-      ctx.lineCap = "round";
-      ctx.stroke();
-      break;
+/** The light bar: level (pill), a little wider when eager (cup), a smile when content. */
+function drawEye(ctx: CanvasRenderingContext2D, shape: UploadEyeShape, x: number, y: number, squash: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, Math.max(0.4, squash));
+  if (shape === "content") {
+    ctx.beginPath();
+    ctx.moveTo(-18, 2);
+    ctx.quadraticCurveTo(0, -8, 18, 2);
+    ctx.strokeStyle = BLUE;
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  } else {
+    const w = shape === "cup" ? 46 : 40;
+    ctx.fillStyle = BLUE;
+    rr(ctx, -w / 2, -3.5, w, 7, 3.5);
+    ctx.fill();
   }
+  ctx.restore();
 }
 
 // ── Document icon ───────────────────────────────────────────────────────────

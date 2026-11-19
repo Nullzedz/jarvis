@@ -15,6 +15,14 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 use super::store::Edge;
+
+/// JARVIS: the pointer is on the pill or its bubble (Windows' cursor poll), so a
+/// spoken answer stays while it is being read.
+static POINTER_OVER: AtomicBool = AtomicBool::new(false);
+
+pub fn pointer_over() -> bool {
+    POINTER_OVER.load(Ordering::Relaxed)
+}
 use crate::platform::{self, DesktopMode};
 
 pub const LABEL: &str = "pill";
@@ -374,6 +382,7 @@ fn spawn_poll(app: AppHandle, pill: Arc<Pill>) {
                 ignoring = Some(!over);
                 let _ = win.set_ignore_cursor_events(!over);
                 let _ = win.emit("pill-pointer", over);
+                POINTER_OVER.store(over, Ordering::Relaxed);
             }
         }
     });

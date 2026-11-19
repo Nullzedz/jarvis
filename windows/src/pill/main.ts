@@ -224,15 +224,32 @@ function bubble(): HTMLElement | null {
     return b;
   }
   const v = state.voice;
+  if (!v?.answer) litAnswer = "";
   if (v && (v.heard || v.answer || v.phase === "listening")) {
     const b = el("div", "bubble voice");
     if (v.heard) b.append(el("span", "heard", v.heard));
-    if (v.answer) b.append(el("span", "answer", v.answer));
+    if (v.answer) b.append(answerWords(v.answer, v.paceMs ?? 0));
     else if (!v.heard) b.append(el("span", "heard", t("Listening…")));
     return b;
   }
   const text = tooltip ?? (vertical() ? messageText() : null);
   return text ? el("div", "bubble", text) : null;
+}
+
+// JARVIS: the answer's words light up as he says them. Words already shown stay
+// lit when the bubble is drawn again; the new ones follow the voice's pace.
+let litAnswer = "";
+function answerWords(answer: string, paceMs: number): HTMLElement {
+  const span = el("span", "answer");
+  const words = answer.split(/\s+/).filter(Boolean);
+  const lit = answer.startsWith(litAnswer) ? litAnswer.split(/\s+/).filter(Boolean).length : 0;
+  words.forEach((w, i) => {
+    const word = el("span", i < lit || paceMs <= 0 ? "w" : "w say", w + " ");
+    if (i >= lit && paceMs > 0) word.style.animationDelay = `${(i - lit) * paceMs}ms`;
+    span.append(word);
+  });
+  litAnswer = answer;
+  return span;
 }
 
 // ── Drawing ───────────────────────────────────────────────────────────────────
@@ -442,8 +459,10 @@ interface Say {
   id: number;
   text: string;
   lang: string | null;
-  /** ElevenLabs' MP3, base64. */
+  /** ElevenLabs' MP3 or JARVIS's own voice (Kokoro, WAV), base64. */
   audio: string | null;
+  /** "audio/mpeg" or "audio/wav". */
+  mime?: string;
   gender: "female" | "male";
 }
 
@@ -485,9 +504,9 @@ async function sayWithSystem(text: string, lang: string | null, gender: string):
   await FlowBridge.sayNative(text, lang);
 }
 
-async function sayMp3(base64: string): Promise<boolean> {
+async function sayMp3(base64: string, mime = "audio/mpeg"): Promise<boolean> {
   try {
-    const audio = new Audio(`data:audio/mpeg;base64,${base64}`);
+    const audio = new Audio(`data:${mime};base64,${base64}`);
     await audio.play();
     await new Promise<void>((resolve) => {
       audio.onended = () => resolve();
@@ -503,7 +522,7 @@ async function say(s: Say) {
   speaking = true;
   wake();
   try {
-    if (!(s.audio && (await sayMp3(s.audio)))) await sayWithSystem(s.text, s.lang, s.gender);
+    if (!(s.audio && (await sayMp3(s.audio, s.mime)))) await sayWithSystem(s.text, s.lang, s.gender);
   } finally {
     speaking = false;
     void FlowBridge.voiceDone(s.id);
