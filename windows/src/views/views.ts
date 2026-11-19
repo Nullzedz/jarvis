@@ -31,6 +31,8 @@ import { WHATSAPP_ID } from "../core/whatsapp";
 import { MAIL_ID } from "../core/mail";
 import { buildMailCard } from "./mail";
 import { buildCalendar } from "./gcal";
+import { buildLive } from "./live";
+import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
 import { language, t, tl, type Msg } from "../i18n/i18n";
 import type { ViewCommand } from "../island/shortcuts";
@@ -161,7 +163,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
     el,
     sync() {
       const v = State.view;
-      tabHome.classList.toggle("on", v === "overview" || v === "empty");
+      tabHome.classList.toggle("on", v === "overview" || v === "empty" || v === "live");
       tabChat.classList.toggle("on", v === "prompt");
       tabDrop.classList.toggle("on", v === "upload");
       tabLaunch.classList.toggle("on", v === "launch");
@@ -217,7 +219,13 @@ function buildOverview(actions: ViewActions): ViewHost {
     { class: "icon-btn jump", title: tl("Open"), onclick: () => actions.openTarget() },
     svg(ICONS.arrowUpRight, 12),
   );
-  const left = card(null, leftBody, jump);
+  // JARVIS: the live code view of the session, on demand (never by itself).
+  const liveBtn = h(
+    "button",
+    { class: "icon-btn live-btn", title: tl("Watch live"), onclick: () => { actions.blip(); actions.setView("live"); } },
+    svg(ICONS.code, 12, { stroke: 2 }),
+  );
+  const left = card(null, leftBody, jump, liveBtn);
   const pills = h("div", { class: "pills" });
   const right = card(null, pills);
   // Opened from a plan pill in the header: stands in for the left card.
@@ -434,6 +442,11 @@ function buildOverview(actions: ViewActions): ViewHost {
       }
 
       jump.style.display = detailOpen || mode === "plan" || mode === "diff" ? "none" : "";
+      const focusLive = State.focusTask ? Live.active(State.focusTask.id) : false;
+      const liveShown = focusLive && !detailOpen && mode !== "plan" && mode !== "diff";
+      liveBtn.style.display = liveShown ? "" : "none";
+      // The header text makes room for the second corner button.
+      left.classList.toggle("has-live", liveShown);
 
       // Ctrl+↓ Ctrl+↑ walk the open GitHub list (cardItemCount / cardSelection).
       const rows = mode === "card" ? listRows(leftBody) : [];
@@ -887,6 +900,7 @@ export function buildViews(
   map.set("whatsNew", buildWhatsNew());
   map.set("launch", buildLaunch(actions));
   map.set("calendar", buildCalendar({ keyboard: (on) => actions.keyboard(on) }));
+  map.set("live", buildLive(actions));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));
   map.set("searching", buildPlaceholder(tl("Claude is searching…"), ""));

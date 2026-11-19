@@ -237,6 +237,13 @@ fn prepare(raw: &[u8], args: &Args, env: &dyn Fn(&str) -> Option<String>, cwd: &
     let name = normalize::refine(normalize::event(&raw_event), map);
     map.insert("hook_event_name".into(), Value::String(name.clone()));
 
+    // JARVIS: the live code view shows the end of a finished command's output.
+    if name == "PostToolUse" {
+        if let Some(tail) = command_output_tail(map) {
+            map.insert("jarvis_output".into(), Value::String(tail));
+        }
+    }
+
     for field in DROPPED_FIELDS {
         map.remove(*field);
     }
@@ -295,6 +302,49 @@ fn add_terminal_context(map: &mut Map<String, Value>, env: &dyn Fn(&str) -> Opti
             map.insert(key.into(), Value::String(env(var).unwrap_or_default()));
         }
     }
+}
+
+/// Tools whose output the live code view shows (as a small terminal).
+const COMMAND_TOOLS: &[&str] = &["Bash", "PowerShell"];
+/// The end of the output is what matters (the test summary, the error).
+const MAX_OUTPUT_TAIL: usize = 1_800;
+
+/// The last lines of a finished command's output (stdout, then stderr), at most
+/// MAX_OUTPUT_TAIL bytes, cut on a character boundary. None for other tools.
+fn command_output_tail(map: &Map<String, Value>) -> Option<String> {
+    let tool = map.get("tool_name").and_then(Value::as_str)?;
+    if !COMMAND_TOOLS.contains(&tool) {
+        return None;
+    }
+    let response = map.get("tool_response")?;
+    let text = match response {
+        Value::String(s) => s.clone(),
+        Value::Object(o) => {
+            let part = |k: &str| o.get(k).and_then(Value::as_str).unwrap_or("").trim_end().to_string();
+            let (out, err) = (part("stdout"), part("stderr"));
+            match (out.is_empty(), err.is_empty()) {
+                (false, false) => format!("{out}\n{err}"),
+                (false, true) => out,
+                (true, false) => err,
+                (true, true) => part("output"),
+            }
+        }
+        _ => return None,
+    };
+    let text = text.trim_end();
+    if text.is_empty() {
+        return None;
+    }
+    if text.len() <= MAX_OUTPUT_TAIL {
+        return Some(text.to_string());
+    }
+    let mut start = text.len() - MAX_OUTPUT_TAIL;
+    while !text.is_char_boundary(start) {
+        start += 1;
+    }
+    // Start on a whole line when there is one.
+    let tail = &text[start..];
+    Some(tail.find('\n').map(|i| &tail[i + 1..]).unwrap_or(tail).to_string())
 }
 
 /// The `coucou_agent` tag: `--agent` when given, otherwise `claude-desktop` for
@@ -463,6 +513,28 @@ mod tests {
 
     fn env_of(vars: &'static [(&'static str, &'static str)]) -> impl Fn(&str) -> Option<String> {
         move |name| vars.iter().find(|(k, _)| *k == name).map(|(_, v)| v.to_string())
+    }
+
+    #[test]
+    fn a_finished_command_forwards_the_end_of_its_output_and_nothing_else_does() {
+        let (v, _) = run(
+            r#"{"hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"npm test"},"tool_response":{"stdout":"ok 1\nok 2\n","stderr":"warn"}}"#,
+            "",
+            "",
+        );
+        assert_eq!(v["jarvis_output"], "ok 1\nok 2\nwarn");
+        assert!(v.get("tool_response").is_none(), "the full response is still dropped");
+
+        let long = "line\n".repeat(2_000);
+        let raw = serde_json::json!({ "hook_event_name": "PostToolUse", "tool_name": "PowerShell", "tool_response": long }).to_string();
+        let (v, _) = run(&raw, "", "");
+        let tail = v["jarvis_output"].as_str().unwrap();
+        assert!(tail.len() <= MAX_OUTPUT_TAIL && tail.starts_with("line"), "a tail of whole lines");
+
+        let (v, _) = run(r#"{"hook_event_name":"PostToolUse","tool_name":"Read","tool_response":"secret file"}"#, "", "");
+        assert!(v.get("jarvis_output").is_none(), "only commands");
+        let (v, _) = run(r#"{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_response":"x"}"#, "", "");
+        assert!(v.get("jarvis_output").is_none(), "only once finished");
     }
 
     #[test]

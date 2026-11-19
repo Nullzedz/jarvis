@@ -28,7 +28,9 @@ export type IslandViewName =
   | "whatsNew"
   | "launch"
   // JARVIS: the calendar tab (src/views/gcal.ts).
-  | "calendar";
+  | "calendar"
+  // JARVIS: the live code view of a Claude Code session (src/views/live.ts).
+  | "live";
 
 export type BotStateName =
   | "idle"
@@ -107,6 +109,8 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   launch: { height: 160, botX: 58, botY: null, botDiameter: 52, agentMode: "none" },
   // JARVIS: the calendar tab. The character steps aside (botPosition) to leave the whole width to the day or week.
   calendar: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  // JARVIS: the live code view — the visor top-left above the session and its steps.
+  live: { height: 252, botX: 64, botY: 76, botDiameter: 46, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
