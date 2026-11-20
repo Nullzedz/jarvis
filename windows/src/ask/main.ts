@@ -86,8 +86,12 @@ window.addEventListener("blur", () => {
 async function main() {
   const boot = await Bridge.boot();
   setLanguage(resolveLanguage(boot?.settings.language, systemLanguages()));
+  // What he's looking at: the part you circled, the whole screen, or nothing (no picture).
+  void onEvent<string>("ask-open", (what) => {
+    field.placeholder = what === "circled" ? t("Ask about what you circled") : what === "screen" ? t("Ask about your screen") : t("Ask JARVIS anything");
+    reset();
+  });
   field.placeholder = t("Ask JARVIS anything");
-  void onEvent<null>("ask-open", () => reset());
   void onEvent<string>("ask-delta", (delta) => {
     if (answer.classList.contains("thinking")) {
       answer.classList.remove("thinking");

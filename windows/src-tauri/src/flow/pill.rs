@@ -129,6 +129,8 @@ pub fn setup(app: &AppHandle) {
         }
         match builder.build() {
             Ok(win) => {
+                // JARVIS: never in a picture of the screen he's shown (voice/sight.rs).
+                crate::voice::sight::hide_from_capture(&win);
                 // Windows: prepare_pill_window also makes the idle window
                 // click-through. Not here for every system: on Linux the
                 // window is not realized yet, and tao unwraps its GdkWindow.

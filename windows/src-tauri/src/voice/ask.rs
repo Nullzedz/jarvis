@@ -1,6 +1,9 @@
 // JARVIS: type to ask (Roamies' idea, written for JARVIS). The ask shortcut
 // (Left Ctrl + Left Shift + Z unless changed in Settings, shortcut.rs), pressed
-// with nothing else, opens a small box glued to the mouse (ask.html, design C): his white visor face, a
+// with nothing else and let go, opens a small box glued to the mouse. He sees
+// what you ask about (sight.rs): move the pointer round something while the keys
+// are held and he looks at just that; otherwise at the whole screen. The box
+// opens (ask.html, design C): his white visor face, a
 // field to type in, and his answer appearing right underneath as it's written.
 // Enter sends, Shift+Enter adds a line, Esc or the shortcut again closes it.
 //
@@ -14,6 +17,7 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, WebviewUrl, WebviewWindowBuilder};
 
 use super::brain::Brain;
+use super::ink::Trail;
 
 pub const LABEL: &str = "ask";
 /// The box's width, and its height before an answer (logical px; the page asks for more as it grows).
@@ -70,15 +74,21 @@ pub fn setup(app: &AppHandle) {
         .maximizable(false)
         .minimizable(false)
         .build();
-    if let Err(err) = built {
-        crate::log::line(format!("ask: no window: {err}"));
-        return;
+    match built {
+        // Never in a picture of the screen he's shown.
+        Ok(win) => super::sight::hide_from_capture(&win),
+        Err(err) => {
+            crate::log::line(format!("ask: no window: {err}"));
+            return;
+        }
     }
     let app = app.clone();
     std::thread::Builder::new()
         .name("jarvis-ask-keys".into())
         .spawn(move || {
             let mut press = Press::default();
+            // While the keys are held after a press: the pointer's path (a circle, maybe).
+            let mut held: Option<Trail> = None;
             loop {
                 std::thread::sleep(Duration::from_millis(30));
                 let (chord, other) = super::shortcut::keys(super::shortcut::Which::Ask);
@@ -86,13 +96,48 @@ pub fn setup(app: &AppHandle) {
                     if super::shortcut::needs_mask(super::shortcut::Which::Ask) {
                         super::shortcut::mask();
                     }
+                    let open = app.get_webview_window(LABEL).is_some_and(|w| w.is_visible().unwrap_or(false));
+                    if open {
+                        // Pressed again: the box goes.
+                        let app2 = app.clone();
+                        let _ = app.run_on_main_thread(move || close(&app2));
+                    } else {
+                        held = Some(Trail::start(&app));
+                    }
+                    continue;
+                }
+                let Some(trail) = held.as_mut() else { continue };
+                if other {
+                    // Another shortcut after all.
+                    if let Some(t) = held.take() {
+                        t.end();
+                    }
+                } else if chord {
+                    if let Some(p) = crate::platform::cursor_physical() {
+                        if trail.feed(p) {
+                            crate::log::line("ask: something was circled");
+                        }
+                    }
+                } else {
+                    // Let go: the screen is copied now (a few ms), the box opens at once, and
+                    // the picture is made while you type.
+                    let ink = held.take().unwrap().end();
+                    let (shot, what) = match (ink.area(), ink.circle()) {
+                        (Some(area), Some(circle)) => (super::sight::circled(area, circle), "circled"),
+                        _ => (super::sight::whole_screen(), "screen"),
+                    };
+                    let what = if shot.is_some() { what } else { "" };
+                    *SEEN.lock().unwrap() = shot;
                     let app2 = app.clone();
-                    let _ = app.run_on_main_thread(move || toggle(&app2));
+                    let _ = app.run_on_main_thread(move || open(&app2, what));
                 }
             }
         })
         .ok();
 }
+
+/// The picture taken when the box opened: sent with its first question.
+static SEEN: Mutex<Option<super::sight::Pending>> = Mutex::new(None);
 
 /// Where the box goes for the pointer at (cx, cy): below and right of it, kept
 /// on its screen, and above it near the bottom.
@@ -114,13 +159,16 @@ fn place(win: &tauri::WebviewWindow, cx: f64, cy: f64) -> PhysicalPosition<i32> 
 /// Each opening gets a number: a follower from an older one stops.
 static OPENED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// Opens the box beside the mouse, or closes it if it's open.
-fn toggle(app: &AppHandle) {
-    let Some(win) = app.get_webview_window(LABEL) else { return };
-    if win.is_visible().unwrap_or(false) {
+fn close(app: &AppHandle) {
+    if let Some(win) = app.get_webview_window(LABEL) {
         let _ = win.hide();
-        return;
     }
+    *SEEN.lock().unwrap() = None;
+}
+
+/// Opens the box beside the mouse; `what` it sees: "screen", "circled" or "" (nothing).
+fn open(app: &AppHandle, what: &'static str) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
     let scale = win.scale_factor().unwrap_or(1.0);
     let _ = win.set_size(PhysicalSize::new((WIDTH * scale) as u32, (HEIGHT * scale) as u32));
     if let Some((cx, cy)) = crate::platform::cursor_physical() {
@@ -128,7 +176,7 @@ fn toggle(app: &AppHandle) {
     }
     let _ = win.show();
     let _ = win.set_focus();
-    let _ = win.emit("ask-open", ());
+    let _ = win.emit("ask-open", what);
     // Glued to the pointer while it's open (about 60 times a second).
     let me = OPENED.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
     std::thread::spawn(move || {
@@ -158,10 +206,13 @@ pub fn ask_send(app: AppHandle, question: String) {
     if question.is_empty() {
         return;
     }
+    // The picture goes with the box's first question.
+    let seen = SEEN.lock().unwrap().take();
     std::thread::spawn(move || {
         let mut brain = brain().lock().unwrap();
         let mut said = String::new();
-        let reply = brain.respond(&app, &question, &mut |delta| {
+        let seen = seen.and_then(super::sight::Pending::wait);
+        let reply = brain.respond(&app, &question, seen.as_ref(), &mut |delta| {
             said.push_str(delta);
             let _ = app.emit_to(LABEL, "ask-delta", delta.to_string());
         });
@@ -183,9 +234,7 @@ fn clean(text: &str) -> String {
 /// Esc, or a click elsewhere: the box goes away.
 #[tauri::command]
 pub fn ask_close(app: AppHandle) {
-    if let Some(win) = app.get_webview_window(LABEL) {
-        let _ = win.hide();
-    }
+    close(&app);
 }
 
 /// The box grew (its answer): the window follows its height.

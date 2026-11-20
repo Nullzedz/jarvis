@@ -9,6 +9,10 @@ license = "MIT"
 
 # Release profile shared by the app and the hook relay: the hook must start fast
 # (Claude Code spawns it on every event), so we optimise for size and speed.
+# JARVIS: the screen picture's JPEG is made in a few ms even in a dev build.
+[profile.dev.package.jpeg-encoder]
+opt-level = 3
+
 [profile.release]
 opt-level = "s"
 lto = true

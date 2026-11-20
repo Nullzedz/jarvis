@@ -148,7 +148,8 @@ pub fn shutdown() {
 
 /// Asks `question`; `on_text` gets the answer's words as they are written.
 /// Returns the whole answer.
-pub fn ask(model: &str, system: &str, question: &str, on_text: &mut dyn FnMut(&str)) -> Result<String, String> {
+/// `content` is the message's blocks: the question, and a picture of the screen before it when there is one.
+pub fn ask(model: &str, system: &str, content: Value, on_text: &mut dyn FnMut(&str)) -> Result<String, String> {
     let mut guard = slot().lock().unwrap();
     if !guard.as_mut().is_some_and(|w| fits(w, model, system)) {
         *guard = None;
@@ -157,7 +158,7 @@ pub fn ask(model: &str, system: &str, question: &str, on_text: &mut dyn FnMut(&s
     }
     let w = guard.as_mut().unwrap();
     while w.lines.try_recv().is_ok() {}
-    let message = json!({ "type": "user", "message": { "role": "user", "content": [{ "type": "text", "text": question }] } });
+    let message = json!({ "type": "user", "message": { "role": "user", "content": content } });
     let sent = writeln!(w.stdin, "{message}").and_then(|_| w.stdin.flush());
     if let Err(err) = sent {
         *guard = None;
@@ -248,7 +249,7 @@ mod tests {
         for q in ["What is a good name for a cat?", "And the capital of Belgium?"] {
             let started = Instant::now();
             let mut first = None;
-            let answer = ask("claude-haiku-4-5", system, q, &mut |_| {
+            let answer = ask("claude-haiku-4-5", system, json!([{ "type": "text", "text": q }]), &mut |_| {
                 first.get_or_insert(started.elapsed());
             })
             .expect("an answer");
