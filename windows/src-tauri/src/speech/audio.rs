@@ -226,16 +226,35 @@ fn open_device(source: &Source) -> Option<cpal::Device> {
             .input_devices()
             .ok()
             .and_then(|mut it| it.find(|d| device_name(d) == *name))
-            .or_else(|| host.default_input_device()),
-        Source::Mic(None) => host.default_input_device(),
+            .or_else(|| default_input(&host)),
+        Source::Mic(None) => default_input(&host),
         Source::System => system_device(&host),
     }
 }
 
+/// JARVIS: the default microphone as the device it is right now, not cpal's
+/// « default » alias. On Windows the alias is opened asynchronously and
+/// watches for default-device changes, whose callbacks set up COM on Windows'
+/// shared worker threads; after that, opening the alias again failed with
+/// « Cannot change thread mode after it is set » and dictation, the notes and
+/// the talk keys lost the microphone until JARVIS restarted.
+fn default_input(host: &cpal::Host) -> Option<cpal::Device> {
+    let alias = host.default_input_device()?;
+    concrete(alias, host.input_devices().ok())
+}
+
+/// The device among `devices` with the same id as `alias`, else the alias itself.
+fn concrete(alias: cpal::Device, devices: Option<impl Iterator<Item = cpal::Device>>) -> Option<cpal::Device> {
+    let Ok(id) = alias.id() else { return Some(alias) };
+    devices.and_then(|mut it| it.find(|d| d.id().is_ok_and(|i| i == id))).or(Some(alias))
+}
+
 #[cfg(windows)]
 fn system_device(host: &cpal::Host) -> Option<cpal::Device> {
-    // WASAPI turns an output opened for input into its loopback.
-    host.default_output_device()
+    // WASAPI turns an output opened for input into its loopback. JARVIS: the
+    // output as the device it is right now (see default_input).
+    let alias = host.default_output_device()?;
+    concrete(alias, host.output_devices().ok())
 }
 
 #[cfg(not(windows))]
@@ -484,6 +503,30 @@ pub fn read_wav(path: &Path) -> std::io::Result<Vec<f32>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// With a microphone: a second capture opens while the first runs, after
+    /// stops and restarts, and after the first thread to touch audio has ended.
+    /// `cargo test --lib mic_opens -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn mic_opens_again_and_again() {
+        // The first thread to touch audio ends straight away.
+        std::thread::spawn(|| {
+            let _ = open_device(&Source::Mic(None));
+        })
+        .join()
+        .unwrap();
+        let mut a = Capture::start(Source::Mic(None), |_| {}).expect("first capture");
+        for i in 0..3 {
+            let mut b = Capture::start(Source::Mic(None), |_| {}).unwrap_or_else(|e| panic!("second capture #{i}: {e}"));
+            std::thread::sleep(Duration::from_millis(200));
+            b.stop();
+        }
+        a.stop();
+        let mut c = Capture::start(Source::Mic(None), |_| {}).expect("capture after the first stopped");
+        c.stop();
+        println!("all captures opened");
+    }
 
     /// A temporary file, removed when dropped.
     struct TempFile(std::path::PathBuf);

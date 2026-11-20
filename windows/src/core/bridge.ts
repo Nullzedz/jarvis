@@ -260,6 +260,21 @@ export const Bridge = {
   micMeterStop: () => call<void>("mic_meter_stop"),
   /** A short line in `voice`, as WAV bytes. */
   voicePreview: (voice: string) => callOrThrow<ArrayBuffer>("voice_preview", { voice }),
+  /** JARVIS: a short line in a Gemini voice (WAV), with the saved key. */
+  geminiPreview: (voice: string) => callOrThrow<ArrayBuffer>("gemini_preview", { voice }),
+  /** JARVIS: whether the saved Gemini key works: "ok", "none", "key" (refused) or "network". */
+  geminiKeyCheck: () => call<string>("gemini_key_check"),
+  /** JARVIS: fetch a Gemini voice's sample in the background, so ▶ is instant. */
+  geminiWarmUp: (voice: string) => call<void>("gemini_warm_up", { voice }),
+  /** JARVIS: Piper, the offline backup voice (voice/piper.rs): its download, and a sample. */
+  /** JARVIS: the type-to-ask box (voice/ask.rs). */
+  askSend: (question: string) => call<void>("ask_send", { question }),
+  askClose: () => call<void>("ask_close"),
+  askResize: (height: number) => call<void>("ask_resize", { height }),
+  piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
+  piperModelDownload: () => call<void>("piper_model_download"),
+  piperModelRemove: () => call<void>("piper_model_remove"),
+  piperPreview: () => callOrThrow<ArrayBuffer>("piper_preview"),
   liveRead: (path: string, cwd: string, find: string | null, line: number | null) =>
     callOrThrow<LiveWindow>("live_read", { path, cwd, find, line }),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */

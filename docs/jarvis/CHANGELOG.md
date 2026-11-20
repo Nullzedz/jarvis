@@ -6,6 +6,20 @@ Windows app. Newest first.
 
 Tracking issue: [#1 — Give JARVIS its own UI, while keeping coucou's animation quality](https://github.com/Nullzedz/jarvis/issues/1).
 
+## Push-to-talk, Gemini voice, type-to-ask and shortcuts ([#6](https://github.com/Nullzedz/jarvis/issues/6), [#5](https://github.com/Nullzedz/jarvis/issues/5))
+
+- **Push-to-talk replaces « Hey JARVIS »** (Roamies' design, reimplemented): hold Left Ctrl +
+  Win to talk, tap it for hands-free; after an answer he listens 8 s more for a follow-up.
+  Pressing the keys again closes him, fading his voice and bubble out even mid-answer.
+- **Voice fixes:** the microphone works again for dictation and notes, quiet words are no
+  longer missed, the bubble no longer pops, and links or source lists are never read aloud.
+- **Gemini voice** (Charon, the user's free AI Studio key), with **Piper** as the offline
+  backup or text only; never the system voice.
+- **Type to ask:** Left Ctrl + Left Shift + Z opens a box glued to the cursor; the answer is
+  written underneath.
+- **Shortcuts in Settings → Voice:** three keycap tiles (talk, ask, dictate) to record new
+  keys; clashing keys are refused.
+
 ## Voice, file drop, live code card and plan usage — `06dedb2` ([#3](https://github.com/Nullzedz/jarvis/issues/3))
 
 - **« Hey JARVIS »:** his own offline British voice (Kokoro, via sherpa-onnx, downloaded on

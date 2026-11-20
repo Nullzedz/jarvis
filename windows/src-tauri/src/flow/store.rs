@@ -112,18 +112,26 @@ pub struct Prefs {
     pub voice: bool,
     /// The other apps' sound is muted while Coucou listens to you (Windows).
     pub mute_others: bool,
-    /// How Coucou answers out loud: "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
+    /// How Coucou answers out loud: "gemini" (JARVIS: Google's voice, the user's key), "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
     pub voice_output: String,
     /// The ElevenLabs voice: "female" or "male".
     pub voice_gender: String,
     /// JARVIS's own voice (tts.rs VOICES): "george", "lewis", "daniel" or "fable".
     pub voice_name: String,
+    /// JARVIS: his Gemini voice (voice/gemini.rs VOICES), Charon unless picked.
+    pub gemini_voice: String,
+    /// JARVIS: when Gemini can't speak, "piper" (the offline backup, voice/piper.rs) or "text" (shown only).
+    pub gemini_fallback: String,
     /// JARVIS: answer only the trained voice (voice/print.rs).
     pub voice_only_me: bool,
     /// How close a voice must be to the trained one: "relaxed", "balanced" or "strict".
     pub voice_strictness: String,
     /// One short press of the key starts hands-free dictation, instead of two.
     pub one_tap_hands_free: bool,
+    /// JARVIS: the keys held to talk to him (KeyboardEvent.code names), voice/shortcut.rs.
+    pub talk_keys: Vec<String>,
+    /// JARVIS: the keys pressed to open the ask box at the cursor.
+    pub ask_keys: Vec<String>,
 }
 
 impl Default for Prefs {
@@ -145,9 +153,13 @@ impl Default for Prefs {
             voice_output: "jarvis".into(),
             voice_gender: "male".into(),
             voice_name: crate::tts::DEFAULT_VOICE.into(),
+            gemini_voice: crate::voice::gemini::DEFAULT_VOICE.into(),
+            gemini_fallback: "piper".into(),
             voice_only_me: false,
             voice_strictness: "balanced".into(),
             one_tap_hands_free: false,
+            talk_keys: crate::voice::shortcut::DEFAULT_TALK.map(String::from).to_vec(),
+            ask_keys: crate::voice::shortcut::DEFAULT_ASK.map(String::from).to_vec(),
         }
     }
 }

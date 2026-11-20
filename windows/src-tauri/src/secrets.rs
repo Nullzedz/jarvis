@@ -29,6 +29,8 @@ pub const KNOWN_KEYS: &[&str] = &[
     "calcom-api-key",
     // « OK Coucou »'s answers in an ElevenLabs voice.
     "elevenlabs-api-key",
+    // JARVIS: his answers in a Gemini voice (voice/gemini.rs).
+    "gemini-api-key",
 ];
 
 fn entry(key: &str) -> Option<Entry> {

@@ -131,6 +131,7 @@ pub fn setup(app: &AppHandle) {
     if prefs.enabled {
         enable(app, &flow);
     }
+    crate::voice::shortcut::apply(&prefs);
     crate::voice::sync(app);
 }
 
@@ -510,6 +511,7 @@ pub fn flow_set_prefs(app: AppHandle, flow: State<Arc<Flow>>, prefs: Prefs) {
         s.hide_idle = prefs.hide_pill;
         s.key = key_id(prefs.key, &prefs.key_combo);
     });
+    crate::voice::shortcut::apply(&prefs);
     let restart = before.key != prefs.key || before.key_combo != prefs.key_combo;
     if before.enabled && (!prefs.enabled || restart) {
         disable(&app, &flow);

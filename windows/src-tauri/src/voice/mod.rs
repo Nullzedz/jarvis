@@ -1,21 +1,26 @@
-// « OK Coucou » on Windows and Linux: say it, then ask anything. Port of the
-// Mac's Voice/ (VoiceEngine.swift and its friends).
+// JARVIS's voice: hold the talk keys (Left Ctrl + Win by default) and talk (or tap them, and talk
+// hands-free), the way Roamies does it (talk.rs). « Hey JARVIS » is gone: no
+// phrase is listened for, so nothing wakes him by mistake or cuts you off.
 //
-// While it is on, the microphone is open and a cheap energy detector cuts what
-// you say into stretches; only a stretch of speech goes to Parakeet, on this
-// computer, and only a stretch that starts with « OK Coucou » goes further:
-// what you said after it goes to Claude with your own key (brain.rs), never
-// the audio. Mochi shows it all in the pill at the bottom of the screen —
+// While it is on, the microphone is open but only a take — from the keys going
+// down to the question being sent — is read, by Parakeet on this computer;
+// what you said goes to Claude (brain.rs, your key or your own Claude Code),
+// never the audio. Mochi shows it all in the pill at the bottom of the screen —
 // listening, thinking, then the answer, said out loud by the system's voice
 // (the pill's speechSynthesis) or ElevenLabs with your key.
 //
 // It stops listening while you dictate, while a call is recorded and while it
 // speaks itself.
 
+pub mod ask;
 pub mod brain;
+pub mod gemini;
+pub mod piper;
 pub mod meter;
 pub mod print;
+pub mod shortcut;
 pub mod stream;
+pub mod talk;
 pub mod wake;
 pub mod warm;
 
@@ -81,7 +86,9 @@ pub fn sync(app: &AppHandle) {
             speech::preload();
             // JARVIS: his voice loaded before the first answer.
             crate::tts::preload();
-            crate::log::line("voice: « OK Coucou » listening");
+            // JARVIS: the offline backup, ready before Gemini first needs it.
+            piper::preload();
+            crate::log::line("voice: push-to-talk ready");
         }
         (false, true) => {
             if let Some(r) = running.take() {
@@ -114,13 +121,65 @@ fn show(app: &AppHandle, view: Option<VoiceView>) {
     pill::update(app, |s| s.voice = view);
 }
 
-enum Mode {
-    /// Waiting for « OK Coucou ».
-    Wake,
-    /// Heard « OK Coucou » alone: what comes next is the question.
-    Command { text: String, until: Instant },
-    /// Coucou asked something back: an answer comes without « OK Coucou ».
-    FollowUp { until: Instant },
+// ── JARVIS: push-to-talk (talk.rs) ─────────────────────────────────────────────
+
+/// Audio kept from just before the keys went down, so the first word isn't clipped (s).
+const PREROLL: f64 = 0.3;
+/// After the keys are let go, the mic stays open this long for a word said while letting go (s).
+const TAIL: f64 = 0.3;
+/// While talking, what was said so far is read again this often, for the live text (s).
+const READ_EVERY: f64 = 0.8;
+/// Hands-free: this long with no voice and no new words ends the take (s).
+const PAUSE_ENDS: f64 = 2.0;
+/// Hands-free: nothing said this long and the take is dropped (s).
+const NOTHING_WAIT: f64 = 6.0;
+/// After each answer, how long JARVIS keeps listening for you to go on, no keys needed (s).
+const FOLLOW_UP_WAIT: f64 = 8.0;
+/// The longest take (s).
+const MAX_TAKE: f64 = 60.0;
+/// The longest the last reading may take before the take is given up (s).
+const FINAL_TIMEOUT: Duration = Duration::from_secs(20);
+
+/// One take: from the keys going down to the question being sent.
+struct Take {
+    id: u64,
+    audio: Vec<f32>,
+    started: f64,
+    /// When a voice was last heard (above the room's noise); None while nobody spoke.
+    voice_at: Option<f64>,
+    /// When the live text last grew: words still coming keep a hands-free take open.
+    grew_at: f64,
+    /// How long to wait for a first word when hands-free.
+    nothing_wait: f64,
+    /// Opened by JARVIS after an answer: the answer stays on screen until you speak,
+    /// and closes quietly if you don't.
+    follow_up: bool,
+    /// The live text so far.
+    heard: String,
+    read_at: f64,
+    reading: bool,
+    /// Keys let go: the take ends at this time (the tail).
+    send_at: Option<f64>,
+}
+
+/// Reads takes on its own thread, so the keys are watched while Parakeet works.
+/// In: (take, audio, last); out: (take, text, last).
+fn reader() -> (mpsc::Sender<(u64, Vec<f32>, bool)>, mpsc::Receiver<(u64, String, bool)>) {
+    let (jobs, job_rx) = mpsc::channel::<(u64, Vec<f32>, bool)>();
+    let (out, results) = mpsc::channel();
+    std::thread::Builder::new()
+        .name("jarvis-talk-reader".into())
+        .spawn(move || {
+            for (id, audio, last) in job_rx {
+                // As dictation reads it: the take as recorded, not amplified.
+                let text = speech::transcribe(&audio).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                if out.send((id, text, last)).is_err() {
+                    break;
+                }
+            }
+        })
+        .ok();
+    (jobs, results)
 }
 
 fn run(app: AppHandle, stop: Arc<AtomicBool>) {
@@ -137,178 +196,330 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             return;
         }
     };
+    // The room's noise level (what counts as a voice), and the training takes.
     let mut vad = wake::Vad::default();
-    let mut mode = Mode::Wake;
+    let mut talk = talk::Talk::default();
+    let mut take: Option<Take> = None;
+    let mut next_take = 0u64;
+    let (jobs, results) = reader();
+    let preroll_len = (PREROLL * speech::SAMPLE_RATE as f64) as usize;
+    let mut preroll: std::collections::VecDeque<f32> = std::collections::VecDeque::with_capacity(preroll_len + 4096);
     let mut brain = brain::Brain::default();
     let mut hide_at: Option<Instant> = None;
-    // Silence for the question that follows « OK Coucou » (flow/hush.rs).
+    // Silence for the question while you talk (flow/hush.rs).
     let mut hush: Option<crate::flow::hush::Guard> = None;
     let quiet = || crate::flow::get(&app).is_some_and(|f| f.store.lock().unwrap().prefs.mute_others);
-    // JARVIS (diagnosis): the microphone's loudest level every 10 s, against what counts as speech.
+    let t0 = Instant::now();
     let mut level_peak = 0.0f32;
     let mut level_since = Instant::now();
     let mut level_emit = Instant::now();
-    // JARVIS: Claude Code started ahead of the first question.
     prewarm();
     while !stop.load(Ordering::Relaxed) {
-        // Listening for a question or an answer: the other apps are quiet.
-        let asking = matches!(mode, Mode::Command { .. } | Mode::FollowUp { .. });
-        if asking && hush.is_none() {
+        let recording = take.is_some();
+        if recording && hush.is_none() {
             hush = crate::flow::hush::hush(quiet());
-        } else if !asking {
+        } else if !recording {
             hush = None;
         }
-        let chunk = match rx.recv_timeout(Duration::from_millis(300)) {
+        // A short beat: the keys are read about every 30 ms.
+        let chunk = match rx.recv_timeout(Duration::from_millis(30)) {
             Ok(c) => Some(c),
             Err(mpsc::RecvTimeoutError::Timeout) => None,
             Err(mpsc::RecvTimeoutError::Disconnected) => break,
         };
-        let now = Instant::now();
-        // The pill's last answer goes away after a while (JARVIS: not while the pointer is on it).
-        if hide_at.is_some_and(|t| now > t) {
+        let now = t0.elapsed().as_secs_f64();
+        // The pill's last answer goes away after a while (not while the pointer is on it).
+        if hide_at.is_some_and(|t| Instant::now() > t) {
             if pill::pointer_over() {
-                hide_at = Some(now + Duration::from_millis(800));
+                hide_at = Some(Instant::now() + Duration::from_millis(800));
             } else {
                 hide_at = None;
                 show(&app, None);
             }
         }
-        match &mode {
-            Mode::Command { until, .. } | Mode::FollowUp { until } if now > *until => {
-                mode = Mode::Wake;
-                vad.hangover = 25;
+        // Dictation and calls have the microphone: no talking meanwhile.
+        if pill::dictating(&app) || crate::notes::is_recording(&app) {
+            if take.take().is_some() {
                 show(&app, None);
             }
-            _ => {}
-        }
-        // Dictation and calls have the microphone: Coucou doesn't listen meanwhile.
-        if pill::dictating(&app) || crate::notes::is_recording(&app) {
+            talk.end();
             vad.reset();
+            preroll.clear();
             continue;
         }
-        let Some(chunk) = chunk else { continue };
-        if !chunk.is_empty() {
-            let rms = (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32).sqrt();
-            level_peak = level_peak.max(rms);
+
+        // The keys.
+        let (chord, other) = talk::keys();
+        match talk.step(now, chord, other) {
+            Some(talk::Event::Begin) => {
+                // A held Win or Alt, let go, would open the Start menu or the app's menu bar.
+                if shortcut::needs_mask(shortcut::Which::Talk) {
+                    shortcut::mask();
+                }
+                next_take += 1;
+                take = Some(Take {
+                    id: next_take,
+                    audio: preroll.iter().copied().collect(),
+                    started: now,
+                    voice_at: None,
+                    grew_at: now,
+                    nothing_wait: NOTHING_WAIT,
+                    follow_up: false,
+                    heard: String::new(),
+                    read_at: now,
+                    reading: false,
+                    send_at: None,
+                });
+            }
+            Some(talk::Event::Hold) | Some(talk::Event::HandsFree) => {
+                hide_at = None;
+                show(&app, Some(VoiceView { phase: "listening".into(), ..Default::default() }));
+            }
+            Some(talk::Event::Send) => {
+                if let Some(t) = take.as_mut() {
+                    t.send_at = Some(now + TAIL);
+                }
+            }
+            Some(talk::Event::Cancel) => {
+                take = None;
+                show(&app, None);
+            }
+            Some(talk::Event::Close) => {
+                take = None;
+                hide_at = None;
+                fade_out(&app);
+            }
+            None => {}
         }
-        // JARVIS: the training screen's meter, ten times a second.
-        if print::training_active() && level_emit.elapsed() > Duration::from_millis(100) {
-            let rms = if chunk.is_empty() { 0.0 } else { (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32).sqrt() };
-            let level = (rms / (vad.threshold() * 4.0)).min(1.0);
-            let _ = app.emit("voice-level", level);
-            level_emit = Instant::now();
+
+        // The microphone.
+        if let Some(chunk) = chunk {
+            if !chunk.is_empty() {
+                let rms = (chunk.iter().map(|x| x * x).sum::<f32>() / chunk.len() as f32).sqrt();
+                level_peak = level_peak.max(rms);
+                if let Some(t) = take.as_mut() {
+                    if is_voice(rms, vad.floor()) {
+                        t.voice_at = Some(now);
+                    }
+                }
+                if print::training_active() && level_emit.elapsed() > Duration::from_millis(100) {
+                    let level = (rms / (vad.threshold() * 4.0)).min(1.0);
+                    let _ = app.emit("voice-level", level);
+                    level_emit = Instant::now();
+                }
+            }
+            // The room's noise floor follows along; training takes are its stretches of speech.
+            for segment in vad.feed(&chunk) {
+                if print::training_active() && segment.len() >= speech::SAMPLE_RATE as usize * 35 / 100 {
+                    let segment = wake::boost(&segment);
+                    if let Some(heard) = speech::transcribe(&segment).map(|t| t.text.trim().to_string()) {
+                        if !heard.is_empty() {
+                            print::take(&app, &segment, &heard);
+                        }
+                    }
+                }
+            }
+            match take.as_mut() {
+                Some(t) => t.audio.extend_from_slice(&chunk),
+                None => {
+                    preroll.extend(chunk.iter().copied());
+                    while preroll.len() > preroll_len {
+                        preroll.pop_front();
+                    }
+                }
+            }
         }
         if level_since.elapsed() > Duration::from_secs(10) {
-            // JARVIS: a fresh Claude Code once the conversation is forgotten, or if it stopped.
+            // A fresh Claude Code once the conversation is forgotten, or if it stopped.
             prewarm();
             crate::log::line(format!("voice: mic level peak {level_peak:.4} (speech from {:.4})", vad.threshold()));
             level_peak = 0.0;
             level_since = Instant::now();
         }
-        for segment in vad.feed(&chunk) {
-            if segment.len() < speech::SAMPLE_RATE as usize * 35 / 100 {
-                continue;
-            }
-            // JARVIS: a quiet microphone's speech brought up to a normal level first.
-            let segment = wake::boost(&segment);
-            let Some(heard) = speech::transcribe(&segment).map(|t| t.text.trim().to_string()) else { continue };
-            if heard.is_empty() {
-                continue;
-            }
-            // JARVIS: while training, every stretch of speech is a take.
-            if print::training_active() {
-                print::take(&app, &segment, &heard);
-                continue;
-            }
-            let question = match &mut mode {
-                Mode::Wake => match wake::after_wake(&heard).or_else(|| print::learned_wake(&heard)) {
-                    Some(rest) => {
-                        // JARVIS: « Only answer my voice » — someone else, the TV, a video: ignored.
-                        let (only_me, strictness) = crate::flow::get(&app)
-                            .map(|f| {
-                                let p = &f.store.lock().unwrap().prefs;
-                                (p.voice_only_me, p.voice_strictness.clone())
-                            })
-                            .unwrap_or((false, "balanced".into()));
-                        if only_me {
-                            let (mine, score) = print::is_my_voice(&segment, &strictness);
-                            if !mine {
-                                crate::log::line(format!("voice: wake phrase in another voice ({score:.2}), ignored"));
-                                continue;
-                            }
-                            crate::log::line(format!("voice: your voice ({score:.2})"));
-                        }
-                        crate::log::line("voice: « OK Coucou » heard");
+
+        // Live text: what was said so far, read again about once a second.
+        while let Ok((id, text, last)) = results.try_recv() {
+            if let Some(t) = take.as_mut().filter(|t| t.id == id && !last) {
+                t.reading = false;
+                if !text.is_empty() && text != t.heard {
+                    t.heard = text;
+                    t.grew_at = now;
+                    // You went on: no longer a quiet wait behind the answer.
+                    t.follow_up = false;
+                    if talk.shown() {
                         hide_at = None;
-                        if crate::flow::text::word_count(&rest) >= 2 {
-                            Some(rest)
-                        } else {
-                            show(&app, Some(VoiceView { phase: "listening".into(), heard: rest.clone(), ..Default::default() }));
-                            mode = Mode::Command { text: rest, until: now + Duration::from_secs(7) };
-                            // A question may come with pauses in it.
-                            vad.hangover = 40;
-                            None
-                        }
+                        show(&app, Some(VoiceView { phase: "listening".into(), heard: t.heard.clone(), ..Default::default() }));
                     }
-                    None => {
-                        // JARVIS (diagnosis): what was heard when it was not the wake phrase, so a
-                        // missed « Hey JARVIS » shows how Parakeet wrote it. Kept in the local log only.
-                        let first: String = heard.split_whitespace().take(6).collect::<Vec<_>>().join(" ");
-                        crate::log::line(format!("voice: not the wake phrase: « {first} »"));
-                        None
-                    }
-                },
-                Mode::Command { text, .. } => {
-                    let full = format!("{text} {heard}").trim().to_string();
-                    Some(full)
                 }
-                Mode::FollowUp { .. } => Some(heard),
-            };
-            let Some(question) = question else { continue };
-            mode = Mode::Wake;
-            vad.hangover = 25;
-            show(&app, Some(VoiceView { phase: "thinking".into(), heard: question.clone(), ..Default::default() }));
-            // JARVIS: each sentence is said as soon as it is written, while the rest is still coming.
-            let asked = Instant::now();
-            let speech = Speech::start(&app, &question, asked);
-            let mut splitter = stream::Splitter::default();
-            let reply = brain.respond(&app, &question, &mut |delta| {
-                for piece in splitter.push(delta) {
-                    speech.say(piece);
-                }
-            });
-            if let Some(rest) = splitter.finish() {
-                speech.say(rest);
-            }
-            crate::log::line(format!("voice: answer written in {} ms", asked.elapsed().as_millis()));
-            let said = speech.finish();
-            vad.reset();
-            // Drop what the microphone heard of Coucou's own voice.
-            while rx.try_recv().is_ok() {}
-            if said.is_empty() {
-                let done = reply.is_some_and(|r| r.acted);
-                show(&app, Some(VoiceView {
-                    phase: "speaking".into(),
-                    heard: question,
-                    answer: if done { "✓".into() } else { crate::i18n::t("Coucou couldn't answer: check your Claude key in Notch → Chat.") },
-                    pace_ms: 0,
-                }));
-                hide_at = Some(Instant::now() + Duration::from_secs(5));
-                continue;
-            }
-            if said.trim_end().ends_with('?') {
-                // He asked something: listen for the answer, the text folded away.
-                mode = Mode::FollowUp { until: Instant::now() + Duration::from_secs(8) };
-                vad.hangover = 40;
-                show(&app, Some(VoiceView { phase: "listening".into(), ..Default::default() }));
-            } else {
-                hide_at = Some(Instant::now() + reading_time(&said));
             }
         }
+        let Some(t) = take.as_mut() else { continue };
+        if t.voice_at.is_some() && !t.reading && t.send_at.is_none() && now - t.read_at >= READ_EVERY {
+            t.reading = true;
+            t.read_at = now;
+            let _ = jobs.send((t.id, t.audio.clone(), false));
+        }
+
+        // How the take ends.
+        let end = if t.send_at.is_some_and(|at| now >= at) {
+            Some(if t.voice_at.is_some() { "sent" } else { "nothing said" })
+        } else if talk.hands_free() {
+            match t.voice_at {
+                Some(at) if now - at.max(t.grew_at) > PAUSE_ENDS => Some("pause"),
+                None if now - t.started > t.nothing_wait => Some("nothing said"),
+                _ => None,
+            }
+        } else {
+            None
+        };
+        let end = end.or_else(|| (now - t.started > MAX_TAKE).then_some("too long"));
+        let Some(why) = end else { continue };
+        let done = take.take().unwrap();
+        talk.end();
+        if why == "nothing said" {
+            // Parakeet makes words up from silence: a take with no voice in it is dropped.
+            crate::log::line(if done.follow_up { "voice: no follow-up" } else { "voice: talk keys, nothing said" });
+            // After an answer, the answer stays and fades on its own (hide_at).
+            if !done.follow_up {
+                show(&app, None);
+            }
+            continue;
+        }
+        show(&app, Some(VoiceView { phase: "thinking".into(), heard: done.heard.clone(), ..Default::default() }));
+        let _ = jobs.send((done.id, done.audio, true));
+        let question = loop {
+            match results.recv_timeout(FINAL_TIMEOUT) {
+                Ok((id, text, true)) if id == done.id => break Some(text),
+                Ok(_) => continue,
+                Err(_) => break None,
+            }
+        };
+        let question = question.filter(|q| q.chars().any(char::is_alphanumeric));
+        let Some(question) = question else {
+            crate::log::line(format!("voice: talk keys ({why}), nothing understood"));
+            show(&app, None);
+            continue;
+        };
+        crate::log::line(format!("voice: talk keys ({why}), {} words", crate::flow::text::word_count(&question)));
+        let (_, stopped) = answer(&app, &mut brain, &question, &mut hide_at);
+        vad.reset();
+        if stopped {
+            // Stopped with the talk keys: no follow-up, and nothing starts until they're up.
+            crate::log::line("voice: stopped with the talk keys");
+            hide_at = None;
+            talk.block();
+            while rx.try_recv().is_ok() {}
+            preroll.clear();
+            continue;
+        }
+        // Drop what the microphone heard of JARVIS's own voice.
+        while rx.try_recv().is_ok() {}
+        preroll.clear();
+        // The conversation goes on: JARVIS keeps listening, hands-free, for you to
+        // reply or ask more — no keys. The answer stays on screen meanwhile (no
+        // « Listening… » popping up); your words replace it once you speak.
+        talk.listen();
+        next_take += 1;
+        let at = t0.elapsed().as_secs_f64();
+        take = Some(Take {
+            id: next_take,
+            audio: Vec::new(),
+            started: at,
+            voice_at: None,
+            grew_at: at,
+            nothing_wait: FOLLOW_UP_WAIT,
+            follow_up: true,
+            heard: String::new(),
+            read_at: at,
+            reading: false,
+            send_at: None,
+        });
     }
     capture.stop();
     show(&app, None);
     warm::shutdown();
+}
+
+/// A voice in a take: clearly above the room's own noise (twice its level), with
+/// a low bar of its own — a quiet microphone gives speech at 0.004–0.006, where
+/// the wake detector's 0.0035 missed soft words and a breath ended the take.
+fn is_voice(rms: f32, floor: f32) -> bool {
+    rms > (floor * 2.0).max(0.0012)
+}
+
+/// Set when the talk keys are pressed while he thinks or speaks: the rest of the answer is dropped.
+static STOPPED: AtomicBool = AtomicBool::new(false);
+
+/// The pill fades his bubble and his voice out, then the voice view goes.
+fn fade_out(app: &AppHandle) {
+    let _ = app.emit_to(pill::LABEL, "voice-stop", ());
+    std::thread::sleep(Duration::from_millis(320));
+    show(app, None);
+}
+
+/// While he answers, the talk keys pressed again stop him (the loop is busy meanwhile).
+fn watch_for_stop(app: &AppHandle) -> Arc<AtomicBool> {
+    let done = Arc::new(AtomicBool::new(false));
+    let (app, done2) = (app.clone(), done.clone());
+    std::thread::spawn(move || {
+        // Keys still held from asking don't count: only a fresh press.
+        let mut was = talk::keys().0;
+        while !done2.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(30));
+            let (chord, other) = talk::keys();
+            if chord && !was && !other {
+                if shortcut::needs_mask(shortcut::Which::Talk) {
+                    shortcut::mask();
+                }
+                STOPPED.store(true, Ordering::Relaxed);
+                fade_out(&app);
+                return;
+            }
+            was = chord;
+        }
+    });
+    done
+}
+
+/// Asks, and says the answer sentence by sentence as it is written; returns
+/// what was said, and whether the talk keys stopped him.
+fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, hide_at: &mut Option<Instant>) -> (String, bool) {
+    STOPPED.store(false, Ordering::Relaxed);
+    show(app, Some(VoiceView { phase: "thinking".into(), heard: question.to_string(), ..Default::default() }));
+    let watching = watch_for_stop(app);
+    let asked = Instant::now();
+    let speech = Speech::start(app, question, asked);
+    let mut splitter = stream::Splitter::default();
+    let reply = brain.respond(app, question, &mut |delta| {
+        if STOPPED.load(Ordering::Relaxed) {
+            return;
+        }
+        for piece in splitter.push(delta) {
+            speech.say(piece);
+        }
+    });
+    if let Some(rest) = splitter.finish().filter(|_| !STOPPED.load(Ordering::Relaxed)) {
+        speech.say(rest);
+    }
+    crate::log::line(format!("voice: answer written in {} ms", asked.elapsed().as_millis()));
+    let said = speech.finish();
+    watching.store(true, Ordering::Relaxed);
+    if STOPPED.load(Ordering::Relaxed) {
+        return (said, true);
+    }
+    if said.is_empty() {
+        let done = reply.is_some_and(|r| r.acted);
+        show(app, Some(VoiceView {
+            phase: "speaking".into(),
+            heard: question.to_string(),
+            answer: if done { "✓".into() } else { crate::i18n::t("Coucou couldn't answer: check your Claude key in Notch → Chat.") },
+            pace_ms: 0,
+        }));
+        *hide_at = Some(Instant::now() + Duration::from_secs(5));
+    } else {
+        *hide_at = Some(Instant::now() + reading_time(&said));
+    }
+    (said, false)
 }
 
 /// JARVIS: keeps a Claude Code ready when it is the one answering (no API key).
@@ -351,23 +562,60 @@ impl Speech {
         let (output, gender, voice_name) = crate::flow::get(app)
             .map(|f| {
                 let p = &f.store.lock().unwrap().prefs;
-                (p.voice_output.clone(), p.voice_gender.clone(), p.voice_name.clone())
+                // JARVIS: the voice name is the Gemini one when Gemini speaks.
+                // (and with "+text" when Gemini's fallback is text only, not Piper).
+                let name = if p.voice_output == "gemini" {
+                    format!("{}{}", p.gemini_voice, if p.gemini_fallback == "text" { "+text" } else { "" })
+                } else {
+                    p.voice_name.clone()
+                };
+                (p.voice_output.clone(), p.voice_gender.clone(), name)
             })
             .unwrap_or_else(|| ("jarvis".into(), "male".into(), crate::tts::DEFAULT_VOICE.into()));
         let (tx, rx) = mpsc::channel::<String>();
-        let (ready_tx, ready) = mpsc::channel::<Rendered>();
+        // JARVIS: every piece is fetched at once, on its own thread, as soon as it
+        // is written; the player takes them in the order they were said. A cloud
+        // voice then has the next sentence ready before the last one ends.
+        let (ready_tx, ready) = mpsc::channel::<mpsc::Receiver<Rendered>>();
         let render_gender = gender.clone();
         std::thread::spawn(move || {
+            if output == "gemini" {
+                // Gemini's free tier allows only a few requests a minute: one at a
+                // time — the first sentence alone so he starts soon, then all that
+                // was written meanwhile in one request (mod gemini).
+                while let Ok(mut piece) = rx.recv() {
+                    while let Ok(more) = rx.try_recv() {
+                        piece.push(' ');
+                        piece.push_str(&more);
+                    }
+                    let (one_tx, one) = mpsc::channel();
+                    if ready_tx.send(one).is_err() {
+                        break;
+                    }
+                    let _ = one_tx.send(render(piece, &output, &voice_name, &render_gender));
+                }
+                return;
+            }
             for piece in rx {
-                if ready_tx.send(render(piece, &output, &voice_name, &render_gender)).is_err() {
+                let (one_tx, one) = mpsc::channel();
+                if ready_tx.send(one).is_err() {
                     break;
                 }
+                let (output, voice_name, gender) = (output.clone(), voice_name.clone(), render_gender.clone());
+                std::thread::spawn(move || {
+                    let _ = one_tx.send(render(piece, &output, &voice_name, &gender));
+                });
             }
         });
         let (app, heard) = (app.clone(), heard.to_string());
         let player = std::thread::spawn(move || {
             let mut said = String::new();
-            for r in ready {
+            for one in ready {
+                let Ok(r) = one.recv() else { continue };
+                // Stopped with the talk keys: nothing more is shown or said.
+                if STOPPED.load(Ordering::Relaxed) {
+                    continue;
+                }
                 if said.is_empty() {
                     crate::log::line(format!("voice: first words after {} ms", asked.elapsed().as_millis()));
                 } else {
@@ -413,6 +661,23 @@ fn render(text: String, output: &str, voice: &str, gender: &str) -> Rendered {
                 Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
             }
             None => Rendered { text, audio: None, mime: "audio/mpeg", ms: estimate, silent: false },
+        },
+        // JARVIS: Gemini's voice (Charon), with the user's AI Studio key.
+        "gemini" => match gemini::speak(&text, gemini::voice(voice.trim_end_matches("+text"))) {
+            Some(wav) => {
+                let ms = wav_ms(&wav).unwrap_or(estimate);
+                Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
+            }
+            // No free model could: Piper, the offline backup, says it; without
+            // Piper it's shown, not spoken — never the robotic system voice.
+            None => match piper::speak(&text).filter(|_| !voice.ends_with("+text")) {
+                Some(wav) => {
+                    crate::log::line("voice: Piper spoke for Gemini");
+                    let ms = wav_ms(&wav).unwrap_or(estimate);
+                    Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
+                }
+                None => Rendered { text, audio: None, mime: "audio/mpeg", ms: words * 320, silent: true },
+            },
         },
         "elevenlabs" => {
             let audio = elevenlabs(&text, gender).map(|mp3| base64(&mp3));
@@ -715,6 +980,16 @@ fn find_app(wanted: &str) -> Option<(String, Box<dyn FnOnce()>)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_quiet_voice_counts_against_the_rooms_own_noise() {
+        // This microphone: a room at about 0.001, speech peaking around 0.005.
+        assert!(is_voice(0.0025, 0.001), "a soft word");
+        assert!(!is_voice(0.0015, 0.001), "the room itself");
+        assert!(!is_voice(0.001, 0.0), "never below the low bar");
+        // A noisy room needs a clearer voice.
+        assert!(!is_voice(0.006, 0.004));
+    }
 
     #[test]
     fn base64_matches_the_standard() {
