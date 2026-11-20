@@ -45,9 +45,53 @@ const text = (p: Element, x: number, y: number, s: string, o: Any = {}) =>
 /** The kinds and the width each window starts at (page px). */
 export const WIDTH: Record<string, number> = { steps: 320, checklist: 330, diagram: 360, compare: 340, breakdown: 340, timeline: 380 };
 
+/** What SVG may hold when he draws it himself: shapes, text and their styling; nothing that runs or loads. */
+const SAFE = new Set(["svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "defs", "marker", "lineargradient", "radialgradient", "stop", "title", "use", "clippath", "pattern", "symbol"]);
+
+/** His own picture, made safe: unknown elements, event handlers and outside links are dropped. */
+export function safeSvg(src: string): SVGSVGElement | null {
+  // Claude often leaves out the namespace: without it nothing would be drawn, only the text shown.
+  let text = src.trim();
+  if (!/^<svg[^>]*\sxmlns=/i.test(text)) text = text.replace(/^<svg/i, `<svg xmlns="${NS}"`);
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const root = doc.documentElement;
+  if (root.nodeName.toLowerCase() !== "svg" || doc.getElementsByTagName("parsererror").length) return null;
+  const walk = (el: Element) => {
+    for (const child of [...el.children]) {
+      if (!SAFE.has(child.localName.toLowerCase())) child.remove();
+      else walk(child);
+    }
+    for (const a of [...el.attributes]) {
+      const n = a.name.toLowerCase(), v = a.value.trim().toLowerCase();
+      if (n.startsWith("on") || ((n === "href" || n === "xlink:href") && !v.startsWith("#")) || /url\(\s*['"]?(?!#)/.test(v) || v.includes("javascript:")) el.removeAttribute(a.name);
+    }
+  };
+  walk(root);
+  const svg = document.importNode(root, true) as unknown as SVGSVGElement;
+  svg.removeAttribute("width");
+  svg.removeAttribute("height");
+  svg.setAttribute("class", "ex-svg ex-own");
+  return svg;
+}
+
+/** The width a window starts at: his drawing's own width (from its viewBox), kept between 300 and 640. */
+export function widthFor(w: Any): number {
+  if (w.kind !== "drawing") return WIDTH[w.kind] ?? 330;
+  const vb = /viewBox\s*=\s*['"]\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)/i.exec(String(w.svg ?? ""));
+  return Math.max(300, Math.min(640, (vb ? Number(vb[1]) : 400) + 24));
+}
+
 export function content(w: Any): HTMLElement {
   const box = h("div", "ex-content");
   switch (w.kind) {
+    case "drawing": {
+      const pic = safeSvg(String(w.svg ?? ""));
+      if (pic) {
+        pic.classList.add("ix");
+        box.append(pic);
+      }
+      break;
+    }
     case "steps":
       list(w.steps).forEach((s, i) => {
         const row = h("div", "ex-step ix");

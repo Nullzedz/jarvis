@@ -8909,6 +8909,21 @@
       "tr": "Zaman çizelgesi",
       "ko": "타임라인",
       "ja": "タイムライン"
+    },
+    "Draw it differently": {
+      "zh-Hans": "换一种画法",
+      "hi": "अलग तरह से बनाएँ",
+      "es": "Dibújalo de otra forma",
+      "ar": "ارسمه بطريقة أخرى",
+      "fr": "Dessiner autrement",
+      "bn": "অন্যভাবে আঁকুন",
+      "pt-BR": "Desenhar de outro jeito",
+      "ru": "Нарисовать иначе",
+      "id": "Gambar dengan cara lain",
+      "de": "Anders zeichnen",
+      "tr": "Farklı çiz",
+      "ko": "다르게 그리기",
+      "ja": "別の形で描く"
     }
   }
 }

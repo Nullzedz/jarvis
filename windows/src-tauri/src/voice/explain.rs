@@ -115,12 +115,22 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     let Some(win) = app.get_webview_window(LABEL) else { return };
     let cursor = crate::platform::cursor_physical().unwrap_or((0.0, 0.0));
     // The target on the screen (physical px), from his box on the picture.
-    let target = shot.and_then(|s| {
-        let (x, y, w, h) = super::window::target(window, s.size)?;
+    let on_screen = |b: Option<(f64, f64, f64, f64)>, s: &Shot| {
+        let (x, y, w, h) = b?;
         let (x0, y0) = s.to_screen(x, y);
         let (x1, y1) = s.to_screen(x + w, y + h);
         Some((x0, y0, x1 - x0, y1 - y0))
-    });
+    };
+    let target = shot.and_then(|s| on_screen(super::window::target(window, s.size), s));
+    // What he explains, never covered: the area he marked, or else all you circled, or else the target.
+    let about = shot
+        .and_then(|s| {
+            on_screen(super::window::about(window, s.size), s).or_else(|| {
+                let (x, y, w, h) = s.screen;
+                (s.what == "the part you circled").then_some((x as f64, y as f64, w as f64, h as f64))
+            })
+        })
+        .or(target);
     let at = target.map_or(cursor, |t| (t.0 + t.2 / 2.0, t.1 + t.3 / 2.0));
     let Some(((mx, my, mw, mh), scale)) = super::sight::monitor_at(at.0, at.1) else { return };
     // shortcut: a "show him more" window on another monitor moves the layer there and the older cards with it, upgrade if that's ever needed.
@@ -128,14 +138,17 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     let _ = win.set_size(PhysicalSize::new(mw as u32, mh as u32));
     let _ = win.set_position(PhysicalPosition::new(mx, my));
     let page = |(x, y): (f64, f64)| [(x - mx as f64) / scale, (y - my as f64) / scale];
-    let target = target.map(|(x, y, w, h)| {
-        let [px, py] = page((x, y));
-        [px, py, w / scale, h / scale]
-    });
+    let in_page = |b: Option<(f64, f64, f64, f64)>| {
+        b.map(|(x, y, w, h)| {
+            let [px, py] = page((x, y));
+            [px, py, w / scale, h / scale]
+        })
+    };
+    let (target, about) = (in_page(target), in_page(about));
     OPEN.store(true, Ordering::Relaxed);
     let _ = win.emit(
         "explain-show",
-        json!({ "add": add, "question": question, "said": said, "window": window, "target": target, "cursor": page(cursor) }),
+        json!({ "add": add, "question": question, "said": said, "window": window, "target": target, "about": about, "cursor": page(cursor) }),
     );
 }
 
@@ -158,4 +171,33 @@ pub fn explain_hot(app: AppHandle, rects: Vec<(f64, f64, f64, f64)>) {
             let _ = w.set_position(PhysicalPosition::new(PARKED.0, PARKED.1));
         }
     }
+}
+
+/// « Draw it differently »: the same answer, redrawn in a form not tried yet. The
+/// page gets `explain-redrawn` back for card `id` (or `failed`).
+#[tauri::command]
+pub fn explain_redraw(app: AppHandle, id: u64, question: String, said: String, window: Value, tried: Vec<String>) {
+    std::thread::spawn(move || {
+        let mut shown = window.to_string();
+        if shown.len() > 4000 {
+            shown = shown.chars().take(4000).collect();
+        }
+        let ask = format!(
+            "Draw your answer to \"{question}\" again, as a different form: not as {}. Same information, the form that fits it next best. Reply with one short sentence, then the window block. Your answer was: \"{said}\". The window was: {shown}",
+            tried.join(", ")
+        );
+        let mut written = String::new();
+        let reply = super::ask::brain().lock().unwrap().respond(&app, &ask, None, &mut |d| written.push_str(d));
+        let (line, drawn) = super::window::split(&written);
+        match (reply, drawn) {
+            (Some(_), Some(w)) => {
+                crate::log::line(format!("explain: redrawn as {}", w["form"].as_str().or(w["kind"].as_str()).unwrap_or("?")));
+                let _ = app.emit_to(LABEL, "explain-redrawn", json!({ "id": id, "said": super::brain::spoken_text(&line), "window": w }));
+            }
+            _ => {
+                crate::log::line("explain: no redraw came back");
+                let _ = app.emit_to(LABEL, "explain-redrawn", json!({ "id": id, "failed": true }));
+            }
+        }
+    });
 }

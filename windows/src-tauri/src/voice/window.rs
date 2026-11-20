@@ -46,13 +46,24 @@ fn usable(w: &Value) -> bool {
         Some("compare") => list("bars"),
         Some("breakdown") => list("parts"),
         Some("timeline") => list("points"),
+        // His own picture: plain SVG, made safe where it's drawn (src/explain/draw.ts).
+        Some("drawing") => w["svg"].as_str().is_some_and(|s| s.contains("<svg")),
         _ => false,
     }
 }
 
 /// The target box on the picture, if he gave a sensible one: [x, y, w, h], inside it.
 pub fn target(w: &Value, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
-    let t = w["target"].as_array()?;
+    picture_box(w, "target", size)
+}
+
+/// The area his explanation is about (the window goes beside it, never on it).
+pub fn about(w: &Value, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
+    picture_box(w, "about", size)
+}
+
+fn picture_box(w: &Value, key: &str, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
+    let t = w[key].as_array()?;
     let n: Vec<f64> = t.iter().filter_map(Value::as_f64).collect();
     let [x, y, bw, bh] = n[..] else { return None };
     let fits = x >= 0.0 && y >= 0.0 && bw > 0.0 && bh > 0.0 && x + bw <= size.0 as f64 + 2.0 && y + bh <= size.1 as f64 + 2.0;
@@ -90,6 +101,15 @@ mod tests {
         assert_eq!((said.as_str(), w), ("Here, sir.", None));
         let (said, w) = split("Here, sir. <window>{not json");
         assert_eq!((said.as_str(), w), ("Here, sir.", None));
+    }
+
+    #[test]
+    fn his_own_drawing_and_the_area_it_is_about_are_kept() {
+        let (_, w) = split(r#"Here, sir. <window>{"kind": "drawing", "form": "table", "about": [0, 0, 400, 300], "svg": "<svg viewBox='0 0 300 100'><text x='4' y='20'>A</text></svg>"}</window>"#);
+        let w = w.unwrap();
+        assert_eq!(about(&w, (1280, 720)), Some((0.0, 0.0, 400.0, 300.0)));
+        let (_, none) = split(r#"Here. <window>{"kind": "drawing", "svg": "no picture"}</window>"#);
+        assert!(none.is_none());
     }
 
     #[test]

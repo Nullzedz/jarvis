@@ -273,6 +273,9 @@ export const Bridge = {
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),
+  /** JARVIS: « Draw it differently »: the same answer in a form not in `tried`; it comes back as `explain-redrawn`. */
+  explainRedraw: (id: number, question: string, said: string, window: Record<string, unknown>, tried: string[]) =>
+    call<void>("explain_redraw", { id, question, said, window, tried }),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),

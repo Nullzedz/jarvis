@@ -212,7 +212,7 @@ fn open(app: &AppHandle, what: &'static str) {
     });
 }
 
-fn brain() -> &'static Mutex<Brain> {
+pub(super) fn brain() -> &'static Mutex<Brain> {
     static B: OnceLock<Mutex<Brain>> = OnceLock::new();
     B.get_or_init(|| Mutex::new(Brain::default()))
 }
@@ -243,6 +243,11 @@ pub fn ask_send(app: AppHandle, question: String) {
         });
         // His window, if he drew one (window.rs): it takes over from the box.
         let (body, window) = super::window::split(&said);
+        crate::log::line(match (&window, super::window::starts_at(&said)) {
+            (Some(w), _) => format!("ask: answer with a {} window", w["kind"].as_str().unwrap_or("?")),
+            (None, Some(at)) => format!("ask: a window block that couldn't be read: {}", said[at..].chars().take(160).collect::<String>()),
+            (None, None) => "ask: answer without a window".into(),
+        });
         let answer = clean(&body);
         let ok = reply.is_some() && !answer.is_empty();
         let text = if ok { answer } else { crate::i18n::t("I couldn't answer that just now, sir.") };
