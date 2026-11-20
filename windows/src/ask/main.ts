@@ -47,6 +47,7 @@ function reset() {
   text = "";
   field.value = "";
   field.disabled = false;
+  lock(false);
   answer.textContent = "";
   answer.classList.remove("on", "thinking");
   card.classList.remove("thinking");
@@ -54,10 +55,17 @@ function reset() {
   field.focus();
 }
 
+/** Sent: the question can't be changed until his answer comes (issue #16). */
+function lock(on: boolean) {
+  field.readOnly = on;
+  card.classList.toggle("locked", on);
+}
+
 function send() {
   const q = field.value.trim();
   if (!q || busy) return;
   busy = true;
+  lock(true);
   text = "";
   answer.textContent = t("Thinking…");
   answer.classList.add("on", "thinking");
@@ -105,6 +113,7 @@ async function main() {
   });
   void onEvent<string>("ask-done", (final) => {
     busy = false;
+    lock(false);
     answer.classList.remove("thinking");
     card.classList.remove("thinking");
     answer.textContent = final;

@@ -6,7 +6,9 @@
 // as its icon; the contents appear meanwhile. About 2.5 s once the answer is
 // ready. The circle fades a few seconds later. The card stays until its ×,
 // Esc, a new question or the ask shortcut; drag its header to move it, its
-// corner to resize it; ↻ redraws the same answer in another form.
+// corner to resize it; ↻ redraws the same answer in another form. It never
+// goes past the screen's edge. Its reply bar continues the conversation in it:
+// each follow-up is a section below the last (issue #16).
 
 import "./explain.css";
 import { Bridge, onEvent } from "../core/bridge";
@@ -22,8 +24,17 @@ const NS = "http://www.w3.org/2000/svg";
 type Box = [number, number, number, number];
 type Show = { add: boolean; draw: number; question: string; said: string; window: Record<string, any>; target: Box | null; about: Box | null; cursor: [number, number] };
 type Drawn = { draw: number; window?: Record<string, any>; failed?: boolean };
-/** `ready`: drawn out and docked; `moved`: the user dragged it; `fixed`: one redraw for overlapping text was asked; `early`: a drawing that came before it was ready. */
-type Card = { id: number; el: HTMLElement; inner: HTMLElement; slot: HTMLElement; marks: SVGElement[]; s: Show; tried: string[]; about: Rect; target: Rect | null; ready: boolean; moved: boolean; fixed: boolean; early: Drawn | null };
+type Answer = { card: number; said?: string; draw?: number; window?: Record<string, any>; failed?: boolean };
+/** One answer in a window: the first, or a follow-up (`question`). `draw`: its drawing's id (0: none);
+ *  `fixed`: one redraw for overlapping text was asked. */
+type Sec = { draw: number; question: string | null; said: string; w: Record<string, any>; tried: string[]; fixed: boolean; el: HTMLElement };
+/** `ready`: drawn out and docked; `moved`: the user dragged it; `width`: the user's own width;
+ *  `early`: drawings that came before it was ready; `waiting`: a follow-up is being answered. */
+type Card = {
+  id: number; el: HTMLElement; inner: HTMLElement; body: HTMLElement; slot: HTMLElement; reply: HTMLTextAreaElement;
+  marks: SVGElement[]; s: Show; secs: Sec[]; about: Rect; target: Rect | null;
+  ready: boolean; moved: boolean; width: number | null; early: Drawn[]; waiting: boolean;
+};
 
 const ink = document.createElementNS(NS, "svg");
 ink.id = "ink";
@@ -37,6 +48,9 @@ let nextId = 1;
 const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
 const rectOf = (b: Box): Rect => ({ x: b[0], y: b[1], w: b[2], h: b[3] });
 const formOf = (w: Record<string, any>) => String(w.form ?? w.kind ?? "");
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, Math.max(lo, hi)));
+/** A section with a picture in it (not a words-only follow-up). */
+const pictured = (sec: { w: Record<string, any> }) => sec.w.kind !== "none";
 
 const TAGS: Record<string, () => string> = {
   steps: () => t("Steps"),
@@ -110,22 +124,63 @@ function face(): HTMLElement {
   return f;
 }
 
-/** Fills a card's inside: his line, then the drawing (the parts start hidden, `.ix`). */
-function fill(card: Card) {
-  const { s, inner } = card;
-  inner.querySelectorAll(".ex-said, .ex-content").forEach((e) => e.remove());
-  inner.querySelector(".ex-tag")!.textContent = tagFor(s.window);
-  inner.append(Object.assign(document.createElement("div"), { className: "ex-said ix", textContent: s.said }), content(s.window));
+/** The section ↻ and the tag are about: the last one with a picture. */
+const lastPictured = (card: Card) => [...card.secs].reverse().find(pictured) ?? card.secs[0];
+
+/** Fills a section: the follow-up's question, his line, then the picture (the parts start hidden, `.ix`). */
+function fill(card: Card, sec: Sec) {
+  sec.el.replaceChildren();
+  if (sec.question !== null) sec.el.append(Object.assign(document.createElement("div"), { className: "ex-fq", textContent: sec.question }));
+  sec.el.append(Object.assign(document.createElement("div"), { className: `ex-said ix${sec.said === t("Thinking…") ? " thinking" : ""}`, textContent: sec.said }));
+  if (pictured(sec)) sec.el.append(content(sec.w));
+  card.inner.querySelector(".ex-tag")!.textContent = tagFor(lastPictured(card).w);
 }
 
-/** The parts appear one after another within `ms`. */
-function reveal(card: Card, ms: number) {
-  const parts = [...card.el.querySelectorAll<Element>(".ix")];
+function addSec(card: Card, sec: Omit<Sec, "el">): Sec {
+  const full: Sec = { ...sec, el: Object.assign(document.createElement("div"), { className: sec.question === null ? "ex-sec" : "ex-sec ex-follow" }) };
+  card.secs.push(full);
+  card.body.append(full.el);
+  fill(card, full);
+  return full;
+}
+
+/** The parts not shown yet appear one after another within `ms`. */
+function reveal(root: Element, ms: number) {
+  const parts = [...root.querySelectorAll<Element>(".ix:not(.on)")];
   const gap = parts.length > 1 ? Math.max(0, ms - 160) / (parts.length - 1) : 0;
   parts.forEach((p, i) => later(i * gap, () => p.classList.add("on")));
 }
 
-/** The card's frame B: corner brackets; header (his slot, the question, tag, ↻, ×); his line; the contents; the grip. */
+/** The reply bar: typing goes to the window only while it's used (issue #16). */
+function replyBar(card: Card): HTMLElement {
+  const bar = Object.assign(document.createElement("div"), { className: "ex-reply" });
+  const field = card.reply;
+  field.rows = 1;
+  field.spellcheck = false;
+  field.placeholder = t("Ask a follow-up");
+  bar.append(field, Object.assign(document.createElement("span"), { className: "ex-enter", textContent: "↵" }));
+  bar.addEventListener("pointerdown", (e) => {
+    if (document.activeElement === field) return;
+    e.preventDefault();
+    void Bridge.explainFocus(true).then(() => field.focus());
+  });
+  field.addEventListener("blur", () => window.setTimeout(() => {
+    if (!(document.activeElement instanceof HTMLTextAreaElement)) void Bridge.explainFocus(false);
+  }, 0));
+  field.addEventListener("input", () => {
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 72)}px`;
+  });
+  field.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      follow(card);
+    }
+  });
+  return bar;
+}
+
+/** The card's frame B: corner brackets; header (his slot, the question, tag, ↻, ×); the sections; the reply bar; the grip. */
 function build(s: Show): Card {
   const el = document.createElement("div");
   el.className = "ex-card";
@@ -142,16 +197,20 @@ function build(s: Show): Card {
   const x = Object.assign(document.createElement("button"), { className: "ex-btn ex-x", textContent: "×", title: t("Close") });
   x.setAttribute("aria-label", t("Close"));
   hd.append(slot, Object.assign(document.createElement("div"), { className: "ex-q", textContent: s.question }), Object.assign(document.createElement("span"), { className: "ex-tag" }), again, x);
-  inner.append(hd);
+  const body = Object.assign(document.createElement("div"), { className: "ex-body" });
+  const card: Card = {
+    id: nextId++, el, inner, body, slot, reply: document.createElement("textarea"), marks: [], s, secs: [],
+    about: { x: 0, y: 0, w: 0, h: 0 }, target: null, ready: false, moved: false, width: null, early: [], waiting: false,
+  };
+  inner.append(hd, body, replyBar(card));
   const grip = Object.assign(document.createElement("div"), { className: "ex-grip" });
   el.append(inner, grip);
   const pending = s.window.kind === "pending";
-  const card: Card = { id: nextId++, el, inner, slot, marks: [], s, tried: pending ? [] : [formOf(s.window)], about: { x: 0, y: 0, w: 0, h: 0 }, target: null, ready: false, moved: false, fixed: false, early: null };
+  addSec(card, { draw: s.draw, question: null, said: s.said, w: s.window, tried: pending ? [] : [formOf(s.window)], fixed: false });
   if (pending) again.disabled = true;
-  fill(card);
   x.addEventListener("click", () => remove(card));
   again.addEventListener("click", () => redraw(card, again));
-  // Drag the header to move it (its link line, now pointing nowhere, goes).
+  // Drag the header to move it, never past the screen's edge (its link line, now pointing nowhere, goes).
   hd.addEventListener("pointerdown", (e) => {
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
@@ -160,8 +219,8 @@ function build(s: Show): Card {
     card.moved = true;
     card.marks.filter((m) => m.tagName === "line").forEach(fadeMark);
     const move = (m: PointerEvent) => {
-      el.style.left = `${Math.max(0, Math.min(window.innerWidth - 60, r.x + m.clientX - sx))}px`;
-      el.style.top = `${Math.max(0, Math.min(window.innerHeight - 30, r.y + m.clientY - sy))}px`;
+      el.style.left = `${clamp(r.x + m.clientX - sx, 0, window.innerWidth - r.w)}px`;
+      el.style.top = `${clamp(r.y + m.clientY - sy, 0, window.innerHeight - r.h)}px`;
     };
     hd.addEventListener("pointermove", move);
     hd.addEventListener("pointerup", () => {
@@ -169,16 +228,19 @@ function build(s: Show): Card {
       report();
     }, { once: true });
   });
-  // Drag the corner to resize: its contents reflow, drawings scale.
+  // Drag the corner to resize, up to the screen's edge: its contents reflow, drawings scale, the rest scrolls.
   grip.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     grip.setPointerCapture(e.pointerId);
     const r = bounds(el), sx = e.clientX, sy = e.clientY;
     const move = (m: PointerEvent) => {
-      const w = Math.max(240, r.w + m.clientX - sx);
+      const w = clamp(r.w + m.clientX - sx, 240, window.innerWidth - r.x);
+      const hgt = clamp(r.h + m.clientY - sy, 120, window.innerHeight - r.y);
+      card.width = w;
       inner.style.width = `${w}px`;
+      inner.style.height = `${hgt}px`;
       el.style.width = `${w}px`;
-      el.style.height = `${Math.max(inner.offsetHeight, r.h + m.clientY - sy)}px`;
+      el.style.height = `${hgt}px`;
     };
     grip.addEventListener("pointermove", move);
     grip.addEventListener("pointerup", () => {
@@ -189,10 +251,16 @@ function build(s: Show): Card {
   return card;
 }
 
-/** Sizes a card to its contents at `width`, at most the screen's height. */
+/** The card's width: the user's own, or the widest of its pictures. */
+const widthOf = (card: Card) => card.width ?? Math.max(...card.secs.map((sec) => (pictured(sec) ? widthFor(sec.w) : 0)), 320);
+
+/** Sizes a card to its contents at `width`, at most the screen's height (then its sections scroll). */
 function measure(card: Card, width: number): number {
   card.inner.style.width = `${width}px`;
-  return Math.min(card.inner.offsetHeight, window.innerHeight - 24);
+  card.inner.style.height = "auto";
+  const height = Math.min(card.inner.offsetHeight, window.innerHeight - 24);
+  card.inner.style.height = `${height}px`;
+  return height;
 }
 
 /** His glowing circle round the target, traced as the pointer goes round it. */
@@ -232,7 +300,7 @@ function show(s: Show) {
   const card = build(s);
   const { el } = card;
   // Measured unseen at its starting width, then placed.
-  const width = widthFor(s.window);
+  const width = widthOf(card);
   Object.assign(el.style, { left: "-9999px", top: "0px", width: `${width}px` });
   document.body.append(el);
   const height = measure(card, width);
@@ -278,32 +346,35 @@ function show(s: Show) {
         ptr.style.opacity = "0";
         card.slot.replaceChildren(face());
         card.slot.classList.add("home");
-        // Still being drawn: his eye sweeps until it comes (issue #14).
-        if (s.window.kind === "pending") card.slot.classList.add("thinking");
         card.ready = true;
-        if (card.early) later(PACE.show, () => drawn(card.early!));
+        // Still being drawn: his eye sweeps until it comes (issue #14).
+        settle(card);
+        const early = card.early.splice(0);
+        later(PACE.show, () => early.forEach(drawn));
       });
-      reveal(card, PACE.show);
+      reveal(card.el, PACE.show);
     });
   });
 }
 
-/** ↻: the same answer in a form he hasn't tried; the card keeps its place. */
+/** ↻: the last picture again, in a form he hasn't tried; the card keeps its place. */
 function redraw(card: Card, button: HTMLButtonElement) {
   if (button.disabled) return;
+  const sec = lastPictured(card);
+  if (!sec.draw) return;
   button.disabled = true;
-  card.fixed = false;
+  sec.fixed = false;
   card.slot.classList.add("thinking");
-  void Bridge.explainRedraw(card.s.draw, card.tried, null);
+  void Bridge.explainRedraw(sec.draw, sec.tried, null);
 }
 
-/** Its new size, kept where it is, or beside what he explains if the user hasn't moved it. */
+/** Its new size, kept where it is (or beside what he explains if the user hasn't moved it), always on screen. */
 function resize(card: Card) {
-  const width = widthFor(card.s.window);
+  const width = widthOf(card);
   const height = measure(card, width);
   const b = bounds(card.el);
   let { x, y } = b;
-  if (!card.moved) {
+  if (!card.moved && card.secs.length === 1) {
     const taken = cards.filter((c) => c !== card).map(({ el }) => bounds(el));
     if (card.target && card.s.about) taken.push(card.target);
     ({ x, y } = place(card.about, width, height, window.innerWidth, window.innerHeight, taken));
@@ -312,8 +383,8 @@ function resize(card: Card) {
   Object.assign(card.el.style, {
     width: `${width}px`,
     height: `${height}px`,
-    left: `${Math.max(12, Math.min(x, window.innerWidth - width - 12))}px`,
-    top: `${Math.max(12, Math.min(y, window.innerHeight - height - 12))}px`,
+    left: `${clamp(x, 0, window.innerWidth - width)}px`,
+    top: `${clamp(y, 0, window.innerHeight - height)}px`,
   });
   window.setTimeout(() => {
     card.el.style.transition = "";
@@ -321,53 +392,107 @@ function resize(card: Card) {
   }, 270);
 }
 
-/** A drawing came (or didn't) for a card: checked for overlapping text, then shown. */
+/** Who has drawing `draw`: its card and section. */
+function owner(draw: number): [Card, Sec] | null {
+  for (const card of cards) {
+    const sec = card.secs.find((s) => s.draw === draw);
+    if (sec) return [card, sec];
+  }
+  return null;
+}
+
+/** His eye sweeps while anything in the card is being answered or drawn; ↻ works on the last picture once it's there. */
+function settle(card: Card) {
+  const last = lastPictured(card);
+  const button = card.el.querySelector<HTMLButtonElement>(".ex-again")!;
+  card.slot.classList.toggle("thinking", card.waiting || card.secs.some((s) => s.w.kind === "pending"));
+  button.disabled = !last.draw || last.w.kind === "pending";
+}
+
+/** A drawing came (or didn't) for a section: checked for overlapping text, then shown. */
 function drawn(r: Drawn) {
-  const card = cards.find((c) => c.s.draw === r.draw);
-  if (!card) return;
+  const found = owner(r.draw);
+  if (!found) return;
+  const [card, sec] = found;
   if (!card.ready) {
-    card.early = r;
+    card.early.push(r);
     return;
   }
-  card.early = null;
-  const button = card.el.querySelector<HTMLButtonElement>(".ex-again")!;
-  const waiting = card.s.window.kind === "pending";
+  const waiting = sec.w.kind === "pending";
   if (r.failed || !r.window) {
-    card.slot.classList.remove("thinking");
-    button.disabled = false;
     if (waiting) {
-      card.s = { ...card.s, window: { kind: "failed", text: t("I couldn't draw this, sir. Try ↻.") } };
-      fill(card);
+      sec.w = { kind: "failed", text: t("I couldn't draw this, sir. Try ↻.") };
+      fill(card, sec);
       resize(card);
-      reveal(card, PACE.show);
+      reveal(sec.el, PACE.show);
     } else {
+      const button = card.el.querySelector<HTMLButtonElement>(".ex-again")!;
       button.classList.add("nope");
       window.setTimeout(() => button.classList.remove("nope"), 600);
     }
+    settle(card);
     return;
   }
-  const before = card.s;
-  card.s = { ...card.s, window: r.window };
-  fill(card);
-  measure(card, widthFor(r.window));
-  const own = card.inner.querySelector<SVGSVGElement>("svg.ex-own");
+  const before = sec.w;
+  sec.w = r.window;
+  fill(card, sec);
+  measure(card, widthOf(card));
+  const own = sec.el.querySelector<SVGSVGElement>("svg.ex-own");
   if (own) fitViewBox(own);
   // Text on top of other text: one more try, his eye still sweeping (issue #14).
   const overlap = own ? textOverlap(own) : null;
-  if (overlap && !card.fixed) {
-    card.fixed = true;
-    card.s = before;
-    fill(card);
-    card.inner.querySelectorAll(".ix").forEach((e) => e.classList.add("on"));
+  if (overlap && !sec.fixed) {
+    sec.fixed = true;
+    sec.w = before;
+    fill(card, sec);
+    sec.el.querySelectorAll(".ix").forEach((e) => e.classList.add("on"));
     card.slot.classList.add("thinking");
-    void Bridge.explainRedraw(card.s.draw, [], overlap);
+    void Bridge.explainRedraw(sec.draw, [], overlap);
     return;
   }
-  card.slot.classList.remove("thinking");
-  button.disabled = false;
-  card.tried.push(formOf(r.window));
+  sec.tried.push(formOf(r.window));
+  settle(card);
   resize(card);
-  reveal(card, PACE.show);
+  reveal(sec.el, PACE.show);
+}
+
+/** Enter in the reply bar: the follow-up becomes a section; his answer fills it (issue #16). */
+function follow(card: Card) {
+  const q = card.reply.value.trim();
+  if (!q || card.waiting) return;
+  card.waiting = true;
+  card.reply.readOnly = true;
+  card.el.classList.add("asking");
+  const sec = addSec(card, { draw: 0, question: q, said: t("Thinking…"), w: { kind: "none" }, tried: [], fixed: false });
+  sec.el.querySelectorAll(".ix").forEach((e) => e.classList.add("on"));
+  settle(card);
+  resize(card);
+  later(30, () => sec.el.scrollIntoView({ block: "end", behavior: "smooth" }));
+  void Bridge.explainAsk(card.s.draw, q);
+}
+
+/** His answer to a follow-up: its words, and a drawing (being made, or ready) when it helps. */
+function answered(a: Answer) {
+  const card = cards.find((c) => c.s.draw === a.card);
+  if (!card) return;
+  const sec = [...card.secs].reverse().find((s) => s.question !== null && s.said === t("Thinking…"));
+  card.waiting = false;
+  card.reply.readOnly = false;
+  card.el.classList.remove("asking");
+  if (sec) {
+    sec.said = a.failed ? t("I couldn't answer that just now, sir.") : a.said ?? "";
+    if (a.window && a.draw) {
+      sec.draw = a.draw;
+      sec.w = a.window;
+      if (a.window.kind !== "pending") sec.tried.push(formOf(a.window));
+    }
+    fill(card, sec);
+    resize(card);
+    reveal(sec.el, PACE.show);
+    later(30, () => sec.el.scrollIntoView({ block: "end", behavior: "smooth" }));
+  }
+  if (!a.failed) card.reply.value = "";
+  settle(card);
 }
 
 async function main() {
@@ -376,6 +501,7 @@ async function main() {
   void onEvent<Show>("explain-show", (s) => show(s));
   void onEvent<null>("explain-close", () => closeAll());
   void onEvent<Drawn>("explain-drawn", (r) => drawn(r));
+  void onEvent<Answer>("explain-answer", (a) => answered(a));
 }
 
 void main();

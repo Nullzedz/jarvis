@@ -69,6 +69,12 @@ textarea {
   max-height: 96px;
 }
 
+/* Sent, waiting for his answer: the question can't be changed (issue #16). */
+.card.locked textarea {
+  color: #6b6f78;
+  cursor: default;
+}
+
 textarea::placeholder {
   color: #6b6f78;
 }

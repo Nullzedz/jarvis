@@ -9179,6 +9179,21 @@
       "tr": "Pencereleri",
       "ko": "그의 창",
       "ja": "彼のウィンドウ"
+    },
+    "Ask a follow-up": {
+      "zh-Hans": "继续追问",
+      "hi": "आगे पूछें",
+      "es": "Haz otra pregunta",
+      "ar": "اطرح سؤالًا متابعًا",
+      "fr": "Poser une autre question",
+      "bn": "আরও প্রশ্ন করুন",
+      "pt-BR": "Faça outra pergunta",
+      "ru": "Задать уточняющий вопрос",
+      "id": "Ajukan pertanyaan lanjutan",
+      "de": "Nachfragen",
+      "tr": "Devam sorusu sor",
+      "ko": "이어서 질문하기",
+      "ja": "続けて質問"
     }
   }
 }
