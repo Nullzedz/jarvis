@@ -8759,6 +8759,36 @@
       "tr": "{0} zaten kullanıyor",
       "ko": "이미 {0}에서 사용 중",
       "ja": "{0} で使用中です"
+    },
+    "Ask about what you circled": {
+      "zh-Hans": "询问你圈出的内容",
+      "hi": "आपने जो घेरा उसके बारे में पूछें",
+      "es": "Pregunta sobre lo que rodeaste",
+      "ar": "اسأل عمّا حدّدته بدائرة",
+      "fr": "Posez une question sur ce que vous avez entouré",
+      "bn": "আপনি যা ঘিরেছেন তা নিয়ে জিজ্ঞেস করুন",
+      "pt-BR": "Pergunte sobre o que você circulou",
+      "ru": "Спросите о том, что вы обвели",
+      "id": "Tanyakan tentang yang Anda lingkari",
+      "de": "Frag nach dem, was du eingekreist hast",
+      "tr": "Daire içine aldığınız şeyi sorun",
+      "ko": "동그라미 친 것에 대해 물어보세요",
+      "ja": "囲んだものについて質問"
+    },
+    "Ask about your screen": {
+      "zh-Hans": "询问你的屏幕内容",
+      "hi": "अपनी स्क्रीन के बारे में पूछें",
+      "es": "Pregunta sobre tu pantalla",
+      "ar": "اسأل عن شاشتك",
+      "fr": "Posez une question sur votre écran",
+      "bn": "আপনার স্ক্রিন নিয়ে জিজ্ঞেস করুন",
+      "pt-BR": "Pergunte sobre sua tela",
+      "ru": "Спросите о том, что на экране",
+      "id": "Tanyakan tentang layar Anda",
+      "de": "Frag nach deinem Bildschirm",
+      "tr": "Ekranınız hakkında sorun",
+      "ko": "화면에 대해 물어보세요",
+      "ja": "画面について質問"
     }
   }
 }

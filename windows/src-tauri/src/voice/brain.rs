@@ -83,7 +83,7 @@ fn tools() -> Vec<Value> {
 
 fn system_prompt(pills: &str) -> String {
     let t = crate::platform::local_time();
-    format!("{} It is {:04}-{:02}-{:02} {:02}:{:02}.\n{}", persona(), t.year, t.month, t.day, t.hour, t.minute, instructions(pills))
+    format!("{} It is {:04}-{:02}-{:02} {:02}:{:02}.\n{}\n{SIGHT}", persona(), t.year, t.month, t.day, t.hour, t.minute, instructions(pills))
 }
 
 fn persona() -> String {
@@ -109,29 +109,40 @@ Pills: {pills}"
     )
 }
 
+/// JARVIS: what he's told about the pictures of the screen (sight.rs).
+const SIGHT: &str = "Sometimes a picture of the user's screen comes with the question: it is what they are asking about. If they circled something, it is marked with a blue loop: that is what they mean. Answer about what you see, plainly and briefly; never describe the whole picture unless asked.";
+
 /// JARVIS: the prompt of the kept-warm Claude Code (warm.rs). It has no time in
 /// it, so the same process serves every question: each question carries the time.
 pub fn claude_code_system() -> String {
     format!(
-        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets.",
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets. {}",
         persona(),
-        instructions("(not available)")
+        instructions("(not available)"),
+        SIGHT
     )
 }
 
 impl Brain {
     /// Answers `transcript`; `on_text` gets the answer's words as they come
     /// (all at once with the API, as they are written with Claude Code).
-    pub fn respond(&mut self, app: &AppHandle, transcript: &str, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
+    pub fn respond(&mut self, app: &AppHandle, transcript: &str, sight: Option<&super::sight::Shot>, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
         if self.last.elapsed() > FORGET_AFTER {
             self.messages.clear();
         }
         self.last = Instant::now();
         // JARVIS: no Claude key — your own Claude Code answers (words and web search, no tools).
         if !crate::secrets::present(crate::claude::KEY) {
-            return self.respond_with_claude_code(transcript, on_text);
+            return self.respond_with_claude_code(transcript, sight, on_text);
         }
-        self.messages.push(json!({ "role": "user", "content": transcript }));
+        match sight {
+            Some(shot) => {
+                // A new picture: the older ones aren't sent again (they'd only slow every answer).
+                self.forget_pictures();
+                self.messages.push(json!({ "role": "user", "content": with_picture(transcript, shot) }));
+            }
+            None => self.messages.push(json!({ "role": "user", "content": transcript })),
+        }
         self.trim();
         let pills = super::ask_island(app, "pills", json!({ "action": "list" })).unwrap_or_default();
         let system = system_prompt(&pills);
@@ -157,7 +168,7 @@ impl Brain {
                 Ok(t) => t,
                 Err(err) => {
                     crate::log::line(format!("voice: Claude turn failed: {err}"));
-                    if self.messages.last().is_some_and(|m| m["content"].is_string()) {
+                    if self.messages.last().is_some_and(|m| m["role"] == "user" && !is_tool_results(m)) {
                         self.messages.pop();
                     }
                     return acted.then(|| Reply { acted });
@@ -198,14 +209,29 @@ impl Brain {
     /// between questions (warm.rs) so its words come as they are written: web
     /// search allowed, nothing else — it cannot press pills or open apps, it
     /// answers. The conversation lives in that process.
-    fn respond_with_claude_code(&mut self, transcript: &str, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
+    fn respond_with_claude_code(&mut self, transcript: &str, sight: Option<&super::sight::Shot>, on_text: &mut dyn FnMut(&str)) -> Option<Reply> {
         let t = crate::platform::local_time();
         let question = format!("[{:04}-{:02}-{:02} {:02}:{:02}] {transcript}", t.year, t.month, t.day, t.hour, t.minute);
-        match super::warm::ask(FAST_MODEL, &claude_code_system(), &question, on_text) {
+        let content = match sight {
+            Some(shot) => with_picture(&question, shot),
+            None => json!([{ "type": "text", "text": question }]),
+        };
+        match super::warm::ask(FAST_MODEL, &claude_code_system(), content, on_text) {
             Ok(_) => Some(Reply { acted: false }),
             Err(err) => {
                 crate::log::line(format!("voice: Claude Code failed: {err}"));
                 None
+            }
+        }
+    }
+
+    /// Older pictures of the screen become a short note in the history.
+    fn forget_pictures(&mut self) {
+        for m in self.messages.iter_mut().filter(|m| m["role"] == "user") {
+            if let Some(blocks) = m["content"].as_array_mut() {
+                for b in blocks.iter_mut().filter(|b| b["type"] == "image") {
+                    *b = json!({ "type": "text", "text": "[a picture of the screen was shown here]" });
+                }
             }
         }
     }
@@ -233,6 +259,18 @@ impl Brain {
             self.messages.pop();
         }
     }
+}
+
+/// The question with the picture of the screen before it, and what the picture shows.
+fn with_picture(question: &str, shot: &super::sight::Shot) -> Value {
+    json!([
+        { "type": "image", "source": { "type": "base64", "media_type": "image/jpeg", "data": shot.data } },
+        { "type": "text", "text": format!("(The picture is {}.) {question}", shot.what) }
+    ])
+}
+
+fn is_tool_results(m: &Value) -> bool {
+    m["content"].as_array().is_some_and(|c| c.iter().any(|b| b["type"] == "tool_result"))
 }
 
 /// What Claude wrote, ready to be said: citations and markdown left out.

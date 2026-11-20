@@ -1132,6 +1132,7 @@ pub fn run() {
             flow::setup(&handle);
             // JARVIS: the type-to-ask box (tap Left Ctrl + Left Shift).
             voice::ask::setup(&handle);
+            voice::ink::setup(&handle);
             notes::setup(&handle);
 
             if let Some(win) = island::window(&handle) {

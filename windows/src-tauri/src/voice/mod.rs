@@ -14,11 +14,14 @@
 
 pub mod ask;
 pub mod brain;
+pub mod circle;
+pub mod ink;
 pub mod gemini;
 pub mod piper;
 pub mod meter;
 pub mod print;
 pub mod shortcut;
+pub mod sight;
 pub mod stream;
 pub mod talk;
 pub mod wake;
@@ -206,6 +209,10 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
     let mut preroll: std::collections::VecDeque<f32> = std::collections::VecDeque::with_capacity(preroll_len + 4096);
     let mut brain = brain::Brain::default();
     let mut hide_at: Option<Instant> = None;
+    // What you circle while holding the talk keys (circle.rs): he looks at just that.
+    let mut trail: Option<ink::Trail> = None;
+    // The circle once the keys are let go (its trail fading), until the take ends.
+    let mut drawn: Option<circle::Ink> = None;
     // Silence for the question while you talk (flow/hush.rs).
     let mut hush: Option<crate::flow::hush::Guard> = None;
     let quiet = || crate::flow::get(&app).is_some_and(|f| f.store.lock().unwrap().prefs.mute_others);
@@ -256,6 +263,8 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                 if shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
+                trail = Some(ink::Trail::start(&app));
+                drawn = None;
                 next_take += 1;
                 take = Some(Take {
                     id: next_take,
@@ -271,25 +280,49 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                     send_at: None,
                 });
             }
-            Some(talk::Event::Hold) | Some(talk::Event::HandsFree) => {
+            Some(talk::Event::Hold) => {
+                hide_at = None;
+                show(&app, Some(VoiceView { phase: "listening".into(), ..Default::default() }));
+            }
+            Some(talk::Event::HandsFree) => {
+                // A tap: nothing was circled.
+                if let Some(t) = trail.take() {
+                    t.end();
+                }
                 hide_at = None;
                 show(&app, Some(VoiceView { phase: "listening".into(), ..Default::default() }));
             }
             Some(talk::Event::Send) => {
+                drawn = trail.take().map(ink::Trail::end);
                 if let Some(t) = take.as_mut() {
                     t.send_at = Some(now + TAIL);
                 }
             }
             Some(talk::Event::Cancel) => {
                 take = None;
+                if let Some(t) = trail.take() {
+                    t.end();
+                }
                 show(&app, None);
             }
             Some(talk::Event::Close) => {
                 take = None;
+                if let Some(t) = trail.take() {
+                    t.end();
+                }
                 hide_at = None;
                 fade_out(&app);
             }
             None => {}
+        }
+
+        // Circling something while the keys are held.
+        if chord && take.is_some() && !talk.hands_free() {
+            if let (Some(i), Some(p)) = (trail.as_mut(), crate::platform::cursor_physical()) {
+                if i.feed(p) {
+                    crate::log::line("voice: something was circled");
+                }
+            }
         }
 
         // The microphone.
@@ -376,6 +409,11 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         let Some(why) = end else { continue };
         let done = take.take().unwrap();
         talk.end();
+        // What was circled, copied now; its picture is made while Parakeet reads your words.
+        let circled = drawn.take().or_else(|| trail.take().map(ink::Trail::end)).filter(|_| why != "nothing said").and_then(|i| {
+            let area = i.area()?;
+            sight::circled(area, i.circle()?)
+        });
         if why == "nothing said" {
             // Parakeet makes words up from silence: a take with no voice in it is dropped.
             crate::log::line(if done.follow_up { "voice: no follow-up" } else { "voice: talk keys, nothing said" });
@@ -401,7 +439,8 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             continue;
         };
         crate::log::line(format!("voice: talk keys ({why}), {} words", crate::flow::text::word_count(&question)));
-        let (_, stopped) = answer(&app, &mut brain, &question, &mut hide_at);
+        let circled = circled.and_then(sight::Pending::wait);
+        let (_, stopped) = answer(&app, &mut brain, &question, circled.as_ref(), &mut hide_at);
         vad.reset();
         if stopped {
             // Stopped with the talk keys: no follow-up, and nothing starts until they're up.
@@ -483,14 +522,14 @@ fn watch_for_stop(app: &AppHandle) -> Arc<AtomicBool> {
 
 /// Asks, and says the answer sentence by sentence as it is written; returns
 /// what was said, and whether the talk keys stopped him.
-fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, hide_at: &mut Option<Instant>) -> (String, bool) {
+fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Option<&sight::Shot>, hide_at: &mut Option<Instant>) -> (String, bool) {
     STOPPED.store(false, Ordering::Relaxed);
     show(app, Some(VoiceView { phase: "thinking".into(), heard: question.to_string(), ..Default::default() }));
     let watching = watch_for_stop(app);
     let asked = Instant::now();
     let speech = Speech::start(app, question, asked);
     let mut splitter = stream::Splitter::default();
-    let reply = brain.respond(app, question, &mut |delta| {
+    let reply = brain.respond(app, question, seen, &mut |delta| {
         if STOPPED.load(Ordering::Relaxed) {
             return;
         }

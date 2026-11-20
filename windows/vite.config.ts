@@ -66,6 +66,7 @@ export default defineConfig({
         mochi: resolve(__dirname, "mochi.html"),
         pill: resolve(__dirname, "pill.html"),
         ask: resolve(__dirname, "ask.html"),
+        ink: resolve(__dirname, "ink.html"),
       },
       output: {
         // The interface's strings in every language (src/i18n/*.json) make a

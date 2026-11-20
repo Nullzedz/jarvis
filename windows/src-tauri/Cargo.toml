@@ -60,6 +60,8 @@ miniz_oxide = "0.8"
 # (mail/pdf.rs), as the Mac does with PDFKit; Windows has no PDF library of its own. MIT, pure
 # Rust, default features (clock, rayon) off.
 lopdf = { version = "0.46", default-features = false }
+# JARVIS: the picture of the screen he is shown (voice/sight.rs), as JPEG. Pure Rust, no dependencies. MIT/Apache-2.0.
+jpeg-encoder = "0.6"
 
 [target.'cfg(windows)'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
@@ -95,6 +97,9 @@ windows = { version = "0.61", features = [
   "Win32_UI_WindowsAndMessaging",
   # Flow dictation's keyboard hook.
   "Win32_System_LibraryLoader",
+  # JARVIS: a picture of the screen (voice/sight.rs).
+  "Win32_Graphics_Gdi",
+  "Win32_UI_HiDpi",
 ] }
 # The clipboard for Flow dictation, kept out of the clipboard history. MIT/Apache-2.0.
 arboard = { version = "3.6", default-features = false }
