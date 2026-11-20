@@ -198,8 +198,9 @@ fn brain() -> &'static Mutex<Brain> {
     B.get_or_init(|| Mutex::new(Brain::default()))
 }
 
-/// The box sends a question: the answer comes back as `ask-delta` (text as it's
-/// written), then `ask-done` with the whole answer cleaned of links and sources.
+/// The box sends a question: the answer comes back as `ask-delta` (all of it so
+/// far, cleaned, as it's written), then `ask-done` with the whole answer cleaned
+/// of links and sources.
 #[tauri::command]
 pub fn ask_send(app: AppHandle, question: String) {
     let question = question.trim().to_string();
@@ -214,7 +215,11 @@ pub fn ask_send(app: AppHandle, question: String) {
         let seen = seen.and_then(super::sight::Pending::wait);
         let reply = brain.respond(&app, &question, seen.as_ref(), &mut |delta| {
             said.push_str(delta);
-            let _ = app.emit_to(LABEL, "ask-delta", delta.to_string());
+            // Cleaned as it streams: nothing in brackets (a date he copied), no links, no markdown ever flashes.
+            let shown = super::brain::spoken_text(&said);
+            if !shown.is_empty() {
+                let _ = app.emit_to(LABEL, "ask-delta", shown);
+            }
         });
         let answer = clean(&said);
         let ok = reply.is_some() && !answer.is_empty();
@@ -264,6 +269,16 @@ mod tests {
         // Ctrl+Shift+Alt+Z, then Alt let go while the rest is still held.
         assert!(!p.step(true, true));
         assert!(!p.step(true, false));
+    }
+
+    #[test]
+    fn a_copied_date_never_shows_while_the_answer_streams() {
+        let mut said = String::new();
+        let shown: Vec<String> = ["[2026-11", "-20 13:12] Brus", "sels, sir."].iter().map(|d| {
+            said.push_str(d);
+            super::super::brain::spoken_text(&said)
+        }).collect();
+        assert_eq!(shown, vec!["", "Brus", "Brussels, sir."]);
     }
 
     #[test]
