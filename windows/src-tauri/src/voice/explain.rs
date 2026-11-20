@@ -258,6 +258,9 @@ pub fn explain_ask(app: AppHandle, card: u64, question: String) {
         let reply = super::ask::brain().lock().unwrap().respond(&app, &ask, shot.as_ref(), &mut |d| written.push_str(d));
         let (line, window) = super::window::split(&written);
         let said = super::brain::spoken_text(&line).trim().to_string();
+        if said.is_empty() {
+            crate::log::line(format!("explain: no words in the follow-up's answer: {:?}", written.chars().take(300).collect::<String>()));
+        }
         crate::log::line(format!("explain: follow-up answered{}", if window.is_some() { ", with a window" } else { "" }));
         let answer = match (reply, said.is_empty(), window) {
             (None, _, _) | (_, true, None) => json!({ "card": card, "failed": true }),

@@ -249,7 +249,11 @@ pub fn ask_send(app: AppHandle, question: String) {
             (None, None) => "ask: answer without a window".into(),
         });
         let answer = clean(&body);
-        let ok = reply.is_some() && !answer.is_empty();
+        if answer.is_empty() {
+            crate::log::line(format!("ask: no words in the answer: {:?}", said.chars().take(300).collect::<String>()));
+        }
+        // A window says it, even when he wrote no sentence before it.
+        let ok = reply.is_some() && (!answer.is_empty() || window.is_some());
         let text = if ok { answer } else { crate::i18n::t("I couldn't answer that just now, sir.") };
         let _ = app.emit_to(LABEL, "ask-done", text.clone());
         if let (true, Some(w)) = (ok, window) {

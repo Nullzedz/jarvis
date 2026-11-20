@@ -131,7 +131,7 @@ const lastPictured = (card: Card) => [...card.secs].reverse().find(pictured) ?? 
 function fill(card: Card, sec: Sec) {
   sec.el.replaceChildren();
   if (sec.question !== null) sec.el.append(Object.assign(document.createElement("div"), { className: "ex-fq", textContent: sec.question }));
-  sec.el.append(Object.assign(document.createElement("div"), { className: `ex-said ix${sec.said === t("Thinking…") ? " thinking" : ""}`, textContent: sec.said }));
+  if (sec.said) sec.el.append(Object.assign(document.createElement("div"), { className: `ex-said ix${sec.said === t("Thinking…") ? " thinking" : ""}`, textContent: sec.said }));
   if (pictured(sec)) sec.el.append(content(sec.w));
   card.inner.querySelector(".ex-tag")!.textContent = tagFor(lastPictured(card).w);
 }
