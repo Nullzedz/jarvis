@@ -71,6 +71,8 @@ export interface FlowPrefs {
   talkKeys: string[];
   /** JARVIS: the keys pressed to open the ask box at the cursor. */
   askKeys: string[];
+  /** JARVIS: the keys held to circle something else (« show him more »). */
+  moreKeys: string[];
 }
 
 export type ModelState =

@@ -271,6 +271,8 @@ export const Bridge = {
   askSend: (question: string) => call<void>("ask_send", { question }),
   askClose: () => call<void>("ask_close"),
   askResize: (height: number) => call<void>("ask_resize", { height }),
+  /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
+  explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),

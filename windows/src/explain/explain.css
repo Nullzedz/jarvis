@@ -1,0 +1,222 @@
+/* JARVIS: his explanation windows, frame B (issue #12). */
+html,
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  font: 12px system-ui, "Segoe UI", sans-serif;
+  color: #e6e7ea;
+}
+
+#ink {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* The card: solid near-black, fine blue edge, blue corner brackets. */
+.ex-card {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: rgba(10, 14, 22, 0.96);
+  border: 1px solid #2f5f8f;
+  border-radius: 10px;
+  transition: opacity 0.15s ease;
+}
+
+.ex-card > i {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 0 solid #4fa3ff;
+  z-index: 1;
+}
+
+.ex-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.ex-hd {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 8px 9px 12px;
+  border-bottom: 1px solid #1f2a38;
+}
+
+.ex-face {
+  flex: none;
+  width: 22px;
+  height: 15px;
+  margin-top: 1px;
+  border-radius: 5px;
+  background: #f2f3f5;
+  display: grid;
+  place-items: center;
+}
+
+.ex-face b {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+  background: #378add;
+  display: block;
+}
+
+.ex-q {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.ex-tag {
+  flex: none;
+  font: 10px ui-monospace, monospace;
+  color: #7fbfff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.ex-x {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -2px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #8b93a3;
+  font: 15px system-ui;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ex-x:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ex-said {
+  padding: 10px 12px 4px;
+  color: #cfd2d8;
+  line-height: 1.45;
+}
+
+.ex-content {
+  padding: 4px 12px 14px;
+}
+
+.ex-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ex-svg text {
+  font-family: system-ui, "Segoe UI", sans-serif;
+}
+
+.ex-step,
+.ex-check {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.ex-num,
+.ex-mark {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1.5px solid #4fa3ff;
+  color: #4fa3ff;
+  font-size: 10px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+}
+
+.ex-mark {
+  background: #4fa3ff;
+  color: #0b1a2b;
+}
+
+.ex-check.no .ex-mark {
+  background: #ff7a6b;
+  border-color: #ff7a6b;
+}
+
+.ex-check.no {
+  color: #ffb3a8;
+}
+
+.ex-next {
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: rgba(255, 122, 107, 0.12);
+  color: #ffb3a8;
+}
+
+/* Parts that appear one after another. */
+.ix {
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.ix.on {
+  opacity: 1;
+  transform: none;
+}
+
+/* Drag the corner to resize. */
+.ex-grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 2;
+  background: linear-gradient(135deg, transparent 55%, rgba(79, 163, 255, 0.55) 55% 62%, transparent 62% 72%, rgba(79, 163, 255, 0.55) 72% 79%, transparent 79%);
+}
+
+/* His pointer: the white visor with the blue eye. */
+.ex-ptr {
+  position: absolute;
+  z-index: 3;
+  width: 26px;
+  height: 18px;
+  border-radius: 7px;
+  background: #f2f3f5;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+  display: grid;
+  place-items: center;
+  transform: translate(-4px, -4px);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.ex-ptr b {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  background: #378add;
+  display: block;
+}

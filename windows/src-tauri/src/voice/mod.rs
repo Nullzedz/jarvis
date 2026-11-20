@@ -15,6 +15,7 @@
 pub mod ask;
 pub mod brain;
 pub mod circle;
+pub mod explain;
 pub mod ink;
 pub mod gemini;
 pub mod piper;
@@ -26,6 +27,7 @@ pub mod stream;
 pub mod talk;
 pub mod wake;
 pub mod warm;
+pub mod window;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -524,12 +526,19 @@ fn watch_for_stop(app: &AppHandle) -> Arc<AtomicBool> {
 /// what was said, and whether the talk keys stopped him.
 fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Option<&sight::Shot>, hide_at: &mut Option<Instant>) -> (String, bool) {
     STOPPED.store(false, Ordering::Relaxed);
+    // A new question: his windows from the last one go.
+    if explain::is_open() {
+        explain::close_all(app);
+    }
     show(app, Some(VoiceView { phase: "thinking".into(), heard: question.to_string(), ..Default::default() }));
     let watching = watch_for_stop(app);
     let asked = Instant::now();
     let speech = Speech::start(app, question, asked);
     let mut splitter = stream::Splitter::default();
+    // All he wrote, his window block included (window.rs).
+    let mut written = String::new();
     let reply = brain.respond(app, question, seen, &mut |delta| {
+        written.push_str(delta);
         if STOPPED.load(Ordering::Relaxed) {
             return;
         }
@@ -541,6 +550,10 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         speech.say(rest);
     }
     crate::log::line(format!("voice: answer written in {} ms", asked.elapsed().as_millis()));
+    // His window draws while he says his short line.
+    if let (false, (line, Some(w))) = (STOPPED.load(Ordering::Relaxed), window::split(&written)) {
+        explain::show(app, question, &brain::spoken_text(&line), &w, seen, false);
+    }
     let said = speech.finish();
     watching.store(true, Ordering::Relaxed);
     if STOPPED.load(Ordering::Relaxed) {

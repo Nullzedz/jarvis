@@ -82,7 +82,7 @@ export interface HubOptions {
 const DEFAULT_STATUS: FlowStatus = {
   prefs: {
     enabled: false, key: "right_ctrl", keyCombo: [], edge: "bottom", hidePill: false, mic: "", keepDays: 30, cleanup: false,
-    defaultStyle: "natural", summaryEngine: "claude", openAtLaunch: true, voice: false, voiceOutput: "jarvis", voiceGender: "male", voiceName: "george", geminiVoice: "Charon", geminiFallback: "piper", voiceOnlyMe: false, voiceStrictness: "balanced", muteOthers: true, talkKeys: ["ControlLeft", "MetaLeft"], askKeys: ["ControlLeft", "ShiftLeft", "KeyZ"],
+    defaultStyle: "natural", summaryEngine: "claude", openAtLaunch: true, voice: false, voiceOutput: "jarvis", voiceGender: "male", voiceName: "george", geminiVoice: "Charon", geminiFallback: "piper", voiceOnlyMe: false, voiceStrictness: "balanced", muteOthers: true, talkKeys: ["ControlLeft", "MetaLeft"], askKeys: ["ControlLeft", "ShiftLeft", "KeyZ"], moreKeys: ["ShiftLeft", "MetaLeft"],
     oneTapHandsFree: false,
   },
   models: { parakeet: { state: "missing" }, downloadMb: 700 },

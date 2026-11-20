@@ -132,6 +132,8 @@ pub struct Prefs {
     pub talk_keys: Vec<String>,
     /// JARVIS: the keys pressed to open the ask box at the cursor.
     pub ask_keys: Vec<String>,
+    /// JARVIS: the keys held to circle something else, « show him more ».
+    pub more_keys: Vec<String>,
 }
 
 impl Default for Prefs {
@@ -160,6 +162,7 @@ impl Default for Prefs {
             one_tap_hands_free: false,
             talk_keys: crate::voice::shortcut::DEFAULT_TALK.map(String::from).to_vec(),
             ask_keys: crate::voice::shortcut::DEFAULT_ASK.map(String::from).to_vec(),
+            more_keys: crate::voice::shortcut::DEFAULT_MORE.map(String::from).to_vec(),
         }
     }
 }

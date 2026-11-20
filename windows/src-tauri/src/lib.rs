@@ -922,6 +922,7 @@ pub fn run() {
             voice::piper::piper_model,
             voice::ask::ask_send,
             voice::ask::ask_close,
+            voice::explain::explain_hot,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,
@@ -1133,6 +1134,7 @@ pub fn run() {
             // JARVIS: the type-to-ask box (tap Left Ctrl + Left Shift).
             voice::ask::setup(&handle);
             voice::ink::setup(&handle);
+            voice::explain::setup(&handle);
             notes::setup(&handle);
 
             if let Some(win) = island::window(&handle) {

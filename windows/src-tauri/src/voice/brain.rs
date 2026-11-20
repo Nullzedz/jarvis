@@ -110,7 +110,11 @@ Pills: {pills}"
 }
 
 /// JARVIS: what he's told about the pictures of the screen (sight.rs).
-const SIGHT: &str = "Sometimes a picture of the user's screen comes with the question: it is what they are asking about. If they circled something, it is marked with a blue loop: that is what they mean. Answer about what you see, plainly and briefly; never describe the whole picture unless asked.";
+const SIGHT: &str = concat!(
+    "Sometimes a picture of the user's screen comes with the question: it is what they are asking about. If they circled something, it is marked with a blue loop: that is what they mean. Answer about what you see, plainly and briefly; never describe the whole picture unless asked.
+",
+    include_str!("window_prompt.txt")
+);
 
 /// JARVIS: the prompt of the kept-warm Claude Code (warm.rs). It has no time in
 /// it, so the same process serves every question: each question carries the time.
@@ -198,9 +202,10 @@ impl Brain {
             spoken.clear();
         }
         self.repair();
-        let text = spoken_text(&spoken);
-        if !text.is_empty() {
-            on_text(&text);
+        // Raw, as Claude Code's words are: whoever shows or says it cleans it, and
+        // his window block (window.rs) must reach them whole (cleaning eats its [ ]).
+        if !spoken_text(super::window::visible(&spoken)).is_empty() || super::window::starts_at(&spoken).is_some() {
+            on_text(spoken.trim());
         }
         Some(Reply { acted })
     }
@@ -265,7 +270,7 @@ impl Brain {
 fn with_picture(question: &str, shot: &super::sight::Shot) -> Value {
     json!([
         { "type": "image", "source": { "type": "base64", "media_type": "image/jpeg", "data": shot.data } },
-        { "type": "text", "text": format!("(The picture is {}.) {question}", shot.what) }
+        { "type": "text", "text": format!("(The picture is {}, {}×{} pixels.) {question}", shot.what, shot.size.0, shot.size.1) }
     ])
 }
 
