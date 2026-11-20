@@ -116,7 +116,7 @@ const SIGHT: &str = "Sometimes a picture of the user's screen comes with the que
 /// it, so the same process serves every question: each question carries the time.
 pub fn claude_code_system() -> String {
     format!(
-        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets. {}",
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets, for you to know: never repeat it in your answer. {}",
         persona(),
         instructions("(not available)"),
         SIGHT

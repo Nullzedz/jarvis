@@ -92,13 +92,14 @@ async function main() {
     reset();
   });
   field.placeholder = t("Ask JARVIS anything");
-  void onEvent<string>("ask-delta", (delta) => {
+  // The answer so far, cleaned by Rust (ask.rs).
+  void onEvent<string>("ask-delta", (sofar) => {
     if (answer.classList.contains("thinking")) {
       answer.classList.remove("thinking");
       card.classList.remove("thinking");
       answer.textContent = "";
     }
-    text += delta;
+    text = sofar;
     answer.textContent = text;
     fit();
   });
