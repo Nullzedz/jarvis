@@ -43,7 +43,7 @@ const text = (p: Element, x: number, y: number, s: string, o: Any = {}) =>
   add(p, "text", { x, y, fill: o.f ?? "#e6e7ea", "font-size": o.z ?? 11.5, "text-anchor": o.a ?? "start", "font-weight": o.b ? 600 : 400 }, s);
 
 /** The kinds and the width each window starts at (page px). */
-export const WIDTH: Record<string, number> = { steps: 320, checklist: 330, diagram: 360, compare: 340, breakdown: 340, timeline: 380 };
+export const WIDTH: Record<string, number> = { pending: 360, steps: 320, checklist: 330, diagram: 360, compare: 340, breakdown: 340, timeline: 380 };
 
 /** What SVG may hold when he draws it himself: shapes, text and their styling; nothing that runs or loads. */
 const SAFE = new Set(["svg", "g", "path", "rect", "circle", "ellipse", "line", "polyline", "polygon", "text", "tspan", "defs", "marker", "lineargradient", "radialgradient", "stop", "title", "use", "clippath", "pattern", "symbol"]);
@@ -84,6 +84,20 @@ export function widthFor(w: Any): number {
 export function content(w: Any): HTMLElement {
   const box = h("div", "ex-content");
   switch (w.kind) {
+    case "pending": {
+      // Being drawn (issue #14): a few faint lines while his eye sweeps in the header.
+      const wait = h("div", "ex-wait ix");
+      for (const width of [92, 70, 84, 56]) {
+        const bar = h("i", "");
+        bar.style.width = `${width}%`;
+        wait.append(bar);
+      }
+      box.append(wait);
+      break;
+    }
+    case "failed":
+      box.append(h("div", "ex-failed ix", str(w.text, 80)));
+      break;
     case "drawing": {
       const pic = safeSvg(String(w.svg ?? ""));
       if (pic) {
@@ -188,4 +202,43 @@ export function content(w: Any): HTMLElement {
     }
   }
   return box;
+}
+
+/** His own drawing grown to hold everything he drew: nothing cut off at its edges. */
+export function fitViewBox(svg: SVGSVGElement) {
+  const vb = svg.viewBox.baseVal;
+  let b: DOMRect;
+  try {
+    b = svg.getBBox();
+  } catch {
+    return;
+  }
+  if (!vb || !b.width || !b.height) return;
+  const x0 = Math.min(vb.x, b.x - 8), y0 = Math.min(vb.y, b.y - 8);
+  const x1 = Math.max(vb.x + vb.width, b.x + b.width + 8), y1 = Math.max(vb.y + vb.height, b.y + b.height + 8);
+  if (x0 < vb.x || y0 < vb.y || x1 > vb.x + vb.width || y1 > vb.y + vb.height) svg.setAttribute("viewBox", `${x0} ${y0} ${x1 - x0} ${y1 - y0}`);
+}
+
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/** Two texts of `boxes` on top of each other (more than a sliver), as their texts; or null. */
+export function overlapping(boxes: { text: string; r: Box }[]): [string, string] | null {
+  const area = (r: Box) => Math.max(0, r.right - r.left) * Math.max(0, r.bottom - r.top);
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i].r, b = boxes[j].r;
+      const w = Math.min(a.right, b.right) - Math.max(a.left, b.left), hgt = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      if (w > 0 && hgt > 0 && w * hgt > 0.15 * Math.min(area(a), area(b))) return [boxes[i].text, boxes[j].text];
+    }
+  }
+  return null;
+}
+
+/** What overlaps in his drawing, said for the redraw (« "links to" lies on "id (PK)" »), or null. */
+export function textOverlap(root: Element): string | null {
+  const boxes = [...root.querySelectorAll("text")]
+    .map((t) => ({ text: (t.textContent ?? "").trim().slice(0, 30), r: t.getBoundingClientRect() }))
+    .filter((b) => b.text && b.r.width > 0 && b.r.height > 0);
+  const hit = overlapping(boxes);
+  return hit ? `"${hit[0]}" lies on "${hit[1]}"` : null;
 }

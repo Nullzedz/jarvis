@@ -73,6 +73,8 @@ export interface FlowPrefs {
   askKeys: string[];
   /** JARVIS: the keys held to circle something else (« show him more »). */
   moreKeys: string[];
+  /** JARVIS: who draws his windows, "maker:model" (voice/draw.rs). */
+  drawModel: string;
 }
 
 export type ModelState =

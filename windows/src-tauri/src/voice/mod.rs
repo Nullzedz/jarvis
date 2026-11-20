@@ -15,6 +15,7 @@
 pub mod ask;
 pub mod brain;
 pub mod circle;
+pub mod draw;
 pub mod explain;
 pub mod ink;
 pub mod gemini;

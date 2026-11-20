@@ -8,8 +8,8 @@
 // card dragged out beside the target, the contents. Rust says where the target
 // is, in the page's own pixels, and keeps the hot areas (the cards) clickable.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -25,6 +25,9 @@ static OPEN: AtomicBool = AtomicBool::new(false);
 /// The layer's monitor: origin (physical px) and scale; and the cards' hot areas (page px).
 static PLACE: Mutex<((f64, f64), f64)> = Mutex::new(((0.0, 0.0), 1.0));
 static HOT: Mutex<Vec<(f64, f64, f64, f64)>> = Mutex::new(Vec::new());
+/// Each window's drawing job (issue #14), kept for « Draw it differently » and the overlap fix.
+static JOBS: Mutex<Vec<(u64, Arc<super::draw::Job>)>> = Mutex::new(Vec::new());
+static NEXT: AtomicU64 = AtomicU64::new(1);
 
 fn url(app: &AppHandle) -> WebviewUrl {
     #[cfg(dev)]
@@ -146,10 +149,47 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     };
     let (target, about) = (in_page(target), in_page(about));
     OPEN.store(true, Ordering::Relaxed);
+    // His line: one sentence, at most 15 words. A requested drawing opens empty (his eye
+    // sweeping) and fills in when the drawing model is done (issue #14).
+    let line = super::window::short_line(said);
+    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    let asked = super::window::is_request(window);
+    let idea = match window["idea"].as_str() {
+        Some(i) => i.to_string(),
+        None => format!("the same as this window: {}", window.to_string().chars().take(3000).collect::<String>()),
+    };
+    let job = Arc::new(super::draw::Job { question: question.into(), said: line.clone(), idea, shot: shot.cloned() });
+    {
+        let mut jobs = JOBS.lock().unwrap();
+        jobs.push((id, job));
+        let extra = jobs.len().saturating_sub(8);
+        jobs.drain(..extra);
+    }
+    let shown = if asked { json!({ "kind": "pending" }) } else { window.clone() };
     let _ = win.emit(
         "explain-show",
-        json!({ "add": add, "question": question, "said": said, "window": window, "target": target, "about": about, "cursor": page(cursor) }),
+        json!({ "add": add, "draw": id, "question": question, "said": line, "window": shown, "target": target, "about": about, "cursor": page(cursor) }),
     );
+    if asked {
+        let app = app.clone();
+        std::thread::spawn(move || drawn(&app, id, &[], None));
+    }
+}
+
+/// Draws window `id`'s picture and sends it to the page (`explain-drawn`).
+fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
+    let job = JOBS.lock().unwrap().iter().find(|(i, _)| *i == id).map(|(_, j)| j.clone());
+    let got = job.ok_or_else(|| "gone".to_string()).and_then(|j| super::draw::draw(app, &j, tried, fix));
+    let _ = match got {
+        Ok(w) => {
+            crate::log::line(format!("explain: drawn as {}", w["form"].as_str().or(w["kind"].as_str()).unwrap_or("?")));
+            app.emit_to(LABEL, "explain-drawn", json!({ "draw": id, "window": w }))
+        }
+        Err(err) => {
+            crate::log::line(format!("explain: no drawing: {err}"));
+            app.emit_to(LABEL, "explain-drawn", json!({ "draw": id, "failed": true }))
+        }
+    };
 }
 
 /// Every window goes (Esc, the ask shortcut again, a new question).
@@ -173,31 +213,10 @@ pub fn explain_hot(app: AppHandle, rects: Vec<(f64, f64, f64, f64)>) {
     }
 }
 
-/// « Draw it differently »: the same answer, redrawn in a form not tried yet. The
-/// page gets `explain-redrawn` back for card `id` (or `failed`).
+/// « Draw it differently » (`tried`: the forms shown so far), or the same form
+/// again because its text overlapped (`fix`: what touched what). The page gets
+/// `explain-drawn` back for window `draw`.
 #[tauri::command]
-pub fn explain_redraw(app: AppHandle, id: u64, question: String, said: String, window: Value, tried: Vec<String>) {
-    std::thread::spawn(move || {
-        let mut shown = window.to_string();
-        if shown.len() > 4000 {
-            shown = shown.chars().take(4000).collect();
-        }
-        let ask = format!(
-            "Draw your answer to \"{question}\" again, as a different form: not as {}. Same information, the form that fits it next best. Reply with one short sentence, then the window block. Your answer was: \"{said}\". The window was: {shown}",
-            tried.join(", ")
-        );
-        let mut written = String::new();
-        let reply = super::ask::brain().lock().unwrap().respond(&app, &ask, None, &mut |d| written.push_str(d));
-        let (line, drawn) = super::window::split(&written);
-        match (reply, drawn) {
-            (Some(_), Some(w)) => {
-                crate::log::line(format!("explain: redrawn as {}", w["form"].as_str().or(w["kind"].as_str()).unwrap_or("?")));
-                let _ = app.emit_to(LABEL, "explain-redrawn", json!({ "id": id, "said": super::brain::spoken_text(&line), "window": w }));
-            }
-            _ => {
-                crate::log::line("explain: no redraw came back");
-                let _ = app.emit_to(LABEL, "explain-redrawn", json!({ "id": id, "failed": true }));
-            }
-        }
-    });
+pub fn explain_redraw(app: AppHandle, draw: u64, tried: Vec<String>, fix: Option<String>) {
+    std::thread::spawn(move || drawn(&app, draw, &tried, fix.as_deref()));
 }

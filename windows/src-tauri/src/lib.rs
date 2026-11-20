@@ -924,6 +924,7 @@ pub fn run() {
             voice::ask::ask_close,
             voice::explain::explain_hot,
             voice::explain::explain_redraw,
+            voice::draw::draw_models,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,

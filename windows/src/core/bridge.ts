@@ -273,9 +273,10 @@ export const Bridge = {
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),
-  /** JARVIS: « Draw it differently »: the same answer in a form not in `tried`; it comes back as `explain-redrawn`. */
-  explainRedraw: (id: number, question: string, said: string, window: Record<string, unknown>, tried: string[]) =>
-    call<void>("explain_redraw", { id, question, said, window, tried }),
+  /** JARVIS: window `draw` drawn again: in a form not in `tried`, or the same one with `fix` (its text overlapped). Comes back as `explain-drawn`. */
+  explainRedraw: (draw: number, tried: string[], fix: string | null) => call<void>("explain_redraw", { draw, tried, fix }),
+  /** JARVIS: who can draw his windows (Settings → Voice → Windows), issue #14. */
+  drawModels: () => call<DrawModel[]>("draw_models"),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),
@@ -817,4 +818,12 @@ export async function onDragDrop(handler: (e: DragDropPayload) => void) {
 export async function onEvent<T>(name: string, handler: (payload: T) => void) {
   if (!IS_TAURI) return () => {};
   return listen<T>(name, (e) => handler(e.payload));
+}
+
+/** JARVIS: a model that can draw his windows: "maker:model", installed and signed in or not. */
+export interface DrawModel {
+  id: string;
+  name: string;
+  maker: "claude" | "chatgpt" | "gemini";
+  ready: boolean;
 }

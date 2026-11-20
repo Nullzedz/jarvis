@@ -221,6 +221,21 @@ pub async fn voice_turn(model: &str, system: &str, messages: &[Value], tools: &[
     call_with_timeout(&endpoint, &key, &body, Duration::from_secs(45)).await
 }
 
+/// JARVIS: one drawing for his window (voice/draw.rs): a bigger answer, longer wait, no tools.
+pub async fn draw_turn(model: &str, system: &str, content: Value) -> Result<String, String> {
+    let key = secrets::get(KEY).ok_or_else(|| t("API key missing. Open settings."))?;
+    let endpoint = endpoint()?;
+    let body = json!({
+        "model": model,
+        "max_tokens": 8000,
+        "system": system,
+        "messages": [{ "role": "user", "content": content }],
+    });
+    let turn = call_with_timeout(&endpoint, &key, &body, Duration::from_secs(150)).await?;
+    let text: String = turn["content"].as_array().into_iter().flatten().filter(|b| b["type"] == "text").filter_map(|b| b["text"].as_str()).collect();
+    if text.trim().is_empty() { Err(t("No response text.")) } else { Ok(text) }
+}
+
 async fn call(endpoint: &Url, key: &str, body: &Value) -> Result<Value, String> {
     call_with_timeout(endpoint, key, body, Duration::from_secs(90)).await
 }
