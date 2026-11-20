@@ -140,6 +140,11 @@ impl Vad {
         (self.floor * 3.0).max(MIN_SPEECH)
     }
 
+    /// JARVIS: the room's steady noise level (RMS), for the talk keys' own measure of a voice.
+    pub fn floor(&self) -> f32 {
+        self.floor
+    }
+
     #[cfg(test)]
     pub fn in_speech(&self) -> bool {
         self.in_speech

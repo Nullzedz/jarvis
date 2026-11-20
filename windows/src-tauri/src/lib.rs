@@ -917,6 +917,16 @@ pub fn run() {
             tts::voice_model_download,
             tts::voice_model_remove,
             tts::voice_preview,
+            voice::gemini::gemini_preview,
+            voice::gemini::gemini_warm_up,
+            voice::piper::piper_model,
+            voice::ask::ask_send,
+            voice::ask::ask_close,
+            voice::ask::ask_resize,
+            voice::piper::piper_model_download,
+            voice::piper::piper_model_remove,
+            voice::piper::piper_preview,
+            voice::gemini::gemini_key_check,
             tts::voice_warm_up,
             voice::print::voice_print_status,
             voice::print::voice_train_start,
@@ -1120,6 +1130,8 @@ pub fn run() {
             // Same rule for Mochi's desktop window and the dictation pill.
             desktop::setup(&handle);
             flow::setup(&handle);
+            // JARVIS: the type-to-ask box (tap Left Ctrl + Left Shift).
+            voice::ask::setup(&handle);
             notes::setup(&handle);
 
             if let Some(win) = island::window(&handle) {

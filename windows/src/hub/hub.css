@@ -1280,3 +1280,69 @@ button.hub-icon svg {
   border-radius: 1px;
   background: #85b7eb;
 }
+
+/* JARVIS: his shortcuts as keycap tiles (Voice page, design B). */
+.jv-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.jv-tile {
+  background: var(--hub-card);
+  border: 1px solid var(--hub-line);
+  border-radius: 14px;
+  padding: 16px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.jv-tile:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.jv-tile.on {
+  border: 1px solid #4fa3ff;
+  box-shadow: inset 0 0 0 1px #4fa3ff;
+}
+
+.jv-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: var(--hub-secondary);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.jv-name {
+  font: 600 13.5px var(--font);
+}
+
+.jv-caps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.jv-tile.on .hub-keycap {
+  color: #4fa3ff;
+}
+
+.jv-how {
+  font-size: 12px;
+  color: var(--hub-secondary);
+}
+
+.jv-how.warn {
+  color: #e8a33d;
+}

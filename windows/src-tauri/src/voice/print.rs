@@ -117,6 +117,8 @@ pub fn normalised(mut v: Vec<f32>) -> Vec<f32> {
 }
 
 /// Cosine similarity of two normalised vectors.
+// JARVIS: from « Hey JARVIS » (the voiceprint, the learned spellings); unused with push-to-talk.
+#[allow(dead_code)]
 pub fn similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
@@ -138,6 +140,8 @@ pub fn average(takes: &[Vec<f32>]) -> Vec<f32> {
 /// How close a voice must be, by strictness. Calibrated on Kokoro's voices (the
 /// `calibrate` test): the same voice on another line scores 0.85–0.88, other
 /// voices 0.18–0.65 (two close British men at the top of that range).
+// JARVIS: from « Hey JARVIS » (the voiceprint, the learned spellings); unused with push-to-talk.
+#[allow(dead_code)]
 pub fn threshold(strictness: &str) -> f32 {
     match strictness {
         "relaxed" => 0.40,
@@ -148,6 +152,8 @@ pub fn threshold(strictness: &str) -> f32 {
 
 /// Whether `samples` sound like the trained voice (and the score, for the log).
 /// True when nothing is trained: nothing to compare with.
+// JARVIS: from « Hey JARVIS » (the voiceprint, the learned spellings); unused with push-to-talk.
+#[allow(dead_code)]
 pub fn is_my_voice(samples: &[f32], strictness: &str) -> (bool, f32) {
     let Some(print) = load() else { return (true, 1.0) };
     let Some(e) = embed(samples) else { return (true, 1.0) };
@@ -157,11 +163,15 @@ pub fn is_my_voice(samples: &[f32], strictness: &str) -> (bool, f32) {
 
 /// The wake phrase spelled as Parakeet spells it in the trained voice: what was
 /// said after it, when `text` starts with one of the learned spellings.
+// JARVIS: from « Hey JARVIS » (the voiceprint, the learned spellings); unused with push-to-talk.
+#[allow(dead_code)]
 pub fn learned_wake(text: &str) -> Option<String> {
     let print = load()?;
     learned_wake_in(text, &print.spellings)
 }
 
+// JARVIS: from « Hey JARVIS » (the voiceprint, the learned spellings); unused with push-to-talk.
+#[allow(dead_code)]
 pub fn learned_wake_in(text: &str, spellings: &[String]) -> Option<String> {
     let words: Vec<&str> = text.split_whitespace().collect();
     let norm: Vec<String> = words.iter().map(|w| wake::normalize(w)).collect();

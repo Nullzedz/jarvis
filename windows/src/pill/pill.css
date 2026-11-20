@@ -292,6 +292,13 @@ body {
   max-width: 440px;
 }
 
+/* JARVIS: stopped with the talk keys — the bubble fades out (then it's removed). */
+.bubble.voice.fade {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
 .bubble.voice .heard {
   color: #9a9ea8;
   font-weight: 500;

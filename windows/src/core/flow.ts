@@ -56,6 +56,10 @@ export interface FlowPrefs {
   voiceGender: "female" | "male";
   /** JARVIS's own voice (Kokoro): "george", "lewis", "daniel" or "fable". */
   voiceName: string;
+  /** JARVIS: his Gemini voice ("Charon" unless picked). */
+  geminiVoice: string;
+  /** JARVIS: when Gemini can't speak: Piper (offline backup) or text only. */
+  geminiFallback: "piper" | "text";
   /** JARVIS: answer only the trained voice. */
   voiceOnlyMe: boolean;
   voiceStrictness: "relaxed" | "balanced" | "strict";
@@ -63,6 +67,10 @@ export interface FlowPrefs {
   muteOthers: boolean;
   /** One short press of the key starts hands-free dictation, instead of two. */
   oneTapHandsFree: boolean;
+  /** JARVIS: the keys held to talk to him (KeyboardEvent.code names). */
+  talkKeys: string[];
+  /** JARVIS: the keys pressed to open the ask box at the cursor. */
+  askKeys: string[];
 }
 
 export type ModelState =
@@ -207,7 +215,7 @@ export interface VoiceView {
   paceMs?: number;
 }
 
-export type VoiceOutput = "jarvis" | "system" | "elevenlabs" | "off";
+export type VoiceOutput = "gemini" | "jarvis" | "system" | "elevenlabs" | "off";
 
 export const FlowBridge = {
   status: () => call<FlowStatus>("flow_status"),

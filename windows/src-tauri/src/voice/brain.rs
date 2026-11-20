@@ -113,7 +113,7 @@ Pills: {pills}"
 /// it, so the same process serves every question: each question carries the time.
 pub fn claude_code_system() -> String {
     format!(
-        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. Each message starts with the current date and time in brackets.",
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets.",
         persona(),
         instructions("(not available)")
     )
@@ -248,12 +248,26 @@ pub fn spoken_text(text: &str) -> String {
             _ => {}
         }
     }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
+    // JARVIS: web addresses are never read out, nor the brackets left around them.
+    let words: Vec<&str> = out
+        .split_whitespace()
+        .filter(|w| {
+            let w = w.trim_matches(|c: char| "()<>.,;:".contains(c)).to_lowercase();
+            !(w.starts_with("http") || w.starts_with("www.") || w.contains("://"))
+        })
+        .collect();
+    words.join(" ").replace("( )", "").replace("()", "").split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn web_addresses_are_never_read_aloud() {
+        assert_eq!(spoken_text("Headlines from Manila Bulletin (https://mb.com.ph/rss/articles) today."), "Headlines from Manila Bulletin today.");
+        assert_eq!(spoken_text("See www.example.com for more."), "See for more.");
+    }
 
     #[test]
     fn markdown_and_citations_are_not_read_aloud() {

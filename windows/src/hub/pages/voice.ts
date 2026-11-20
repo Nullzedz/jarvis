@@ -3,14 +3,21 @@
 
 import { h, clear } from "../../views/dom";
 import { t } from "../../i18n/i18n";
-import { Bridge, onEvent, type VoiceModel } from "../../core/bridge";
+import { Bridge, onEvent, type VoiceModel, type VoiceModelState } from "../../core/bridge";
 import type { VoiceOutput } from "../../core/flow";
 import type { HubContext } from "../shell";
 import { button, card, divider, label, row, segmented, select, toggle } from "../ui";
 import { modelsControl } from "./flowsettings";
 import { openVoiceTraining } from "./voicetrain";
+import { shortcutTiles } from "./shortcuts";
 
 const ELEVEN = "elevenlabs-api-key";
+const GEMINI = "gemini-api-key";
+/** JARVIS: the Gemini voices offered (voice/gemini.rs VOICES), deeper and calmer first. */
+const GEMINI_VOICES: [string, string][] = [
+  ["Charon", "Charon"], ["Orus", "Orus"], ["Iapetus", "Iapetus"], ["Algenib", "Algenib"],
+  ["Rasalgethi", "Rasalgethi"], ["Sadaltager", "Sadaltager"], ["Schedar", "Schedar"], ["Puck", "Puck"],
+];
 /** Where secrets.rs keeps the keys on this OS (same words as Notch → Chat). */
 const KEY_STORE = navigator.userAgent.includes("Windows") ? "Windows Credential Manager" : "Secret Service (GNOME Keyring, KWallet)";
 
@@ -38,6 +45,129 @@ function elevenKey(): HTMLElement {
     box.append(input, save);
   };
   void draw();
+  return box;
+}
+
+/** JARVIS: the Gemini key — paste and save, or saved with whether it works, and Remove. */
+function geminiKey(onChange: () => void): HTMLElement {
+  const box = h("div", { style: "display:flex;align-items:center;gap:8px" });
+  const draw = async () => {
+    const present = (await Bridge.secretPresent(GEMINI)) ?? false;
+    clear(box);
+    if (present) {
+      const status = h("span", { class: "hub-note", text: t("Checking…") });
+      box.append(status, button(t("Remove"), () => void Bridge.secretClear(GEMINI).then(draw).then(onChange), "", true));
+      const state = await Bridge.geminiKeyCheck();
+      const [text, color] =
+        state === "ok" ? [`● ${t("Works")}`, "var(--hub-green)"]
+        : state === "key" ? [`● ${t("Google refused this key")}`, "var(--hub-red, #f09595)"]
+        : [`● ${t("Can't reach Google right now")}`, "var(--hub-dim, #8b8f97)"];
+      status.textContent = text;
+      status.style.color = color;
+      return;
+    }
+    const input = h("input", { class: "hub-input", type: "password", placeholder: t("Gemini key"), autocomplete: "off", spellcheck: "false", style: "width:220px" }) as HTMLInputElement;
+    const save = button(t("Save key"), () => {
+      const value = input.value.trim();
+      if (!value) return;
+      void Bridge.secretSet(GEMINI, value).then(draw, () => input.classList.add("err")).then(onChange);
+    }, "primary", true);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") save.click();
+    });
+    box.append(input, save);
+  };
+  void draw();
+  return box;
+}
+
+/** JARVIS: the Gemini voice picker and ▶ Hear it (needs the key). */
+function geminiVoice(ctx: HubContext, current: string): HTMLElement {
+  let voice = current || "Charon";
+  let playing: HTMLAudioElement | null = null;
+  void Bridge.geminiWarmUp(voice);
+  const pick = select(GEMINI_VOICES, voice, (v) => {
+    voice = v;
+    void Bridge.geminiWarmUp(v);
+    void ctx.setPrefs((p) => (p.geminiVoice = v));
+  });
+  const why = h("span", { class: "hub-note", style: "color:var(--hub-red)" });
+  const play = button(`▶ ${t("Hear it")}`, () => {
+    playing?.pause();
+    play.disabled = true;
+    why.textContent = "";
+    Bridge.geminiPreview(voice)
+      .then((bytes) => {
+        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+        playing = new Audio(url);
+        playing.onended = () => URL.revokeObjectURL(url);
+        return playing.play();
+      })
+      .catch((err) => {
+        // Gemini couldn't: say why (a refused key, the free allowance used up, Google unavailable).
+        why.textContent = String(err).replace(/^Error:\s*/, "").slice(0, 120);
+      })
+      .finally(() => {
+        play.disabled = false;
+      });
+  }, "", true);
+  return h("div", { style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap" }, pick, play, why);
+}
+
+/** JARVIS: Piper, the offline backup — Download (with progress), then ▶ and Remove. */
+function piperVoice(): HTMLElement {
+  const box = h("div", { style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end" });
+  let size = 0;
+  let status: VoiceModelState | null = null;
+  let playing: HTMLAudioElement | null = null;
+  const mb = (n: number) => `${Math.round(n / 1_000_000)} MB`;
+  const draw = () => {
+    clear(box);
+    if (!status) return;
+    if (status.state === "ready") {
+      const play = button("▶", () => {
+        playing?.pause();
+        play.disabled = true;
+        Bridge.piperPreview()
+          .then((bytes) => {
+            const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+            playing = new Audio(url);
+            playing.onended = () => URL.revokeObjectURL(url);
+            return playing.play();
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            play.disabled = false;
+          });
+      }, "", true);
+      play.title = t("Hear this voice");
+      box.append(
+        h("span", { class: "hub-note", style: "color:var(--hub-green)", text: `✓ ${t("On this computer, offline.")}` }),
+        play,
+        button(t("Remove"), () => void Bridge.piperModelRemove(), "", true),
+      );
+    } else if (status.state === "downloading") {
+      const pct = Math.round(status.fraction * 100);
+      const fill = h("i", { style: `display:block;height:100%;width:${pct}%;background:var(--hub-accent, #378add)` });
+      box.append(
+        h("span", { class: "hub-note", text: t("Downloading… {pct}%", { pct }) }),
+        h("span", { style: "display:block;width:120px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden" }, fill),
+      );
+    } else {
+      box.append(button(t("Download the voice ({size})", { size: mb(size) }), () => void Bridge.piperModelDownload(), "primary", true));
+      if (status.state === "failed") box.append(h("span", { class: "hub-note", style: "color:var(--hub-red)", text: status.error }));
+    }
+  };
+  void Bridge.piperModel().then((m) => {
+    if (!m) return;
+    size = m.size;
+    status = m.status;
+    draw();
+  });
+  void onEvent<VoiceModelState>("piper-model-status", (s) => {
+    status = s;
+    if (box.isConnected) draw();
+  });
   return box;
 }
 
@@ -166,6 +296,10 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   }
   page.append(main);
 
+  // JARVIS: his shortcuts, as keycap tiles (design B).
+  page.append(label(t("Shortcuts")));
+  page.append(shortcutTiles(ctx, prefs, status.platform));
+
   // JARVIS: which microphone, and a bar that shows how loud you come through.
   page.append(label(t("Microphone")));
   const mics: [string, string][] = [["", t("Automatic")], ...status.mics.map((m): [string, string] => [m.name, m.name])];
@@ -215,10 +349,22 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   page.append(yours);
 
   page.append(label(t("Answers")));
-  const outputs: [VoiceOutput, string][] = [["jarvis", "JARVIS"], ["system", t("System voice")], ["elevenlabs", "ElevenLabs"], ["off", t("Text only")]];
+  const outputs: [VoiceOutput, string][] = [["gemini", "Gemini"], ["jarvis", "JARVIS"], ["system", t("System voice")], ["elevenlabs", "ElevenLabs"], ["off", t("Text only")]];
   const answers = card(
     row(t("Coucou answers out loud"), null, segmented(outputs, prefs.voiceOutput, (v) => void ctx.setPrefs((p) => (p.voiceOutput = v)).then(() => ctx.navigate("voice")))),
   );
+  if (prefs.voiceOutput === "gemini") {
+    // JARVIS: Google's voice with your own AI Studio key; the key's row links to where to get one.
+    const keyRow = row(t("Gemini key"), null, geminiKey(() => undefined));
+    const get = h("button", { class: "hub-link", text: `${t("Get a free key at Google AI Studio")} ↗`, onclick: () => void Bridge.openUrl("https://aistudio.google.com/apikey") });
+    keyRow.querySelector(".text")?.append(get);
+    answers.append(
+      divider(),
+      row(t("Voice"), t("Charon is the JARVIS one"), geminiVoice(ctx, prefs.geminiVoice)),
+      divider(),
+      keyRow,
+    );
+  }
   if (prefs.voiceOutput === "jarvis") {
     answers.append(divider(), row(t("JARVIS's voice"), t("British, on this computer: nothing leaves it."), jarvisVoice(ctx, prefs.voiceName || "george")));
   }
@@ -231,6 +377,21 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
     );
   }
   page.append(answers);
+
+  // JARVIS: when Gemini can't speak (free allowance used up, Google down, no key).
+  if (prefs.voiceOutput === "gemini") {
+    page.append(label(t("When Gemini can't speak")));
+    const fallback = card(
+      row(t("Fall back to"), t("Free allowance used up, Google down, or no key"),
+        segmented([["piper", t("Piper · offline")], ["text", t("Text only")]], prefs.geminiFallback ?? "piper",
+          (v) => void ctx.setPrefs((p) => (p.geminiFallback = v)).then(() => ctx.navigate("voice")))),
+    );
+    if ((prefs.geminiFallback ?? "piper") === "piper") {
+      const piperRow = row(t("Piper voice"), t("Alan, British · free and unlimited, on this computer"), piperVoice());
+      fallback.append(divider(), piperRow);
+    }
+    page.append(fallback);
+  }
 
   page.append(label(t("Privacy")));
   page.append(card(

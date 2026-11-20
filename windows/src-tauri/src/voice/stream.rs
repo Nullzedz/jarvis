@@ -12,12 +12,31 @@ const LONG: usize = 160;
 #[derive(Default)]
 pub struct Splitter {
     buf: String,
+    /// JARVIS: a « Sources: » list began (a web search's habit): nothing more is said.
+    ended: bool,
+}
+
+/// Where a list of sources starts in `text`, if one does.
+fn sources_at(text: &str) -> Option<usize> {
+    let lower = text.to_lowercase();
+    ["sources:", "source:", "references:"].iter().filter_map(|m| lower.find(m)).min()
 }
 
 impl Splitter {
     /// Adds what was just written; returns the pieces now ready to say.
     pub fn push(&mut self, text: &str) -> Vec<String> {
+        if self.ended {
+            return Vec::new();
+        }
         self.buf.push_str(text);
+        if let Some(at) = sources_at(&self.buf) {
+            self.buf.truncate(at);
+            self.ended = true;
+            let rest = std::mem::take(&mut self.buf);
+            let mut out = Vec::new();
+            push_clean(&mut out, &rest);
+            return out;
+        }
         let mut out = Vec::new();
         while let Some(end) = self.next_end() {
             let piece: String = self.buf.drain(..end).collect();
@@ -96,6 +115,12 @@ mod tests {
         assert_eq!(s.push(" twelve, sir. Shall I"), vec!["It's a quarter past twelve, sir."]);
         assert!(s.push(" set a reminder?").is_empty(), "the end of the answer may still grow");
         assert_eq!(s.finish().as_deref(), Some("Shall I set a reminder?"));
+    }
+
+    #[test]
+    fn a_sources_list_is_never_said() {
+        let out = feed(&["Marcos continues talks on nuclear energy development, sir. Sour", "ces: - (https://mb.com.ph/rss/articles) - Inquirer"]);
+        assert_eq!(out, vec!["Marcos continues talks on nuclear energy development, sir."]);
     }
 
     #[test]

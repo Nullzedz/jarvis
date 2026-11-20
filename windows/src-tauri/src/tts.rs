@@ -149,16 +149,45 @@ async fn fetch(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Unpacks the archive into `root`; the tar crate refuses entries that would land outside it.
+/// Unpacks the archive into `root`.
 fn unpack(archive: &std::path::Path, root: &std::path::Path) -> Result<(), String> {
+    unpack_folder(archive, root, DIR)
+}
+
+/// Where an archive entry goes under `root`: only plain relative paths inside
+/// `folder` — no `..`, no drive or root, nothing else — or None to skip it.
+pub(crate) fn entry_target(root: &std::path::Path, folder: &str, path: &std::path::Path) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    if !path.starts_with(folder) || !path.components().all(|c| matches!(c, Component::Normal(_))) {
+        return None;
+    }
+    Some(root.join(path))
+}
+
+/// Unpacks only the archive's `folder` into `root` (JARVIS: Piper's archive too, voice/piper.rs).
+///
+/// JARVIS: checked here rather than by the tar crate's `unpack_in`, which
+/// compares real (canonical) paths: where Windows redirects a packaged app's
+/// AppData folders (MSIX), a folder just made inside `root` resolves elsewhere
+/// and every file was refused as « outside of destination ». Only plain files
+/// and folders are written; links and anything else are skipped.
+pub(crate) fn unpack_folder(archive: &std::path::Path, root: &std::path::Path, folder: &str) -> Result<(), String> {
     let file = std::fs::File::open(archive).map_err(|e| e.to_string())?;
     let mut tar = tar::Archive::new(bzip2::read::BzDecoder::new(std::io::BufReader::new(file)));
     for entry in tar.entries().map_err(|e| e.to_string())? {
         let mut entry = entry.map_err(|e| e.to_string())?;
-        // Only the model's own folder.
-        let inside = entry.path().map(|p| p.starts_with(DIR)).unwrap_or(false);
-        if inside {
-            entry.unpack_in(root).map_err(|e| e.to_string())?;
+        let path = entry.path().map_err(|e| e.to_string())?.into_owned();
+        let Some(target) = entry_target(root, folder, &path) else { continue };
+        let kind = entry.header().entry_type();
+        if kind.is_dir() {
+            std::fs::create_dir_all(&target).map_err(|e| format!("{e} ({})", path.display()))?;
+        } else if kind.is_file() {
+            let named = |e: std::io::Error| format!("{e} ({})", path.display());
+            if let Some(dir) = target.parent() {
+                std::fs::create_dir_all(dir).map_err(named)?;
+            }
+            let mut out = std::fs::File::create(&target).map_err(named)?;
+            std::io::copy(&mut entry, &mut out).map_err(named)?;
         }
     }
     Ok(())
@@ -209,8 +238,12 @@ fn config(d: &std::path::Path) -> OfflineTtsConfig {
     }
 }
 
-/// Up to 4 of the computer's cores (one left for everything else).
+/// Up to 4 of the computer's cores (one left for everything else);
+/// JARVIS_TTS_THREADS overrides it, to measure (the speed test below).
 fn threads() -> i32 {
+    if let Some(n) = std::env::var("JARVIS_TTS_THREADS").ok().and_then(|v| v.parse::<i32>().ok()) {
+        return n.max(1);
+    }
     std::thread::available_parallelism().map(|n| n.get().saturating_sub(1).clamp(1, 4) as i32).unwrap_or(2)
 }
 
@@ -356,6 +389,47 @@ mod tests {
         assert_eq!(voice("lewis").sid, 27);
         assert_eq!(voice("nobody").id, DEFAULT_VOICE);
         assert_eq!(VOICES.iter().map(|v| v.sid).collect::<Vec<_>>(), vec![26, 27, 24, 25]);
+    }
+
+    /// How fast JARVIS's voice renders: seconds of rendering per second of speech.
+    /// JARVIS_KOKORO_DIR=<…> [JARVIS_TTS_THREADS=n] cargo test --lib tts::tests::speed -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn speed() {
+        let d = PathBuf::from(std::env::var("JARVIS_KOKORO_DIR").unwrap());
+        let tts = OfflineTts::create(&config(&d)).expect("model loads");
+        let gen = GenerationConfig { sid: VOICES[0].sid, speed: 1.0, ..Default::default() };
+        let _ = tts.generate_with_config("Warm up.", &gen, None::<fn(&[f32], f32) -> bool>);
+        for line in ["Certainly, sir.", "I'm functioning quite adequately, sir, though I must note that as a voice assistant, I don't experience feelings."] {
+            let started = Instant::now();
+            let audio = tts.generate_with_config(line, &gen, None::<fn(&[f32], f32) -> bool>).expect("speaks");
+            let took = started.elapsed().as_secs_f64();
+            let len = audio.samples().len() as f64 / audio.sample_rate() as f64;
+            println!("threads {}: {took:.2} s for {len:.2} s of speech (x{:.2})", threads(), took / len);
+        }
+    }
+
+    #[test]
+    fn only_plain_paths_inside_the_models_folder_are_unpacked() {
+        let root = std::path::Path::new("models");
+        let ok = |p: &str| entry_target(root, "vits-piper", std::path::Path::new(p)).is_some();
+        assert!(ok("vits-piper/tokens.txt"));
+        assert!(ok("vits-piper/espeak-ng-data/en_dict"));
+        assert!(!ok("vits-piper/../../evil.exe"), "no climbing out");
+        assert!(!ok("other/tokens.txt"), "only its own folder");
+        assert!(!ok("/vits-piper/x"), "no absolute path");
+    }
+
+    /// Unpacks an archive the way the app does:
+    /// JARVIS_ARCHIVE=<…tar.bz2> JARVIS_UNPACK_TO=<dir> JARVIS_FOLDER=<folder> cargo test --lib tts::tests::unpack_archive -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn unpack_archive() {
+        let archive = PathBuf::from(std::env::var("JARVIS_ARCHIVE").unwrap());
+        let to = PathBuf::from(std::env::var("JARVIS_UNPACK_TO").unwrap());
+        std::fs::create_dir_all(&to).unwrap();
+        let r = unpack_folder(&archive, &to, &std::env::var("JARVIS_FOLDER").unwrap());
+        println!("unpack: {r:?}");
     }
 
     /// Renders a sample per voice from an unpacked model:

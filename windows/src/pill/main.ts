@@ -226,7 +226,7 @@ function bubble(): HTMLElement | null {
   const v = state.voice;
   if (!v?.answer) litAnswer = "";
   if (v && (v.heard || v.answer || v.phase === "listening")) {
-    const b = el("div", "bubble voice");
+    const b = el("div", stopping ? "bubble voice fade" : "bubble voice");
     if (v.heard) b.append(el("span", "heard", v.heard));
     if (v.answer) b.append(answerWords(v.answer, v.paceMs ?? 0));
     else if (!v.heard) b.append(el("span", "heard", t("Listening…")));
@@ -295,9 +295,16 @@ function render() {
   // pointerenter on the button under the cursor, which renders again, in a
   // loop that also eats every click (the press and the release land on a
   // node that was removed in between).
-  for (const old of root.querySelectorAll(".bubble")) old.remove();
+  // JARVIS: the same kind of bubble is kept and only its contents change. A new
+  // bubble plays its pop-in from 0 opacity, and the bubble used to be rebuilt on
+  // every render — each hover change (the pointer on it flips that back and
+  // forth), each new sentence, each live word — so it flickered in and out.
   const b = bubble();
-  if (b) root.prepend(b);
+  const olds = [...root.querySelectorAll<HTMLElement>(".bubble")];
+  const keep = b ? olds.find((o) => o.className === b.className) : undefined;
+  for (const o of olds) if (o !== keep) o.remove();
+  if (b && keep) keep.replaceChildren(...b.childNodes);
+  else if (b) root.prepend(b);
   if (capsule.parentNode !== root) root.append(capsule);
   mochi.setState(state.phase === "thinking" || state.voice?.phase === "thinking" ? "thinking" : "idle");
   wake();
@@ -467,6 +474,16 @@ interface Say {
 }
 
 let speaking = false;
+// JARVIS: the talk keys pressed while he speaks: his bubble and his voice fade out.
+let stopping = false;
+let stopVoice: (() => void) | null = null;
+
+function fadeOut() {
+  stopping = true;
+  root.querySelector(".bubble.voice")?.classList.add("fade");
+  window.speechSynthesis?.cancel();
+  stopVoice?.();
+}
 
 /** The system's voice in the answer's language, a woman's or a man's when the system says. */
 function systemVoice(lang: string | null, gender: string): SpeechSynthesisVoice | null {
@@ -511,7 +528,23 @@ async function sayMp3(base64: string, mime = "audio/mpeg"): Promise<boolean> {
     await new Promise<void>((resolve) => {
       audio.onended = () => resolve();
       audio.onerror = () => resolve();
+      // Stopped: the voice fades over a quarter of a second, then it's done.
+      stopVoice = () => {
+        const from = audio.volume;
+        const start = performance.now();
+        const step = () => {
+          const k = Math.min(1, (performance.now() - start) / 250);
+          audio.volume = from * (1 - k);
+          if (k < 1) requestAnimationFrame(step);
+          else {
+            audio.pause();
+            resolve();
+          }
+        };
+        requestAnimationFrame(step);
+      };
     });
+    stopVoice = null;
     return true;
   } catch {
     return false;
@@ -519,6 +552,10 @@ async function sayMp3(base64: string, mime = "audio/mpeg"): Promise<boolean> {
 }
 
 async function say(s: Say) {
+  if (stopping) {
+    void FlowBridge.voiceDone(s.id);
+    return;
+  }
   speaking = true;
   wake();
   try {
@@ -541,6 +578,7 @@ async function main() {
   render();
   void onEvent<PillState>("pill-state", (s) => {
     state = s;
+    if (!s.voice) stopping = false;
     visible = s.enabled || s.noteStartedAt !== null || s.announcement !== null || s.voice !== null || s.phase !== "idle";
     if (s.phase === "listening") target.fill(0);
     render();
@@ -562,6 +600,7 @@ async function main() {
     if (!inside) setHovered(false);
   });
   void onEvent<Say>("voice-say", (s) => void say(s));
+  void onEvent<null>("voice-stop", () => fadeOut());
   void onEvent<Settings>("settings-changed", (s) => {
     setLanguage(resolveLanguage(s.language, systemLanguages()));
     render();
