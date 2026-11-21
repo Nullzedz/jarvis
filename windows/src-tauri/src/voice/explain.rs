@@ -152,34 +152,42 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     // His line: one sentence, at most 15 words. A requested drawing opens empty (his eye
     // sweeping) and fills in when the drawing model is done (issue #14).
     let line = super::window::short_line(said);
+    let (id, shown) = start(app, question, &line, window, shot.cloned());
+    let _ = win.emit(
+        "explain-show",
+        json!({ "add": add, "draw": id, "question": question, "said": line, "window": shown, "target": target, "about": about, "cursor": page(cursor) }),
+    );
+}
+
+/// Keeps `window`'s drawing job under a new id and, if he asked for a drawing,
+/// starts it: the id, and what to show now (an empty « pending » one, or the window as it is).
+fn start(app: &AppHandle, question: &str, said: &str, window: &Value, shot: Option<Shot>) -> (u64, Value) {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     let asked = super::window::is_request(window);
     let idea = match window["idea"].as_str() {
         Some(i) => i.to_string(),
         None => format!("the same as this window: {}", window.to_string().chars().take(3000).collect::<String>()),
     };
-    let job = Arc::new(super::draw::Job { question: question.into(), said: line.clone(), idea, shot: shot.cloned() });
     {
         let mut jobs = JOBS.lock().unwrap();
-        jobs.push((id, job));
-        let extra = jobs.len().saturating_sub(8);
+        jobs.push((id, Arc::new(super::draw::Job { question: question.into(), said: said.into(), idea, shot })));
+        let extra = jobs.len().saturating_sub(16);
         jobs.drain(..extra);
     }
-    let shown = if asked { json!({ "kind": "pending" }) } else { window.clone() };
-    let _ = win.emit(
-        "explain-show",
-        json!({ "add": add, "draw": id, "question": question, "said": line, "window": shown, "target": target, "about": about, "cursor": page(cursor) }),
-    );
     if asked {
         let app = app.clone();
         std::thread::spawn(move || drawn(&app, id, &[], None));
     }
+    (id, if asked { json!({ "kind": "pending" }) } else { window.clone() })
+}
+
+fn job(id: u64) -> Option<Arc<super::draw::Job>> {
+    JOBS.lock().unwrap().iter().find(|(i, _)| *i == id).map(|(_, j)| j.clone())
 }
 
 /// Draws window `id`'s picture and sends it to the page (`explain-drawn`).
 fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
-    let job = JOBS.lock().unwrap().iter().find(|(i, _)| *i == id).map(|(_, j)| j.clone());
-    let got = job.ok_or_else(|| "gone".to_string()).and_then(|j| super::draw::draw(app, &j, tried, fix));
+    let got = job(id).ok_or_else(|| "gone".to_string()).and_then(|j| super::draw::draw(app, &j, tried, fix));
     let _ = match got {
         Ok(w) => {
             crate::log::line(format!("explain: drawn as {}", w["form"].as_str().or(w["kind"].as_str()).unwrap_or("?")));
@@ -207,6 +215,7 @@ pub fn explain_hot(app: AppHandle, rects: Vec<(f64, f64, f64, f64)>) {
     if empty {
         OPEN.store(false, Ordering::Relaxed);
         if let Some(w) = app.get_webview_window(LABEL) {
+            let _ = w.set_focusable(false);
             let _ = w.set_ignore_cursor_events(true);
             let _ = w.set_position(PhysicalPosition::new(PARKED.0, PARKED.1));
         }
@@ -219,4 +228,49 @@ pub fn explain_hot(app: AppHandle, rects: Vec<(f64, f64, f64, f64)>) {
 #[tauri::command]
 pub fn explain_redraw(app: AppHandle, draw: u64, tried: Vec<String>, fix: Option<String>) {
     std::thread::spawn(move || drawn(&app, draw, &tried, fix.as_deref()));
+}
+
+/// The reply bar: the layer takes typing while it's used, and gives it back after
+/// (otherwise it never takes focus, so the rest of the screen stays yours).
+#[tauri::command]
+pub fn explain_focus(app: AppHandle, on: bool) {
+    if let Some(w) = app.get_webview_window(LABEL) {
+        let _ = w.set_focusable(on);
+        if on {
+            let _ = w.set_focus();
+        }
+    }
+}
+
+/// A follow-up typed in window `card` (issue #16): answered with what that window
+/// was about (its question, his answer, the same picture), and drawn when it helps.
+/// The page gets `explain-answer` back: his words, and a drawing's id when there is one.
+#[tauri::command]
+pub fn explain_ask(app: AppHandle, card: u64, question: String) {
+    std::thread::spawn(move || {
+        let first = job(card);
+        let shot = first.as_ref().and_then(|j| j.shot.clone());
+        let ask = match &first {
+            Some(j) => format!("(A follow-up, typed in your window about \"{}\", where you said \"{}\".) {question}", j.question, j.said),
+            None => question.clone(),
+        };
+        let mut written = String::new();
+        let reply = super::ask::brain().lock().unwrap().respond(&app, &ask, shot.as_ref(), &mut |d| written.push_str(d));
+        let (line, window) = super::window::split(&written);
+        let said = super::brain::spoken_text(&line).trim().to_string();
+        if said.is_empty() {
+            crate::log::line(format!("explain: no words in the follow-up's answer: {:?}", written.chars().take(300).collect::<String>()));
+        }
+        crate::log::line(format!("explain: follow-up answered{}", if window.is_some() { ", with a window" } else { "" }));
+        let answer = match (reply, said.is_empty(), window) {
+            (None, _, _) | (_, true, None) => json!({ "card": card, "failed": true }),
+            (_, _, Some(w)) => {
+                let said = super::window::short_line(&said);
+                let (id, shown) = start(&app, &question, &said, &w, shot);
+                json!({ "card": card, "said": said, "draw": id, "window": shown })
+            }
+            (_, false, None) => json!({ "card": card, "said": said }),
+        };
+        let _ = app.emit_to(LABEL, "explain-answer", answer);
+    });
 }

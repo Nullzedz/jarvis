@@ -43,6 +43,85 @@ body {
   position: absolute;
   left: 0;
   top: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The answers: the first, then each follow-up; they scroll once the window is as tall as the screen. */
+.ex-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2f5f8f transparent;
+}
+
+/* A follow-up (issue #16, design A): a divider, the question in bold, his answer. */
+.ex-follow {
+  margin: 4px 12px 0;
+  border-top: 1px solid #1f2a38;
+}
+
+.ex-fq {
+  padding: 10px 0 0;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.ex-follow .ex-said {
+  padding: 6px 0 4px;
+}
+
+.ex-follow .ex-content {
+  padding: 4px 0 10px;
+}
+
+.ex-said.thinking {
+  color: #7fbfff;
+}
+
+/* The reply bar, always at the bottom. */
+.ex-reply {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 4px 12px 12px;
+  padding: 6px 8px 6px 10px;
+  border: 1px solid #2f5f8f;
+  border-radius: 7px;
+  cursor: text;
+}
+
+.ex-reply:focus-within {
+  border-color: #4fa3ff;
+}
+
+.ex-reply textarea {
+  flex: 1;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #e6e7ea;
+  font: inherit;
+  line-height: 18px;
+  height: 18px;
+  padding: 0;
+}
+
+.ex-reply textarea::placeholder {
+  color: #5d6b80;
+}
+
+.ex-card.asking .ex-reply textarea {
+  color: #5d6b80;
+}
+
+.ex-enter {
+  color: #5d6b80;
+  line-height: 18px;
 }
 
 .ex-hd {

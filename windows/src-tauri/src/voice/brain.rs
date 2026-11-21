@@ -326,3 +326,20 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod real_answer {
+    /// What his own Claude Code writes for a question about a picture (DRAW_TEST_PNG).
+    #[test]
+    #[ignore]
+    fn raw_answer_with_a_picture() {
+        let png = std::fs::read(std::env::var("DRAW_TEST_PNG").unwrap()).unwrap();
+        let shot = super::super::sight::Shot { data: super::super::base64(&png), what: "the part you circled", size: (640, 360), screen: (0, 0, 640, 360) };
+        let mut brain = super::Brain::default();
+        for q in ["what is this, simply", "(A follow-up, typed in your window about \"what is this, simply\", where you said \"Orders link customers to products.\") what does PK mean?"] {
+            let mut written = String::new();
+            let r = brain.respond_with_claude_code(q, Some(&shot), &mut |d| written.push_str(d));
+            eprintln!("---- {q}\nok={} RAW: {written:?}", r.is_some());
+        }
+    }
+}

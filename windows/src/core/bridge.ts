@@ -277,6 +277,10 @@ export const Bridge = {
   explainRedraw: (draw: number, tried: string[], fix: string | null) => call<void>("explain_redraw", { draw, tried, fix }),
   /** JARVIS: who can draw his windows (Settings → Voice → Windows), issue #14. */
   drawModels: () => call<DrawModel[]>("draw_models"),
+  /** JARVIS: the explanation windows take typing only while their reply bar is used (issue #16). */
+  explainFocus: (on: boolean) => call<void>("explain_focus", { on }),
+  /** JARVIS: a follow-up typed in window `card`; the answer comes back as `explain-answer`. */
+  explainAsk: (card: number, question: string) => call<void>("explain_ask", { card, question }),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),
