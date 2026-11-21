@@ -206,7 +206,16 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
     scroll.append(page_);
     // Measured again once the sidebar has slid away and the panel has widened.
-    if (home) { requestAnimationFrame(() => home?.layout()); setTimeout(() => home?.layout(), 500); }
+    if (home) {
+      // Coming back from a section the panel slides wider (about half a second):
+      // the squares follow it frame by frame until it has settled.
+      const until = performance.now() + 900;
+      const follow = () => {
+        home?.layout();
+        if (home && performance.now() < until) requestAnimationFrame(follow);
+      };
+      requestAnimationFrame(follow);
+    }
     if (targetAnchor) {
       const el = page_.querySelector(`[data-anchor="${targetAnchor}"]`) as HTMLElement | null;
       if (el) {
@@ -358,7 +367,10 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   scroll.addEventListener("scroll", () => home?.onScroll(), { passive: true });
 
   clear(root);
-  root.append(side, h("main", { class: "hub-panel" }, scroll), searchVeil, windowControls());
+  const panel = h("main", { class: "hub-panel" }, scroll);
+  // And once more when the slide ends, wherever the window is.
+  panel.addEventListener("transitionend", () => home?.layout());
+  root.append(side, panel, searchVeil, windowControls());
   drawStatus();
   await show(current);
 
