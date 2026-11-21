@@ -90,10 +90,9 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
   );
   const askRow = h("div", { class: "jv-askrow" }, ask, mic);
   const dock = h("div", { class: "jv-dock" });
-  const names: HTMLElement[] = [];
   for (const d of DOCK) {
+    // The name here only holds the dock's spacing; the visible one rides with its square.
     const name = h("span", { class: "nm", text: d.name() });
-    names.push(name);
     dock.append(h("span", { class: "jv-app" }, h("span", { class: "slot", "data-slot": d.id }), name));
   }
 
@@ -118,9 +117,13 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
   const pinMic = h("button", { class: "jv-askmini", onclick: () => void Bridge.askOpen() }, h("span", { text: t("Ask") }));
   const pinbar = h("div", { class: "jv-pinbar" }, h("div", { class: "in" }, h("span", { class: "jv-brand jv-pinbrand", text: "JARVIS" }), pins, pinMic));
   const flyers = h("div", { class: "jv-flyers" });
+  // Each name rides under its own square, so the squares never glide over text.
+  const riders: HTMLElement[] = [];
   const squares = DOCK.map((d) => {
     const b = h("button", { class: "jv-sq", title: d.name(), "aria-label": d.name(), style: `background:${d.color}`, onclick: () => go(d.to) });
-    b.append(sectionIcon(d.id));
+    const name = h("span", { class: "jv-sqname", text: d.name() });
+    riders.push(name);
+    b.append(sectionIcon(d.id), name);
     flyers.append(b);
     return b;
   });
@@ -153,9 +156,9 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
       b.style.transform = `translate(${f.x + (tt.x - f.x) * e}px, ${k === 0 ? natural : START + (tt.y - START) * e}px)`;
     });
     pinbar.classList.toggle("on", k > 0.55);
-    // The names under the squares stay behind as the squares lift off, and the
+    // Each name fades as its square lifts off and shrinks into the bar, and the
     // greeting fades as it nears the bar, so nothing glides over text.
-    for (const n of names) n.style.opacity = String(Math.max(0, 1 - k * 3));
+    for (const n of riders) n.style.opacity = String(Math.max(0, 1 - k * 3));
     const top = (center.firstElementChild as HTMLElement | null)?.getBoundingClientRect?.().top ?? 999;
     center.style.opacity = String(Math.min(1, Math.max(0, (top - 60) / 140)));
   }

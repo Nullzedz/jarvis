@@ -63,7 +63,7 @@ body.at-home .hub-scroll { padding: 0; }
 .jv-mic:active, .jv-ask:active { transform: scale(.97); }
 .jv-mic svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .jv-dock { display: flex; justify-content: center; gap: 30px; }
-.jv-app .nm { transition: opacity .15s linear; }
+.jv-app .nm { visibility: hidden; } /* shown by the flying square's own name (.jv-sqname) */
 .jv-center { will-change: opacity; }
 .jv-app { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--jv-t2); }
 .jv-app .slot { width: 54px; height: 54px; display: block; }
@@ -82,6 +82,9 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
 }
 .jv-sq svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .jv-sq:active { filter: brightness(.9); }
+.jv-sq { overflow: visible; }
+.jv-sqname { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 12px var(--font); color: var(--jv-t2); pointer-events: none; }
 .jv-pinbar {
   position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 20; opacity: 0; pointer-events: none;
   background: color-mix(in srgb, var(--jv-bg) 82%, transparent); backdrop-filter: blur(18px);
