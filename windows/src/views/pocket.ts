@@ -23,7 +23,7 @@ export interface PocketHost {
 /** How tall a tab's content is: from its top to its last child's bottom, plus its bottom
  *  padding (the prototype's fit(), which measures .inner). Lists don't scroll here; the notch
  *  stops at the window and the tab scrolls only past that. */
-function contentHeight(el: HTMLElement): number {
+export function contentHeight(el: HTMLElement): number {
   const last = el.lastElementChild as HTMLElement | null;
   if (!last) return 0;
   const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;

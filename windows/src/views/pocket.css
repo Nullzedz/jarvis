@@ -78,3 +78,38 @@
 .pk-clip .cb-img { display: flex; align-items: center; gap: 9px; }
 .pk-clip .cb-img img { height: 32px; max-width: 72px; border-radius: 6px; object-fit: cover; flex: none; }
 .pk-clip .cb-img span { color: #8e8e93; }
+
+/* ── Overview (src/views/widgets.ts), one to one with the notch prototype's pane ── */
+.ov .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ov .w { display: block; border: 0; background: #1c1c1e; border-radius: 14px; padding: 10px 12px; min-width: 0; text-align: left; color: #f5f5f7; font: 13px var(--font); cursor: pointer; transition: background .15s; }
+.ov .w:hover { background: #242426; }
+.ov .w.ov-later { cursor: default; }
+.ov .w.ov-later:hover { background: #1c1c1e; }
+.ov .w p { margin: 0; }
+.ov .w .cap { font-size: 11px; color: #8e8e93; margin: 0 0 5px; }
+.ov .ov-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .ov-when { font-size: 11.5px; color: #0a84ff; margin-top: 2px; }
+.ov .ov-rem { font-size: 12.5px; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .ov-timer { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ov .ov-start { font-size: 11.5px; color: #ff9f0a; }
+.ov .ov-clip { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ov .ov-more { font-size: 11px; color: #8e8e93; margin-top: 3px; }
+.ov .ov-note { font-size: 12px; color: #e5e5ea; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .ov-quiet { font-size: 12px; color: #636366; }
+.ov .w.ov-agents { display: flex; align-items: center; gap: 8px; }
+.ov .ov-agents > div { min-width: 0; }
+.ov .ov-agents .cap { margin: 0; }
+.ov .ov-agent { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.ov .np { display: flex; align-items: center; gap: 10px; background: #1c1c1e; border-radius: 14px; padding: 9px; margin-top: 8px; }
+.ov .art { width: 44px; height: 44px; border-radius: 9px; flex: none; background: linear-gradient(135deg, #1db954, #0a84ff) center / cover; cursor: pointer; transition: background .3s; }
+.ov .ov-who { flex: 1; min-width: 0; }
+.ov .ov-who p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ov .ov-track { font-weight: 600; }
+.ov .ov-artist { font-size: 11.5px; color: #8e8e93; }
+.ov .src { display: inline-flex; background: #2c2c2e; border-radius: 999px; padding: 2px; font-size: 11px; flex: none; }
+.ov .src button { border: 0; padding: 2px 9px; border-radius: 999px; background: none; color: #8e8e93; font: inherit; cursor: pointer; }
+.ov .src button.on { background: #48484a; color: #fff; }
+.ov .ctl { display: flex; justify-content: center; gap: 16px; font-size: 16px; padding: 0 6px; flex: none; }
+.ov .ctl button { border: 0; background: none; color: #f5f5f7; font: inherit; padding: 0; cursor: pointer; transition: color .15s; }
+.ov .ctl button:hover { color: #0a84ff; }

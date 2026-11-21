@@ -1,0 +1,164 @@
+// JARVIS: the island's Overview tab, one to one with the notch prototype's Overview pane
+// (docs/jarvis/design/prototypes/jarvis-notch.html, data-pane="overview"): six tiles in a
+// 3 × 2 grid (Today, Reminders, Focus, Clipboard, Notes, Agents), each opening its tab, and
+// the now-playing row under them. Everything shown is real: your calendar, the reminders and
+// notes on this PC, the in-memory clipboard, the running agents and Spotify.
+
+import { Bridge, onEvent, type ClipEntry } from "../core/bridge";
+import { State } from "../core/state";
+import { Spotify, currentArtwork, isAd } from "../core/spotify";
+import { eventsBetween, type CalEvent } from "../core/ics";
+import { nextUp, untilText } from "../core/nextup";
+import { Pocket, noteTitle } from "../core/pocket";
+import type { IslandViewName } from "../core/layout";
+import { myEvents } from "./gcal";
+import { contentHeight } from "./pocket";
+import { h, clear } from "./dom";
+import { language, t } from "../i18n/i18n";
+import type { ViewHost } from "./views";
+import "./pocket.css";
+
+// ── View ─────────────────────────────────────────────────────────────────────
+
+const REFRESH_MS = 5 * 60_000;
+const timeText = (d: Date) => d.toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" });
+
+export interface WidgetsHost {
+  setView(v: IslandViewName): void;
+  blip(): void;
+  resize(): void;
+}
+
+export function buildWidgets(host: WidgetsHost): ViewHost {
+  const grid = h("div", { class: "grid3" });
+  const np = h("div", { class: "np" });
+  const el = h("div", { class: "view pk ov" }, grid, np);
+
+  let google: CalEvent[] = [];
+  let fetchedAt = 0;
+  let clips: ClipEntry[] = [];
+  let shownKey = "";
+
+  async function loadCalendar() {
+    fetchedAt = Date.now();
+    try {
+      if (!(await Bridge.gcalConnected())) return;
+      const now = new Date();
+      google = eventsBetween(await Bridge.gcalFetch(), now, new Date(now.getTime() + 8 * 86_400_000));
+      paint(true);
+    } catch {
+      /* no calendar: the tile shows your own events */
+    }
+  }
+
+  const open = (v: IslandViewName) => () => { host.blip(); host.setView(v); };
+  const tile = (onclick: (() => void) | null, ...kids: Node[]) => {
+    const b = h("button", { class: "w" }, ...kids);
+    if (onclick) b.onclick = onclick;
+    return b;
+  };
+  const cap = (text: string) => h("p", { class: "cap", text });
+  const p = (cls: string, text: string) => h("p", { class: cls, text });
+
+  function tiles(now: Date): Node[] {
+    // Today: what's next, when, and how long until.
+    const next = nextUp(google, myEvents(), now);
+    const today = next
+      ? tile(open("calendar"), cap(t("Today")), p("ov-title", next.title), p("ov-when", `${timeText(next.at)} · ${untilText(next.at, now)}`))
+      : tile(open("calendar"), cap(t("Today")), p("ov-quiet", t("Nothing planned.")));
+
+    // Reminders: the first two still open.
+    const open2 = Pocket.reminders().filter((r) => !r.done).slice(0, 2);
+    const rem = h("p", { class: "ov-rem" });
+    if (open2.length === 0) rem.append(h("span", { class: "ov-quiet", text: t("All done") }));
+    open2.forEach((r, i) => { if (i) rem.append(h("br")); rem.append(document.createTextNode(`○ ${r.text}`)); });
+    const reminders = tile(open("reminders"), cap(t("Reminders")), rem);
+
+    // Focus: as the prototype draws it; its tab arrives with step 10 of the checklist.
+    const focus = tile(null, cap(t("Focus")), p("ov-timer", "25:00"), p("ov-start", t("Start")));
+    focus.classList.add("ov-later");
+
+    // Clipboard: the newest copy, and how many more.
+    const newest = clips[0];
+    const clipboard = newest
+      ? tile(open("clipboard"), cap(t("Clipboard")), p("ov-clip", newest.text.replace(/\s+/g, " ")),
+        ...(clips.length > 1 ? [p("ov-more", t("+ {n} more", { n: clips.length - 1 }))] : []))
+      : tile(open("clipboard"), cap(t("Clipboard")), p("ov-quiet", t("Nothing copied yet")));
+
+    // Notes: the newest one's title.
+    const note = Pocket.notes().sort((a, b) => b.at - a.at)[0];
+    const notes = tile(open("notes"), cap(t("Notes")), p(note ? "ov-note" : "ov-quiet", note ? `${noteTitle(note)}…` : t("No notes yet")));
+
+    // Agents: who needs you, else who's working, else quiet.
+    const agents = State.tasks.filter((x) => !x.isIntegration);
+    const asking = agents.find((x) => x.pillBadge === "approval" || x.id === State.pendingApproval?.pillId);
+    const working = agents.filter((x) => x.state !== "idle");
+    const [color, line] = asking
+      ? ["#0a84ff", t("{name} needs you", { name: asking.name })]
+      : working.length
+        ? ["#30d158", working.length === 1 ? t("{name} is working", { name: working[0].name }) : t("{n} working", { n: working.length })]
+        : ["#636366", t("None running")];
+    const dot = h("span", { class: "dot" });
+    dot.style.background = color;
+    const agentTile = tile(open("overview"), dot, h("div", {}, h("p", { class: "cap", text: t("Agents") }), p("ov-agent", line)));
+    agentTile.classList.add("ov-agents");
+
+    return [today, reminders, focus, clipboard, notes, agentTile];
+  }
+
+  function nowPlaying(): Node[] {
+    const s = Spotify.state;
+    const track = s.track && !isAd(s.track) ? s.track : null;
+    const art = h("span", { class: "art" });
+    const cover = currentArtwork();
+    if (cover) art.style.backgroundImage = `url("${cover}")`;
+    art.onclick = () => void Bridge.spotifyOpen();
+    const who = h("div", { class: "ov-who" },
+      p("ov-track", track?.title ?? t("Nothing playing")),
+      ...(track ? [p("ov-artist", track.artist)] : []));
+    const src = h("span", { class: "src" }, h("button", { class: "on", text: "Spotify", onclick: () => void Bridge.spotifyOpen() }));
+    const ctl = (text: string, label: string, action: "previous" | "playPause" | "next") =>
+      h("button", { text, title: label, "aria-label": label, onclick: () => void Bridge.spotifyControl(action) });
+    const ctls = h("div", { class: "ctl" },
+      ctl("⏮", t("Previous"), "previous"),
+      ctl(s.playing ? "⏸" : "▶", s.playing ? t("Pause") : t("Play"), "playPause"),
+      ctl("⏭", t("Next"), "next"));
+    return [art, who, src, ctls];
+  }
+
+  function paint(force = false) {
+    const now = new Date();
+    const s = Spotify.state;
+    const key = JSON.stringify([
+      now.getMinutes(), google.length, fetchedAt, clips.length, clips[0]?.id, Pocket.reminders(), Pocket.notes().length,
+      State.tasks.map((x) => [x.id, x.state, x.pillBadge, x.name]), State.pendingApproval?.pillId,
+      s.track?.id, s.playing, currentArtwork(),
+    ]);
+    if (!force && key === shownKey) return;
+    shownKey = key;
+    clear(grid);
+    grid.append(...tiles(now));
+    clear(np);
+    np.append(...nowPlaying());
+    host.resize();
+  }
+
+  void onEvent<ClipEntry[]>("clipboard-history", (next) => { clips = next; if (State.view === "widgets") paint(); });
+  void Bridge.clipboardHistory().then((c) => { clips = c ?? clips; });
+  let wasShown = false;
+
+  return {
+    el,
+    sync() {
+      const shown = State.mode === "expanded" && State.view === "widgets";
+      if (shown && !wasShown) {
+        void Bridge.spotifyRefresh();
+        void Bridge.clipboardHistory().then((c) => { clips = c ?? clips; paint(true); });
+        if (Date.now() - fetchedAt > REFRESH_MS) void loadCalendar();
+      }
+      wasShown = shown;
+      if (shown) paint();
+    },
+    fitHeight: () => contentHeight(el),
+  };
+}
