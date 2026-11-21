@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { eventsOn, layoutDay, nextEvent, startOfWeek, toneOf } from "../src/views/gcal.ts";
+import { eventsOn, layoutDay, nextEvent, parseQuickAdd, startOfWeek, toneOf } from "../src/views/gcal.ts";
 
 const ev = (title, start, end, allDay = false) => ({ id: title, title, location: "", start, end, allDay });
 const day = new Date(2026, 10, 19);
@@ -41,4 +41,22 @@ test("next event, Monday weeks, and tones", () => {
   assert.equal(toneOf("Gym"), "teal");
   assert.equal(toneOf("Dentist"), "amber");
   assert.equal(toneOf("Birthday party"), "purple");
+});
+
+// ── Today's quick add, "type like you talk" (the notch prototype) ──
+const FRIDAY = new Date(2026, 10, 20, 15, 0); // 20 November 2026 is a Friday
+
+test("quick add: a day, a time and what it is", () => {
+  assert.deepEqual(parseQuickAdd("lunch with Maya tomorrow 1pm", FRIDAY), { kind: "calendar", title: "Lunch with Maya", day: 1, time: "13:00" });
+  assert.deepEqual(parseQuickAdd("Sprint planning tuesday 10:30", FRIDAY), { kind: "calendar", title: "Sprint planning", day: 4, time: "10:30" });
+  assert.deepEqual(parseQuickAdd("dentist", FRIDAY), { kind: "calendar", title: "Dentist", day: 0, time: null });
+  assert.equal(parseQuickAdd("gym 12am", FRIDAY).time, "00:00");
+  assert.equal(parseQuickAdd("standup friday 9am", FRIDAY).day, 0, "today's own weekday is today");
+});
+
+test("quick add: buy, call, send and remind are reminders", () => {
+  for (const s of ["buy coffee", "call Maya at 5pm", "send the proposal", "remind me to stretch"]) {
+    assert.equal(parseQuickAdd(s, FRIDAY).kind, "reminder", s);
+  }
+  assert.equal(parseQuickAdd("Callisto review", FRIDAY).kind, "calendar", "only the whole word");
 });

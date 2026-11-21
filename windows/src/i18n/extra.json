@@ -9509,6 +9509,36 @@
       "ru": "Буфер обмена",
       "tr": "Pano",
       "zh-Hans": "剪贴板"
+    },
+    "Type like you talk: lunch with Maya tomorrow 1pm": {
+      "ar": "اكتب كما تتكلم: غداء مع مايا غدًا الساعة 1 ظهرًا",
+      "bn": "যেভাবে বলেন সেভাবে লিখুন: কাল দুপুর ১টায় মায়ার সাথে লাঞ্চ",
+      "de": "Schreib, wie du sprichst: Mittagessen mit Maya morgen 13 Uhr",
+      "es": "Escribe como hablas: comida con Maya mañana a la 1pm",
+      "fr": "Écrivez comme vous parlez : déjeuner avec Maya demain 13 h",
+      "hi": "जैसे बोलते हैं वैसे लिखें: कल दोपहर 1 बजे माया के साथ लंच",
+      "id": "Ketik seperti bicara: makan siang dengan Maya besok jam 1 siang",
+      "ja": "話すように入力：明日13時にマヤとランチ",
+      "ko": "말하듯 입력하세요: 내일 오후 1시 마야와 점심",
+      "pt-BR": "Escreva como fala: almoço com a Maya amanhã às 13h",
+      "ru": "Пишите как говорите: обед с Майей завтра в 13:00",
+      "tr": "Konuşur gibi yazın: yarın 13:00'te Maya ile öğle yemeği",
+      "zh-Hans": "像说话一样输入：明天下午1点和 Maya 吃午饭"
+    },
+    "Reminder": {
+      "ar": "تذكير",
+      "bn": "রিমাইন্ডার",
+      "de": "Erinnerung",
+      "es": "Recordatorio",
+      "fr": "Rappel",
+      "hi": "रिमाइंडर",
+      "id": "Pengingat",
+      "ja": "リマインダー",
+      "ko": "미리 알림",
+      "pt-BR": "Lembrete",
+      "ru": "Напоминание",
+      "tr": "Anımsatıcı",
+      "zh-Hans": "提醒"
     }
   }
 }

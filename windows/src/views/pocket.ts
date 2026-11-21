@@ -30,30 +30,9 @@ function contentHeight(el: HTMLElement): number {
   return last.offsetTop + last.offsetHeight + pad;
 }
 
-export interface Reminder { id: string; text: string; done: boolean; at: number }
-export interface Note { id: string; text: string; at: number }
-
-const REMINDERS_KEY = "jarvis.reminders";
-const NOTES_KEY = "jarvis.notes";
-
-function load<T>(key: string): T[] {
-  try {
-    const v = JSON.parse(localStorage.getItem(key) ?? "[]");
-    return Array.isArray(v) ? v : [];
-  } catch {
-    return [];
-  }
-}
-function save<T>(key: string, v: T[]) {
-  try { localStorage.setItem(key, JSON.stringify(v)); } catch {}
-  dispatchEvent(new CustomEvent("jarvis-pocket", { detail: key }));
-}
-const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-
-export const Pocket = {
-  reminders: () => load<Reminder>(REMINDERS_KEY),
-  notes: () => load<Note>(NOTES_KEY),
-};
+import { Pocket, newId, noteTitle, save, REMINDERS_KEY, NOTES_KEY, type Note } from "../core/pocket";
+export { Pocket, noteTitle } from "../core/pocket";
+export type { Reminder, Note } from "../core/pocket";
 
 /** A text field that takes the island's keyboard while focused. */
 function field<E extends HTMLInputElement | HTMLTextAreaElement>(host: PocketHost, el: E): E {
@@ -111,11 +90,6 @@ export function buildReminders(host: PocketHost): ViewHost {
 }
 
 // ── Notes ────────────────────────────────────────────────────────────────────
-
-/** A note's title: its first line. */
-export function noteTitle(n: Note): string {
-  return n.text.split("\n").find((l) => l.trim())?.trim().slice(0, 60) || t("New note");
-}
 
 export function buildNotes(host: PocketHost): ViewHost {
   const list = h("div", { class: "pk-notes" });

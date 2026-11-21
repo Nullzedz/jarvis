@@ -910,8 +910,8 @@ export function buildViews(
   map.set("update", buildUpdate());
   map.set("whatsNew", buildWhatsNew());
   map.set("launch", buildLaunch(actions));
-  map.set("calendar", buildCalendar({ keyboard: (on) => actions.keyboard(on) }));
   const pocket = { keyboard: (on: boolean) => actions.keyboard(on), holdOpen: (on: boolean) => actions.holdOpen(on), resize: onChatHeightChange };
+  map.set("calendar", buildCalendar(pocket));
   map.set("reminders", buildReminders(pocket));
   map.set("notes", buildNotes(pocket));
   map.set("clipboard", buildClipboard(pocket));
