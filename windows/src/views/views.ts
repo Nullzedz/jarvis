@@ -18,7 +18,7 @@ import {
 } from "./usage";
 import { buildDiffCard } from "./diff";
 import { lastTextStep } from "../core/diff";
-import { Bridge } from "../core/bridge";
+import { Bridge, onEvent } from "../core/bridge";
 import { buildRecap } from "./recap";
 import { buildWardrobe } from "./wardrobe";
 import { buildUpdate } from "./update";
@@ -258,44 +258,24 @@ function buildOverview(actions: ViewActions): ViewHost {
     save(next);
   }
 
-  // Right-click a square: a small menu with Edit, inside the card under the pointer.
-  const ctxMenu = h("div", { class: "ctx-menu", role: "menu" });
-  let ctxSlot: number | null = null;
-  const ctxEdit = h("button", { role: "menuitem", text: t("Edit"), onclick: () => {
-    const slot = ctxSlot;
-    // The list takes the hold over before the menu lets go of it, so the island never folds between.
-    if (slot != null) pickSlot(slot);
-    closeCtx();
-  } });
-  ctxMenu.append(ctxEdit);
-  /** The island stays open while the menu or a square's list is up. */
-  function hold() { actions.holdOpen(pickingSlot != null || ctxMenu.isConnected); }
-  function closeCtx() {
-    if (!ctxMenu.isConnected) return;
-    ctxMenu.remove();
-    hold();
-  }
-  // Right-click in the squares' card (only there), empty space too: Edit opens the square under
-  // the pointer, else the first empty one, else the first. The menu opens inside that card.
-  function onContext(e: MouseEvent, host: HTMLElement) {
-    e.preventDefault();
-    e.stopPropagation();
-    const d = sanitizeDeclared(State.settings, State.os);
-    const at = (e.target as HTMLElement).closest("[data-slot], .pill") as HTMLElement | null;
-    const under = at?.dataset.slot != null ? Number(at.dataset.slot) : at?.dataset.id ? d.activeIntegrations.indexOf(at.dataset.id) : -1;
-    ctxSlot = under >= 0 ? under : Math.min(d.activeIntegrations.length, 3);
-    const box = host.getBoundingClientRect();
-    host.append(ctxMenu);
-    hold();
-    const x = Math.min(e.clientX - box.left, box.width - ctxMenu.offsetWidth - 6);
-    const y = Math.min(e.clientY - box.top, box.height - ctxMenu.offsetHeight - 6);
-    ctxMenu.style.left = `${Math.max(6, x)}px`;
-    ctxMenu.style.top = `${Math.max(6, y)}px`;
-    ctxEdit.focus();
-  }
-  right.addEventListener("contextmenu", (e) => onContext(e, right));
-  window.addEventListener("pointerdown", (e) => { if (!ctxMenu.contains(e.target as Node)) closeCtx(); }, true);
-  ctxMenu.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeCtx(); } });
+  // Right-click: the webview's own menu (Back, Refresh…), with Edit on top when the press was in
+  // the squares' card (src-tauri/src/webview_menu.rs). The press tells Rust where it was before
+  // the menu opens on release; Edit opens the square under it, else the first empty one.
+  window.addEventListener("pointerdown", (e) => {
+    if (e.button !== 2) return;
+    const target = e.target as HTMLElement;
+    let slot: number | null = null;
+    if (State.view === "overview" && right.contains(target)) {
+      const d = sanitizeDeclared(State.settings, State.os);
+      const at = target.closest("[data-slot], .pill") as HTMLElement | null;
+      const under = at?.dataset.slot != null ? Number(at.dataset.slot) : at?.dataset.id ? d.activeIntegrations.indexOf(at.dataset.id) : -1;
+      slot = under >= 0 ? under : Math.min(d.activeIntegrations.length, 3);
+    }
+    void Bridge.contextZone(slot);
+  }, true);
+  void onEvent<number>("home-edit", (slot) => pickSlot(slot));
+  /** The island stays open while a square's list is up. */
+  function hold() { actions.holdOpen(pickingSlot != null); }
 
   function pickSlot(slot: number | null, quiet = false) {
     pickingSlot = slot;
@@ -558,10 +538,7 @@ function buildOverview(actions: ViewActions): ViewHost {
       shownSelection = State.cardSelection;
 
       // Editing ends when Home goes away or the island folds.
-      if (State.view !== "overview" || State.mode !== "expanded") {
-        closeCtx();
-        if (pickingSlot != null) pickSlot(null, true);
-      }
+      if ((State.view !== "overview" || State.mode !== "expanded") && pickingSlot != null) pickSlot(null, true);
       const declared = sanitizeDeclared(State.settings, State.os);
       const others = State.otherTasks.slice(0, 4);
       const pillKey = others.map((t) => `${t.id}:${t.color}:${t.pillBadge ?? ""}`).join("|")

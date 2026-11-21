@@ -51,6 +51,7 @@ mod update;
 mod voice;
 #[cfg(windows)]
 mod webview_drop;
+mod webview_menu;
 mod webview_memory;
 mod whatsapp;
 
@@ -944,6 +945,7 @@ pub fn run() {
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
+            webview_menu::context_zone,
             boot,
             gcal::gcal_connected,
             gcal::gcal_connect,
@@ -1192,6 +1194,8 @@ pub fn run() {
                 platform::make_non_activating(&win);
                 #[cfg(windows)]
                 webview_drop::install(&handle);
+                #[cfg(windows)]
+                webview_menu::install(&handle);
                 island::apply_geometry(&handle, &loaded.screen, None);
                 let _ = win.show();
             }

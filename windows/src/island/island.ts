@@ -1094,19 +1094,11 @@ export class Island {
 
     // No browser menu over Mochi: his right-click is the wardrobe. Everywhere
     // else (the chat field) the webview keeps its own menu.
-    // Caught on the way down (capture), so a right-click on him stops here: the card under him
-    // (Home's Edit menu) never sees it.
+    // No browser menu over Mochi: his right-click is the wardrobe. Everywhere else the webview
+    // keeps its own menu (Home's squares add Edit to it: src-tauri/src/webview_menu.rs).
     this.islandEl.addEventListener("contextmenu", (e) => {
-      if (this.isBotHit(e.clientX, e.clientY)) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-      // JARVIS: never the webview's own menu (Back, Refresh, Inspect…): Back or Refresh reloads
-      // the island mid-open and leaves it stuck. Text fields keep it for copy and paste.
-      const field = (e.target as HTMLElement).closest("input, textarea, [contenteditable='true']");
-      if (!field) e.preventDefault();
-    }, true);
+      if (this.isBotHit(e.clientX, e.clientY)) e.preventDefault();
+    });
 
     // Dragging Mochi out of the island puts him on the desktop.
     window.addEventListener("mousemove", (e) => {
