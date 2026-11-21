@@ -34,6 +34,7 @@ import { buildCalendar } from "./gcal";
 import { buildClipboard, buildNotes, buildReminders } from "./pocket";
 import { buildWidgets } from "./widgets";
 import { buildFocusMode, buildFocusTab } from "./focus";
+import { buildAgents } from "./agents";
 import { dropIndex, loadTabOrder, moveItem, orderTabs, saveTabOrder } from "../core/taborder";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
@@ -234,6 +235,12 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabReminders = h("button", { class: "tab", title: t("Reminders"), onclick: () => go("reminders") }, svg("M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM8.2 12.2l2.6 2.6 5-5.6", 17, { stroke: 1.7 }));
   const tabNotes = h("button", { class: "tab", title: t("Notes"), onclick: () => go("notes") }, svg("M6 3.5h12v17H6zM9.5 8.5h5M9.5 12h5M9.5 15.5h3", 17, { stroke: 1.7 }));
   const tabFocus = h("button", { class: "tab", title: t("Focus"), onclick: () => go("focus") }, svg("M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", 17, { stroke: 1.7 }));
+  // The prototype's icon: a dot in a dashed ring.
+  const agentsIcon = svg("M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z", 17, { stroke: 1.7 });
+  const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  for (const [k, v] of [["cx", "12"], ["cy", "12"], ["r", "8"], ["fill", "none"], ["stroke", "currentColor"], ["stroke-width", "1.7"], ["stroke-dasharray", "2 3"]]) ring.setAttribute(k, v);
+  agentsIcon.append(ring);
+  const tabAgents = h("button", { class: "tab", title: t("Agents"), onclick: () => go("agents") }, agentsIcon);
   const tabClipboard = h("button", { class: "tab", title: t("Clipboard"), onclick: () => go("clipboard") }, svg("M7 5h10a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 17 21H7a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 7 5zM9.5 3.5h5v3h-5z", 17, { stroke: 1.7 }));
 
   const gearBtn = h("button", { title: tl("Settings"), onclick: () => go("settings") }, svg(ICONS.gearLine, 18, { stroke: 1.6 }));
@@ -255,7 +262,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   // JARVIS: the tabs in your order (core/taborder.ts); Home always first. Drag one to move it.
   const movable = new Map<string, HTMLElement>([
     ["ask", tabChat], ["drop", tabDrop], ["launch", tabLaunch], ["calendar", tabCalendar], ["widgets", tabWidgets],
-    ["reminders", tabReminders], ["notes", tabNotes], ["clipboard", tabClipboard], ["focus", tabFocus],
+    ["reminders", tabReminders], ["notes", tabNotes], ["clipboard", tabClipboard], ["focus", tabFocus], ["agents", tabAgents],
   ]);
   let order = orderTabs([...movable.keys()], loadTabOrder());
   const tabsBar = h("div", { class: "tabs" }, tabHome, ...order.map((id) => movable.get(id)!));
@@ -283,6 +290,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabNotes.classList.toggle("on", v === "notes");
       tabClipboard.classList.toggle("on", v === "clipboard");
       tabFocus.classList.toggle("on", v === "focus");
+      tabAgents.classList.toggle("on", v === "agents");
       // Focus mode: the prototype shows no tabs, only the session.
       el.classList.toggle("gone", v === "focusing");
       gearBtn.classList.toggle("on", v === "settings");
@@ -1109,6 +1117,13 @@ export function buildViews(
     ended: (done: boolean) => actions.focusEnded(done),
   };
   map.set("focus", buildFocusTab(focusHost));
+  map.set("agents", buildAgents({
+    setView: (x) => actions.setView(x),
+    setFocus: (id) => actions.setFocus(id),
+    decide: (d) => actions.decide(d),
+    blip: () => actions.blip(),
+    resize: onChatHeightChange,
+  }));
   map.set("focusing", buildFocusMode(focusHost));
   map.set("widgets", buildWidgets({ setView: (x) => actions.setView(x), blip: () => actions.blip(), resize: onChatHeightChange }));
   map.set("live", buildLive(actions, onChatHeightChange));

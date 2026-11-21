@@ -143,7 +143,7 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
         : ["#636366", t("None running")];
     const dot = h("span", { class: "dot" });
     dot.style.background = color;
-    const agentTile = tile(open("overview"), dot, h("div", {}, h("p", { class: "cap", text: t("Agents") }), p("ov-agent", line)));
+    const agentTile = tile(open("agents"), dot, h("div", {}, h("p", { class: "cap", text: t("Agents") }), p("ov-agent", line)));
     agentTile.classList.add("ov-agents");
 
     return [today, reminders, focus, clipboard, notes, agentTile];
