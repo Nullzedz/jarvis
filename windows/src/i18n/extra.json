@@ -7609,21 +7609,6 @@
       "ko": "비공개 iCal 주소를 붙여넣으세요",
       "ja": "非公開の iCal アドレスを貼り付け"
     },
-    "Connect your Google Calendar (read-only).": {
-      "zh-Hans": "连接你的 Google 日历（只读）。",
-      "hi": "अपना Google कैलेंडर जोड़ें (केवल पढ़ने के लिए)।",
-      "es": "Conecta tu Google Calendar (solo lectura).",
-      "ar": "اربط تقويم Google (للقراءة فقط).",
-      "fr": "Connectez votre Google Agenda (lecture seule).",
-      "bn": "আপনার Google ক্যালেন্ডার যুক্ত করুন (শুধু পড়ার জন্য)।",
-      "pt-BR": "Conecte sua Google Agenda (somente leitura).",
-      "ru": "Подключите Google Календарь (только чтение).",
-      "id": "Hubungkan Google Kalender Anda (hanya baca).",
-      "de": "Google Kalender verbinden (nur lesen).",
-      "tr": "Google Takvim'inizi bağlayın (salt okunur).",
-      "ko": "Google 캘린더를 연결하세요(읽기 전용).",
-      "ja": "Google カレンダーを接続（読み取り専用）。"
-    },
     "Checking…": {
       "zh-Hans": "正在检查…",
       "hi": "जाँच हो रही है…",
@@ -7654,21 +7639,6 @@
       "ko": "어디에 있나요?",
       "ja": "どこにありますか？"
     },
-    "Use another link": {
-      "zh-Hans": "使用其他链接",
-      "hi": "दूसरा लिंक उपयोग करें",
-      "es": "Usar otro enlace",
-      "ar": "استخدم رابطًا آخر",
-      "fr": "Utiliser un autre lien",
-      "bn": "অন্য লিঙ্ক ব্যবহার করুন",
-      "pt-BR": "Usar outro link",
-      "ru": "Другая ссылка",
-      "id": "Gunakan tautan lain",
-      "de": "Anderen Link verwenden",
-      "tr": "Başka bir bağlantı kullan",
-      "ko": "다른 링크 사용",
-      "ja": "別のリンクを使用"
-    },
     "Nothing planned.": {
       "zh-Hans": "没有安排。",
       "hi": "कुछ भी तय नहीं है।",
@@ -7683,107 +7653,6 @@
       "tr": "Plan yok.",
       "ko": "일정 없음.",
       "ja": "予定なし。"
-    },
-    "in {n} min": {
-      "zh-Hans": "{n} 分钟后",
-      "hi": "{n} मिनट में",
-      "es": "en {n} min",
-      "ar": "بعد {n} دقيقة",
-      "fr": "dans {n} min",
-      "bn": "{n} মিনিটে",
-      "pt-BR": "em {n} min",
-      "ru": "через {n} мин",
-      "id": "dalam {n} mnt",
-      "de": "in {n} Min.",
-      "tr": "{n} dk sonra",
-      "ko": "{n}분 후",
-      "ja": "{n} 分後"
-    },
-    "Next: {title}, {when}": {
-      "zh-Hans": "下一个：{title}，{when}",
-      "hi": "अगला: {title}, {when}",
-      "es": "Siguiente: {title}, {when}",
-      "ar": "التالي: {title}، {when}",
-      "fr": "Ensuite : {title}, {when}",
-      "bn": "পরবর্তী: {title}, {when}",
-      "pt-BR": "Próximo: {title}, {when}",
-      "ru": "Далее: {title}, {when}",
-      "id": "Berikutnya: {title}, {when}",
-      "de": "Als Nächstes: {title}, {when}",
-      "tr": "Sıradaki: {title}, {when}",
-      "ko": "다음: {title}, {when}",
-      "ja": "次: {title}、{when}"
-    },
-    "+{count} more": {
-      "zh-Hans": "还有 {count} 个",
-      "hi": "+{count} और",
-      "es": "+{count} más",
-      "ar": "+{count} أخرى",
-      "fr": "+{count} de plus",
-      "bn": "+{count}টি আরও",
-      "pt-BR": "+{count} mais",
-      "ru": "ещё {count}",
-      "id": "+{count} lagi",
-      "de": "+{count} weitere",
-      "tr": "+{count} daha",
-      "ko": "+{count}개 더",
-      "ja": "他 {count} 件"
-    },
-    "{count} events": {
-      "zh-Hans": {
-        "other": "{count} 个日程"
-      },
-      "hi": {
-        "one": "{count} कार्यक्रम",
-        "other": "{count} कार्यक्रम"
-      },
-      "es": {
-        "one": "{count} evento",
-        "other": "{count} eventos"
-      },
-      "ar": {
-        "zero": "{count} حدث",
-        "one": "حدث واحد",
-        "two": "حدثان",
-        "few": "{count} أحداث",
-        "many": "{count} حدثًا",
-        "other": "{count} حدث"
-      },
-      "fr": {
-        "one": "{count} événement",
-        "other": "{count} événements"
-      },
-      "bn": {
-        "one": "{count}টি ইভেন্ট",
-        "other": "{count}টি ইভেন্ট"
-      },
-      "pt-BR": {
-        "one": "{count} evento",
-        "other": "{count} eventos"
-      },
-      "ru": {
-        "one": "{count} событие",
-        "few": "{count} события",
-        "many": "{count} событий",
-        "other": "{count} события"
-      },
-      "id": {
-        "other": "{count} acara"
-      },
-      "de": {
-        "one": "{count} Termin",
-        "other": "{count} Termine"
-      },
-      "tr": {
-        "one": "{count} etkinlik",
-        "other": "{count} etkinlik"
-      },
-      "ko": {
-        "other": "일정 {count}개"
-      },
-      "ja": {
-        "other": "予定 {count} 件"
-      }
     },
     "Editing…": {
       "zh-Hans": "正在编辑…",
