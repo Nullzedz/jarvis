@@ -83,8 +83,6 @@
 .ov .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ov .w { display: block; border: 0; background: #1c1c1e; border-radius: 14px; padding: 10px 12px; min-width: 0; text-align: left; color: #f5f5f7; font: 13px var(--font); cursor: pointer; transition: background .15s; }
 .ov .w:hover { background: #242426; }
-.ov .w.ov-later { cursor: default; }
-.ov .w.ov-later:hover { background: #1c1c1e; }
 .ov .w p { margin: 0; }
 .ov .w .cap { font-size: 11px; color: #8e8e93; margin: 0 0 5px; }
 .ov .ov-title { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -113,3 +111,46 @@
 .ov .ctl { display: flex; justify-content: center; gap: 16px; font-size: 16px; padding: 0 6px; flex: none; }
 .ov .ctl button { border: 0; background: none; color: #f5f5f7; font: inherit; padding: 0; cursor: pointer; transition: color .15s; }
 .ov .ctl button:hover { color: #0a84ff; }
+
+/* ── Focus (src/views/focus.ts), one to one with the notch prototype's pane and #focusMode ── */
+.fc .fc-row { display: flex; align-items: center; gap: 20px; padding: 4px 4px 6px; }
+.fc .timer, .fm .timer { font-size: 54px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+.fc .fc-mid { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.fc .fc-mid .src { align-self: flex-start; }
+.fc .cap, .fm .cap { font-size: 11px; color: #8e8e93; margin: 0 0 5px; }
+.fc .fc-mid .cap { margin: 0; }
+.fc .src, .fm .src { display: inline-flex; background: #2c2c2e; border-radius: 999px; padding: 2px; font-size: 11px; flex: none; }
+.fc .src button, .fm .src button { border: 0; padding: 2px 9px; border-radius: 999px; background: none; color: #8e8e93; font: inherit; cursor: pointer; }
+.fc .src button.on, .fm .src button.on { background: #48484a; color: #fff; }
+.fc .btn, .fm .btn { display: inline-flex; align-items: center; justify-content: center; border: 0; font: 500 13px var(--font); border-radius: 999px; padding: 7px 16px; cursor: pointer; flex: none; transition: filter .15s; }
+.fc .btn:hover, .fm .btn:hover { filter: brightness(1.12); }
+.fc .bo { background: #ff9f0a; color: #000; }
+.fm .bs { background: #2c2c2e; color: #f5f5f7; }
+.fm .focusbar { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 13px; }
+.fm .focusbar b { font-weight: 600; }
+.fm .fm-dot { width: 8px; height: 8px; border-radius: 50%; background: #ff9f0a; flex: none; }
+.fm .fm-until { margin: 0; }
+.fm .fm-sp { flex: 1; }
+.fm .fm-end { padding: 5px 13px; font-size: 12px; }
+.fm .fm-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; }
+.fm .fm-lefthalf { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.fm .ring { position: relative; width: 104px; height: 104px; flex: none; }
+.fm .fm-left { position: absolute; inset: 0; display: grid; place-items: center; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.fm .fm-next { margin: 0; font-weight: 600; font-size: 13px; }
+.fm .fm-when { margin: 0; font-size: 12px; color: #0a84ff; }
+.fm .fm-right { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fm .np { display: flex; align-items: center; gap: 10px; background: #1c1c1e; border-radius: 14px; padding: 9px; }
+.fm .art { width: 44px; height: 44px; border-radius: 9px; flex: none; background: linear-gradient(135deg, #1db954, #0a84ff) center / cover; cursor: pointer; }
+.fm .ov-who { flex: 1; min-width: 0; }
+.fm .ov-who p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.fm .ov-track { font-weight: 600; }
+.fm .ov-artist { font-size: 11.5px !important; color: #8e8e93; }
+.fm .fm-ctl { display: flex; justify-content: center; gap: 22px; font-size: 16px; padding: 6px 0 2px; }
+.fm .fm-ctl button { border: 0; background: none; color: #f5f5f7; font: inherit; padding: 0; cursor: pointer; transition: color .15s; }
+.fm .fm-ctl button:hover { color: #0a84ff; }
+.fm .fm-rem { background: #1c1c1e; border-radius: 14px; padding: 10px 12px; }
+.fm .chk { display: flex; align-items: center; gap: 9px; border: 0; background: none; font: 13px var(--font); color: #f5f5f7; padding: 6px 2px; width: 100%; text-align: left; cursor: pointer; }
+.fm .chk i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #636366; flex: none; transition: .2s; }
+.fm .chk:hover i { border-color: #30d158; }
+.fm .chk span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fm .fm-quiet { margin: 0; font-size: 12px; color: #636366; }

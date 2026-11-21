@@ -9,6 +9,7 @@ import { State } from "../core/state";
 import { Spotify, currentArtwork, isAd } from "../core/spotify";
 import { eventsBetween, type CalEvent } from "../core/ics";
 import { nextUp, untilText } from "../core/nextup";
+import { Focus, clockText, focusLeftMs } from "../core/focus";
 import { Pocket, noteTitle } from "../core/pocket";
 import type { IslandViewName } from "../core/layout";
 import { myEvents } from "./gcal";
@@ -21,6 +22,35 @@ import "./pocket.css";
 // ── View ─────────────────────────────────────────────────────────────────────
 
 const REFRESH_MS = 5 * 60_000;
+/**
+ * What plays, as the prototype's .np row draws it: the cover, the title and artist, the source,
+ * and the ⏮ ⏯ ⏭ controls. Shared by the Overview and focus mode (src/views/focus.ts).
+ */
+export function musicParts(): { art: HTMLElement; who: HTMLElement; src: HTMLElement; ctls: HTMLElement } {
+  const s = Spotify.state;
+  const track = s.track && !isAd(s.track) ? s.track : null;
+  const p = (cls: string, text: string) => h("p", { class: cls, text });
+  const art = h("span", { class: "art" });
+  const cover = currentArtwork();
+  if (cover) art.style.backgroundImage = `url("${cover}")`;
+  art.onclick = () => void Bridge.spotifyOpen();
+  const who = h("div", { class: "ov-who" },
+    p("ov-track", track?.title ?? t("Nothing playing")),
+    ...(track ? [p("ov-artist", track.artist)] : []));
+  const src = h("span", { class: "src" }, h("button", { class: "on", text: "Spotify", onclick: () => void Bridge.spotifyOpen() }));
+  // "︎": the symbol as text, not Windows' coloured emoji square.
+  const ctl = (text: string, label: string, action: "previous" | "playPause" | "next") =>
+    h("button", { text: `${text}︎`, title: label, "aria-label": label, onclick: () => void Bridge.spotifyControl(action) });
+  const ctls = h("div", { class: "ctl" },
+    ctl("⏮", t("Previous"), "previous"),
+    ctl(s.playing ? "⏸" : "▶", s.playing ? t("Pause") : t("Play"), "playPause"),
+    ctl("⏭", t("Next"), "next"));
+  return { art, who, src, ctls };
+}
+
+/** Google Calendar's events as last read by the Overview (focus mode's "Next" uses them too). */
+export let googleEvents: CalEvent[] = [];
+
 const timeText = (d: Date) => d.toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" });
 
 export interface WidgetsHost {
@@ -45,6 +75,7 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
       if (!(await Bridge.gcalConnected())) return;
       const now = new Date();
       google = eventsBetween(await Bridge.gcalFetch(), now, new Date(now.getTime() + 8 * 86_400_000));
+      googleEvents = google;
       paint(true);
     } catch {
       /* no calendar: the tile shows your own events */
@@ -74,9 +105,12 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
     open2.forEach((r, i) => { if (i) rem.append(h("br")); rem.append(document.createTextNode(`○ ${r.text}`)); });
     const reminders = tile(open("reminders"), cap(t("Reminders")), rem);
 
-    // Focus: as the prototype draws it; its tab arrives with step 10 of the checklist.
-    const focus = tile(null, cap(t("Focus")), p("ov-timer", "25:00"), p("ov-start", t("Start")));
-    focus.classList.add("ov-later");
+    // Focus: the length to start, or during a session the time left and until when.
+    const session = Focus.get();
+    const focus = session
+      ? tile(open("focusing"), cap(t("Focus")), p("ov-timer", clockText(focusLeftMs(session, now.getTime()))),
+        p("ov-start", t("until {time}", { time: timeText(new Date(session.startedAt + session.minutes * 60_000)) })))
+      : tile(open("focus"), cap(t("Focus")), p("ov-timer", `${Focus.length}:00`), p("ov-start", t("Start")));
 
     // Clipboard: the newest copy, and how many more.
     const newest = clips[0];
@@ -106,30 +140,11 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
     return [today, reminders, focus, clipboard, notes, agentTile];
   }
 
-  function nowPlaying(): Node[] {
-    const s = Spotify.state;
-    const track = s.track && !isAd(s.track) ? s.track : null;
-    const art = h("span", { class: "art" });
-    const cover = currentArtwork();
-    if (cover) art.style.backgroundImage = `url("${cover}")`;
-    art.onclick = () => void Bridge.spotifyOpen();
-    const who = h("div", { class: "ov-who" },
-      p("ov-track", track?.title ?? t("Nothing playing")),
-      ...(track ? [p("ov-artist", track.artist)] : []));
-    const src = h("span", { class: "src" }, h("button", { class: "on", text: "Spotify", onclick: () => void Bridge.spotifyOpen() }));
-    const ctl = (text: string, label: string, action: "previous" | "playPause" | "next") =>
-      h("button", { text, title: label, "aria-label": label, onclick: () => void Bridge.spotifyControl(action) });
-    const ctls = h("div", { class: "ctl" },
-      ctl("⏮", t("Previous"), "previous"),
-      ctl(s.playing ? "⏸" : "▶", s.playing ? t("Pause") : t("Play"), "playPause"),
-      ctl("⏭", t("Next"), "next"));
-    return [art, who, src, ctls];
-  }
-
   function paint(force = false) {
     const now = new Date();
     const s = Spotify.state;
     const key = JSON.stringify([
+      Focus.get() ? now.getSeconds() : 0, Focus.length,
       now.getMinutes(), google.length, fetchedAt, clips.length, clips[0]?.id, Pocket.reminders(), Pocket.notes().length,
       State.tasks.map((x) => [x.id, x.state, x.pillBadge, x.name]), State.pendingApproval?.pillId,
       s.track?.id, s.playing, currentArtwork(),
@@ -139,7 +154,8 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
     clear(grid);
     grid.append(...tiles(now));
     clear(np);
-    np.append(...nowPlaying());
+    const m = musicParts();
+    np.append(m.art, m.who, m.src, m.ctls);
     host.resize();
   }
 

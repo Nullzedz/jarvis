@@ -3,6 +3,7 @@
 
 import { Tracked, Glide, NOTCH_MS, Ease, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload } from "../core/bridge";
+import { Focus, focusLeftMs } from "../core/focus";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
 import {
   ASLEEP_H, ASLEEP_R, ASLEEP_W, CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
@@ -330,6 +331,11 @@ export class Island {
         if (on) void Bridge.focusWindow(true);
         else if (!TYPING_VIEWS.has(State.view) && State.mode === "expanded") void Bridge.focusWindow(false);
       },
+      focusStarted: () => {
+        Sound.play("send");
+        this.setView("focusing");
+      },
+      focusEnded: (done) => this.endFocus(done),
       launched: () => {
         Sound.play("send");
         this.engine.triggerEmote("happy");
@@ -899,7 +905,9 @@ export class Island {
     // JARVIS: a tab that knows its own height gets a notch just that tall (the prototype's fit()):
     // the content's top padding and the tab bar, the content, the bottom padding; never past the window.
     const fit = State.mode === "expanded" ? this.views.get(State.view)?.fitHeight?.() : undefined;
-    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, 8 + 34 + fit + 10)));
+    // Focus mode has no tab bar: its 34 px aren't counted.
+    const bar = State.view === "focusing" ? 0 : 34;
+    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, 8 + bar + fit + 10)));
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
     }
@@ -1038,6 +1046,14 @@ export class Island {
   private tickIdleLife() {
     const life = this.idleLife;
     const t = performance.now();
+    // A focus session ran out: it ends, done. While one runs, the open notch redraws every second.
+    const focus = Focus.get();
+    if (focus && focusLeftMs(focus, Date.now()) <= 0) {
+      Focus.stop();
+      this.endFocus(true);
+    } else if (focus && State.mode === "expanded") {
+      State.notify();
+    }
     // Asleep, the PC's idle time is asked every second, so he wakes as soon as you're back.
     if (t - life.polledAt > (this.asleep ? 900 : 2000)) {
       life.polledAt = t;
@@ -1154,6 +1170,16 @@ export class Island {
     // Music starts: a happy hop, then he dances.
     if (State.dancingMusic && !seen.music) this.react("happy", 1.2);
     seen.music = State.dancingMusic;
+  }
+
+  /** A focus session ended: back to Home. Ran its full length: a sound, and he's proud of you. */
+  private endFocus(done: boolean) {
+    if (done) {
+      Sound.play("finish");
+      this.react("proud", 1.8, true);
+    }
+    if (State.view === "focusing" || State.view === "focus") this.setView(State.defaultView());
+    State.notify();
   }
 
   /** What the engine shows: asleep, his Sleeping; otherwise what's going on. */
