@@ -503,7 +503,7 @@ export function hasSessionTicker(task: AgentTask): boolean {
 
 function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
   const label = task.id === "integration_claude" ? pillDefinition(task.id)!.name : task.name;
-  const canvas = createMiniBot(task, 24);
+  const canvas = createMiniBot(task, 30); // JARVIS: the prototype's pill square, 36 × 26
   const pill = h(
     "div",
     { class: "pill", onclick: () => actions.setFocus(task.id) },
