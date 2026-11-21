@@ -17,9 +17,10 @@ pub struct Splitter {
 }
 
 /// Where a list of sources starts in `text`, if one does.
+/// JARVIS: also where his window block starts (window.rs): it is drawn, never said.
 fn sources_at(text: &str) -> Option<usize> {
     let lower = text.to_lowercase();
-    ["sources:", "source:", "references:"].iter().filter_map(|m| lower.find(m)).min()
+    ["sources:", "source:", "references:", super::window::OPEN].iter().filter_map(|m| lower.find(m)).min()
 }
 
 impl Splitter {

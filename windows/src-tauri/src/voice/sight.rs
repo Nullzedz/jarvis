@@ -34,6 +34,18 @@ pub struct Shot {
     pub data: String,
     /// What it shows: "the whole screen" or "the part you circled".
     pub what: &'static str,
+    /// The picture's size (px), and the part of the screen it shows (physical px):
+    /// his pointing on the picture maps back to the screen through these.
+    pub size: (u32, u32),
+    pub screen: (i32, i32, i32, i32),
+}
+
+impl Shot {
+    /// A point on the picture → the same point on the screen (physical px).
+    pub fn to_screen(&self, x: f64, y: f64) -> (f64, f64) {
+        let (sx, sy, sw, sh) = self.screen;
+        (sx as f64 + x * sw as f64 / self.size.0 as f64, sy as f64 + y * sh as f64 / self.size.1 as f64)
+    }
 }
 
 /// A picture being made (on its own thread).
@@ -64,7 +76,7 @@ pub fn whole_screen() -> Option<Pending> {
     let took = Instant::now();
     let bgra = os::grab(rect, (tw, th))?;
     let grab_ms = took.elapsed().as_millis();
-    Some(Pending(std::thread::spawn(move || encode(tw, th, bgra, "the whole screen", grab_ms))))
+    Some(Pending(std::thread::spawn(move || encode(tw, th, bgra, "the whole screen", rect, grab_ms))))
 }
 
 /// The circled area (kept on the circle's monitor), the circle drawn on it.
@@ -84,11 +96,11 @@ pub fn circled(area: (i32, i32, i32, i32), circle: &[Pt]) -> Option<Pending> {
     let local: Vec<Pt> = circle.iter().map(|&(px, py)| ((px - x0 as f64) * k, (py - y0 as f64) * k)).collect();
     Some(Pending(std::thread::spawn(move || {
         draw_loop(&mut bgra, tw, th, &local, (2.5 * scale * k).max(2.0));
-        encode(tw, th, bgra, "the part you circled", grab_ms)
+        encode(tw, th, bgra, "the part you circled", (x0, y0, x1 - x0, y1 - y0), grab_ms)
     })))
 }
 
-fn encode(w: u32, h: u32, bgra: Vec<u8>, what: &'static str, grab_ms: u128) -> Option<Shot> {
+fn encode(w: u32, h: u32, bgra: Vec<u8>, what: &'static str, screen: (i32, i32, i32, i32), grab_ms: u128) -> Option<Shot> {
     let took = Instant::now();
     let mut out = Vec::new();
     let made = jpeg_encoder::Encoder::new(&mut out, QUALITY).encode(&bgra, w as u16, h as u16, jpeg_encoder::ColorType::Bgra);
@@ -97,7 +109,7 @@ fn encode(w: u32, h: u32, bgra: Vec<u8>, what: &'static str, grab_ms: u128) -> O
         return None;
     }
     crate::log::line(format!("sight: {what}, {w}×{h}, {} KB, copied in {grab_ms} ms, made in {} ms", out.len() / 1024, took.elapsed().as_millis()));
-    Some(Shot { data: super::base64(&out), what })
+    Some(Shot { data: super::base64(&out), what, size: (w, h), screen })
 }
 
 /// The circle in JARVIS's blue, `thick` px wide, onto the picture (BGRA).
@@ -248,8 +260,10 @@ mod tests {
 
     #[test]
     fn the_picture_is_a_jpeg() {
-        let shot = encode(4, 3, vec![255u8; 4 * 3 * 4], "the whole screen", 0).unwrap();
+        let shot = encode(4, 3, vec![255u8; 4 * 3 * 4], "the whole screen", (0, 0, 8, 6), 0).unwrap();
         assert!(shot.data.starts_with("/9j/"));
+        // Half the screen's size: a point on it is twice as far on the screen.
+        assert_eq!(shot.to_screen(2.0, 1.5), (4.0, 3.0));
     }
 
     /// A real picture of the screen (run by hand: cargo test --lib real_capture -- --ignored --nocapture).

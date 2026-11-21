@@ -86,30 +86,45 @@ pub fn setup(app: &AppHandle) {
     std::thread::Builder::new()
         .name("jarvis-ask-keys".into())
         .spawn(move || {
-            let mut press = Press::default();
-            // While the keys are held after a press: the pointer's path (a circle, maybe).
-            let mut held: Option<Trail> = None;
+            use super::shortcut::{keys, mask, needs_mask, Which};
+            let (mut ask, mut more) = (Press::default(), Press::default());
+            // While the keys are held after a press: the pointer's path (a circle, maybe),
+            // and whether it's « show him more » (its window joins the ones up).
+            let mut held: Option<(Trail, Which)> = None;
             loop {
                 std::thread::sleep(Duration::from_millis(30));
-                let (chord, other) = super::shortcut::keys(super::shortcut::Which::Ask);
-                if press.step(chord, other) {
-                    if super::shortcut::needs_mask(super::shortcut::Which::Ask) {
-                        super::shortcut::mask();
+                let a = keys(Which::Ask);
+                let m = keys(Which::More);
+                if ask.step(a.0, a.1) {
+                    if needs_mask(Which::Ask) {
+                        mask();
                     }
                     let open = app.get_webview_window(LABEL).is_some_and(|w| w.is_visible().unwrap_or(false));
-                    if open {
-                        // Pressed again: the box goes.
+                    if open || super::explain::is_open() {
+                        // Pressed again: everything goes, the box and his windows.
+                        if let Some((t, _)) = held.take() {
+                            t.end();
+                        }
+                        super::explain::close_all(&app);
                         let app2 = app.clone();
                         let _ = app.run_on_main_thread(move || close(&app2));
                     } else {
-                        held = Some(Trail::start(&app));
+                        held = Some((Trail::start(&app), Which::Ask));
                     }
                     continue;
                 }
-                let Some(trail) = held.as_mut() else { continue };
+                if more.step(m.0, m.1) && held.is_none() {
+                    if needs_mask(Which::More) {
+                        mask();
+                    }
+                    held = Some((Trail::start(&app), Which::More));
+                    continue;
+                }
+                let Some((trail, which)) = held.as_mut() else { continue };
+                let (chord, other) = if matches!(which, Which::More) { m } else { a };
                 if other {
                     // Another shortcut after all.
-                    if let Some(t) = held.take() {
+                    if let Some((t, _)) = held.take() {
                         t.end();
                     }
                 } else if chord {
@@ -121,13 +136,15 @@ pub fn setup(app: &AppHandle) {
                 } else {
                     // Let go: the screen is copied now (a few ms), the box opens at once, and
                     // the picture is made while you type.
-                    let ink = held.take().unwrap().end();
+                    let (trail, which) = held.take().unwrap();
+                    let ink = trail.end();
                     let (shot, what) = match (ink.area(), ink.circle()) {
                         (Some(area), Some(circle)) => (super::sight::circled(area, circle), "circled"),
                         _ => (super::sight::whole_screen(), "screen"),
                     };
                     let what = if shot.is_some() { what } else { "" };
                     *SEEN.lock().unwrap() = shot;
+                    ADD.store(matches!(which, Which::More), std::sync::atomic::Ordering::Relaxed);
                     let app2 = app.clone();
                     let _ = app.run_on_main_thread(move || open(&app2, what));
                 }
@@ -138,6 +155,8 @@ pub fn setup(app: &AppHandle) {
 
 /// The picture taken when the box opened: sent with its first question.
 static SEEN: Mutex<Option<super::sight::Pending>> = Mutex::new(None);
+/// The box was opened with « show him more »: its window joins the ones already up.
+static ADD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Where the box goes for the pointer at (cx, cy): below and right of it, kept
 /// on its screen, and above it near the bottom.
@@ -193,7 +212,7 @@ fn open(app: &AppHandle, what: &'static str) {
     });
 }
 
-fn brain() -> &'static Mutex<Brain> {
+pub(super) fn brain() -> &'static Mutex<Brain> {
     static B: OnceLock<Mutex<Brain>> = OnceLock::new();
     B.get_or_init(|| Mutex::new(Brain::default()))
 }
@@ -209,6 +228,7 @@ pub fn ask_send(app: AppHandle, question: String) {
     }
     // The picture goes with the box's first question.
     let seen = SEEN.lock().unwrap().take();
+    let add = ADD.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
         let mut brain = brain().lock().unwrap();
         let mut said = String::new();
@@ -216,15 +236,27 @@ pub fn ask_send(app: AppHandle, question: String) {
         let reply = brain.respond(&app, &question, seen.as_ref(), &mut |delta| {
             said.push_str(delta);
             // Cleaned as it streams: nothing in brackets (a date he copied), no links, no markdown ever flashes.
-            let shown = super::brain::spoken_text(&said);
+            let shown = super::brain::spoken_text(super::window::visible(&said));
             if !shown.is_empty() {
                 let _ = app.emit_to(LABEL, "ask-delta", shown);
             }
         });
-        let answer = clean(&said);
+        // His window, if he drew one (window.rs): it takes over from the box.
+        let (body, window) = super::window::split(&said);
+        crate::log::line(match (&window, super::window::starts_at(&said)) {
+            (Some(w), _) => format!("ask: answer with a {} window", w["kind"].as_str().unwrap_or("?")),
+            (None, Some(at)) => format!("ask: a window block that couldn't be read: {}", said[at..].chars().take(160).collect::<String>()),
+            (None, None) => "ask: answer without a window".into(),
+        });
+        let answer = clean(&body);
         let ok = reply.is_some() && !answer.is_empty();
         let text = if ok { answer } else { crate::i18n::t("I couldn't answer that just now, sir.") };
-        let _ = app.emit_to(LABEL, "ask-done", text);
+        let _ = app.emit_to(LABEL, "ask-done", text.clone());
+        if let (true, Some(w)) = (ok, window) {
+            super::explain::show(&app, &question, &text, &w, seen.as_ref(), add);
+            let app2 = app.clone();
+            let _ = app.run_on_main_thread(move || close(&app2));
+        }
     });
 }
 

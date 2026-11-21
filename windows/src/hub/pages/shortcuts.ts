@@ -1,5 +1,5 @@
 // JARVIS: his shortcuts as three keycap tiles (design B) on the Voice page —
-// talk, ask about the screen, dictate. Click a tile, press the new keys
+// talk, ask about the screen, show him more, dictate. Click a tile, press the new keys
 // together, let go: they're kept. Esc cancels. Keys another tile already uses
 // (or that contain its keys) are refused, so one press never does two things.
 
@@ -10,7 +10,8 @@ import type { HubContext } from "../shell";
 import { codeLabel, icon, keycap } from "../ui";
 import { comboFromKeys } from "../keys";
 
-type Tile = "talk" | "ask" | "dictate";
+type Tile = "talk" | "ask" | "more" | "dictate";
+const TILES: Tile[] = ["talk", "ask", "more", "dictate"];
 
 /** The keys of dictation's shortcut, by their KeyboardEvent.code names. */
 export function dictationCodes(key: FlowKey, combo: string[]): string[] {
@@ -35,16 +36,18 @@ function current(prefs: FlowPrefs): Record<Tile, string[]> {
   return {
     talk: prefs.talkKeys?.length ? prefs.talkKeys : ["ControlLeft", "MetaLeft"],
     ask: prefs.askKeys?.length ? prefs.askKeys : ["ControlLeft", "ShiftLeft", "KeyZ"],
+    more: prefs.moreKeys?.length ? prefs.moreKeys : ["ShiftLeft", "MetaLeft"],
     dictate: dictationCodes(prefs.key, prefs.keyCombo),
   };
 }
 
 export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "windows" | "linux"): HTMLElement {
-  const names: Record<Tile, string> = { talk: t("Talk"), ask: t("Ask"), dictate: t("Dictate") };
-  const icons: Record<Tile, string> = { talk: "mic", ask: "chat", dictate: "pencil" };
+  const names: Record<Tile, string> = { talk: t("Talk"), ask: t("Ask"), more: t("Show more"), dictate: t("Dictate") };
+  const icons: Record<Tile, string> = { talk: "mic", ask: "chat", more: "plus", dictate: "pencil" };
   const how: Record<Tile, string> = {
     talk: t("Hold · tap"),
     ask: t("Press"),
+    more: t("Hold · circle"),
     dictate: prefs.oneTapHandsFree ? t("Hold · tap") : t("Hold · tap twice"),
   };
   const grid = h("div", { class: "jv-tiles" });
@@ -55,6 +58,7 @@ export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "wind
     ctx.setPrefs((p) => {
       if (tile === "talk") p.talkKeys = combo;
       else if (tile === "ask") p.askKeys = combo;
+      else if (tile === "more") p.moreKeys = combo;
       else {
         p.key = "custom";
         p.keyCombo = combo;
@@ -66,7 +70,7 @@ export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "wind
   const draw = () => {
     clear(grid);
     const keys = current(prefs);
-    for (const tile of ["talk", "ask", "dictate"] as Tile[]) {
+    for (const tile of TILES) {
       const el = h("button", { class: `jv-tile${recording === tile ? " on" : ""}`, type: "button" });
       el.append(h("span", { class: "jv-icon" }, icon(icons[tile])), h("span", { class: "jv-name", text: names[tile] }));
       const keysEl = recording === tile ? h("div", { class: "jv-caps" }, keycap(t("Press the keys…"))) : caps(keys[tile]);
@@ -84,7 +88,7 @@ export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "wind
     recording = tile;
     draw();
     // The tile was drawn again: its keycaps show what's pressed.
-    const el = grid.children[["talk", "ask", "dictate"].indexOf(tile)] as HTMLElement;
+    const el = grid.children[TILES.indexOf(tile)] as HTMLElement;
     const keysEl = el.querySelector<HTMLElement>(".jv-caps")!;
     let held = new Set<string>();
     let seen: string[] = [];
@@ -116,7 +120,7 @@ export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "wind
       const taken = (Object.keys(keys) as Tile[]).find((o) => o !== tile && clashes(seen, keys[o]));
       if (taken) {
         draw();
-        const again = grid.children[["talk", "ask", "dictate"].indexOf(tile)] as HTMLElement;
+        const again = grid.children[TILES.indexOf(tile)] as HTMLElement;
         const warn = again.querySelector(".jv-how")!;
         warn.textContent = t("Already used by {0}", { 0: names[taken] });
         warn.classList.add("warn");
