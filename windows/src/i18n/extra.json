@@ -9724,20 +9724,35 @@
       "tr": "Boş",
       "zh-Hans": "空"
     },
-    "Click a square to change it.": {
-      "ar": "انقر على مربع لتغييره.",
-      "bn": "বদলাতে একটি বর্গে ক্লিক করুন।",
-      "de": "Klicke auf ein Quadrat, um es zu ändern.",
-      "es": "Haz clic en un cuadrado para cambiarlo.",
-      "fr": "Cliquez sur un carré pour le changer.",
-      "hi": "बदलने के लिए किसी वर्ग पर क्लिक करें।",
-      "id": "Klik kotak untuk menggantinya.",
-      "ja": "四角をクリックして変更します。",
-      "ko": "사각형을 클릭해 변경하세요.",
-      "pt-BR": "Clique em um quadrado para trocá-lo.",
-      "ru": "Нажмите на квадрат, чтобы изменить его.",
-      "tr": "Değiştirmek için bir kareye tıklayın.",
-      "zh-Hans": "点击方块即可更改。"
+    "Right-click a square to change it.": {
+      "ar": "انقر بزر الماوس الأيمن على مربع لتغييره.",
+      "bn": "বদলাতে একটি বর্গে রাইট-ক্লিক করুন।",
+      "de": "Rechtsklick auf ein Quadrat, um es zu ändern.",
+      "es": "Haz clic derecho en un cuadrado para cambiarlo.",
+      "fr": "Clic droit sur un carré pour le changer.",
+      "hi": "बदलने के लिए किसी वर्ग पर राइट-क्लिक करें।",
+      "id": "Klik kanan kotak untuk menggantinya.",
+      "ja": "四角を右クリックして変更します。",
+      "ko": "사각형을 오른쪽 클릭해 변경하세요.",
+      "pt-BR": "Clique com o botão direito em um quadrado para trocá-lo.",
+      "ru": "Нажмите правой кнопкой на квадрат, чтобы изменить его.",
+      "tr": "Değiştirmek için bir kareye sağ tıklayın.",
+      "zh-Hans": "右键点击方块即可更改。"
+    },
+    "More…": {
+      "ar": "المزيد…",
+      "bn": "আরও…",
+      "de": "Mehr…",
+      "es": "Más…",
+      "fr": "Plus…",
+      "hi": "और…",
+      "id": "Lainnya…",
+      "ja": "その他…",
+      "ko": "더 보기…",
+      "pt-BR": "Mais…",
+      "ru": "Ещё…",
+      "tr": "Daha fazla…",
+      "zh-Hans": "更多…"
     }
   }
 }
