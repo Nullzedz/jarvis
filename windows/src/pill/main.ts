@@ -9,7 +9,7 @@ import "./pill.css";
 import { Bridge, onEvent } from "../core/bridge";
 import { FlowBridge, clock, type PillState } from "../core/flow";
 import type { Settings } from "../core/state";
-import { BotEngine, hexToRGB } from "../mochi/engine";
+import { BotEngine } from "../mochi/engine";
 import { resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
 import { HUB_ICONS, keyLabel } from "../hub/ui";
 
@@ -47,9 +47,9 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = "", text = ""):
 
 // ── Mochi ─────────────────────────────────────────────────────────────────────
 
+// JARVIS: the full design A JARVIS (shell, eye slot, light bar), as on the closed notch at the
+// same 22 px; the old flat "mini" drawing looked like the old character.
 const mochi = new BotEngine();
-mochi.isMini = true;
-mochi.bodyColor = hexToRGB("#F5F6F8");
 mochi.setState("idle", true);
 const mochiCanvas = el("canvas");
 
