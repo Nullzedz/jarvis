@@ -1,7 +1,7 @@
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
-import { Tracked, Glide, NOTCH_MS, clamp } from "../core/anim";
+import { Tracked, Glide, NOTCH_MS, Ease, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload } from "../core/bridge";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
 import {
@@ -12,7 +12,7 @@ import {
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
   islandSize,
   QUESTION_PICKER_H,
-  type BotEmoteName, type IslandMode, type IslandViewName,
+  type BotEmoteName, type BotStateName, type IslandMode, type IslandViewName,
 } from "../core/layout";
 import { Sound } from "../core/sound";
 import { State } from "../core/state";
@@ -146,6 +146,14 @@ export class Island {
   private botHoverTimer: number | null = null;
   private lastLoveTime = 0;
   private botHoverStart = { x: 0, y: 0 };
+  // JARVIS (step 9): his reactions, one at a time, and what he notices.
+  private reactFreeAt = 0;
+  /** The diameter Home's card last let him have (homeFitDiameter). */
+  private homeFitSeen = 0;
+  private lastClickAt = 0;
+  private stroke = { x: 0, dir: 0, turns: [] as number[] };
+  private near = false;
+  private seen = { state: "idle" as BotStateName, music: false, approvals: [] as number[] };
 
   private confusedRecovery: number | null = null;
   private prevViewBeforeConfused: IslandViewName = "overview";
@@ -1023,6 +1031,7 @@ export class Island {
   private startIdleLife() {
     window.setInterval(() => this.tickIdleLife(), 1000);
     void onEvent<boolean>("music-playing", (on) => { State.anyMusic = on; State.notify(); });
+    State.subscribe(() => this.watchEvents());
     void Bridge.musicPlaying().then((on) => { State.anyMusic = on === true; State.notify(); });
   }
 
@@ -1052,7 +1061,11 @@ export class Island {
     if (phase === "playful") {
       const bit = pickBit(life.last, Math.random());
       life.last = bit;
-      if (bit === "look") {
+      // JARVIS: late at night (23:00–05:00), every other bit is a yawn.
+      const hour = new Date().getHours();
+      if ((hour >= 23 || hour < 5) && Math.random() < 0.5) {
+        this.engine.triggerEmote("yawn", 2.4);
+      } else if (bit === "look") {
         this.bitLook = -0.8;
         window.setTimeout(() => { this.bitLook = 0.8; }, 700);
         window.setTimeout(() => { this.bitLook = null; }, 1400);
@@ -1068,6 +1081,81 @@ export class Island {
     }
   }
 
+  /**
+   * JARVIS (step 9): one reaction at a time, with a short pause after it; a question, an error or
+   * being dizzy always come first. `force` lets you (a click) or a chained reaction through the
+   * pause. Keeps his frames going for it, on the closed pill too. False when it didn't play.
+   */
+  private react(emote: BotEmoteName, duration = 1.6, force = false): boolean {
+    const t = performance.now();
+    const st = State.effectiveState;
+    if (State.paused || this.asleep || st === "approval" || st === "question" || st === "error" || st === "dizzy") return false;
+    if (!force && t < this.reactFreeAt) return false;
+    this.reactFreeAt = t + duration * 1000 + 700;
+    this.engine.triggerEmote(emote, duration);
+    this.wakeFor(duration * 1000 + 400);
+    return true;
+  }
+
+  /** Stroking him: the pointer going back and forth over him, six turns in 2.5 s, is a happy hop. */
+  private trackStroke(x: number) {
+    const s = this.stroke;
+    const dx = x - s.x;
+    if (Math.abs(dx) < 10) return;
+    const dir = Math.sign(dx);
+    s.x = x;
+    if (s.dir !== 0 && dir !== s.dir) {
+      const t = performance.now();
+      s.turns = [...s.turns.filter((u) => t - u < 2500), t];
+      if (s.turns.length >= 6) {
+        s.turns = [];
+        this.react("happy", 1.4);
+      }
+    }
+    s.dir = dir;
+  }
+
+  /** The pointer coming near him (not on him): he leans toward it, once each time it comes. */
+  private trackNear(x: number, y: number) {
+    if (State.mode !== "expanded" || this.botCanvas.style.opacity === "0") { this.near = false; return; }
+    const rect = this.islandRect();
+    const dx = x - (rect.x + this.botCx.value);
+    const dy = y - (rect.y + this.botCy.value);
+    const r = this.botSize.value / 2;
+    const dist = Math.hypot(dx, dy);
+    const near = dist > r && dist < r * 2.4;
+    if (near && !this.near && !this.engine.isDancing && performance.now() > this.reactFreeAt) {
+      const lean = 0.07 * Math.sign(dx || 1);
+      this.engine.anim("tilt", [[lean, 220, Ease.out], [lean, 500, Ease.lin], [0, 380, Ease.inOut]]);
+      this.ensureRunning();
+    }
+    this.near = near;
+  }
+
+  /** What happens, as he feels it: finished work, a fix, approvals, music. */
+  private watchEvents() {
+    const seen = this.seen;
+    const st = State.effectiveState;
+    if (st !== seen.state) {
+      const was = seen.state;
+      seen.state = st;
+      const t = performance.now();
+      // A session finished: after its own smile and hop, chin up, proud.
+      if (st === "finished") window.setTimeout(() => this.react("proud", 1.8), 2200);
+      // An error, then fixed: relieved, a happy hop.
+      else if (was === "error") this.react("happy", 1.4);
+      if (st === "approval") seen.approvals = [...seen.approvals.filter((u) => t - u < 120_000), t];
+      // Three approvals in a row: once they're answered, a small annoyed eye.
+      if (was === "approval" && st !== "approval" && seen.approvals.length >= 3) {
+        seen.approvals = [];
+        this.react("annoyed", 0.9);
+      }
+    }
+    // Music starts: a happy hop, then he dances.
+    if (State.dancingMusic && !seen.music) this.react("happy", 1.2);
+    seen.music = State.dancingMusic;
+  }
+
   /** What the engine shows: asleep, his Sleeping; otherwise what's going on. */
   private engineState() {
     return this.asleep ? "sleeping" : State.effectiveState;
@@ -1076,7 +1164,14 @@ export class Island {
   /** Falls asleep or wakes: the closed pill shrinks round him or grows back, on the notch's curve. */
   private setAsleep(on: boolean) {
     if (on === this.asleep) return;
+    const woke = this.asleep && !on;
     this.asleep = on;
+    // JARVIS: woken up, he's surprised, then happy you're back.
+    if (woke) {
+      window.setTimeout(() => {
+        if (this.react("surprised", 1.1, true)) window.setTimeout(() => this.react("happy", 1.3, true), 1300);
+      }, NOTCH_MS);
+    }
     this.sleepZ.classList.toggle("on", on);
     this.engine.setState(this.engineState());
     if (State.mode === "hidden") {
@@ -1184,6 +1279,12 @@ export class Island {
       if (this.isBotHit(e.clientX, e.clientY)) {
         this.cancelBotHover();
         this.engine.slap();
+        // JARVIS: a click surprises him; a quick second one is love. (A third makes him dizzy.)
+        const t = performance.now();
+        const double = t - this.lastClickAt < 350;
+        this.lastClickAt = t;
+        if (double) this.react("love", 1.6, true);
+        else this.react("surprised", 1.1, true);
       }
     });
 
@@ -1306,7 +1407,9 @@ export class Island {
         this.botHoverStart = { x, y };
         this.scheduleLove();
       }
+      this.trackStroke(x);
     }
+    this.trackNear(x, y);
 
     this.ensureRunning();
   }
@@ -1343,8 +1446,8 @@ export class Island {
       if (!this.botHovering || State.stateOverride != null) return;
       if (performance.now() / 1000 - this.lastLoveTime < 6) return;
       this.lastLoveTime = performance.now() / 1000;
-      this.engine.triggerEmote("love");
-      Sound.play("love");
+      // JARVIS: the pointer resting on him gets a wink (the character sheet's).
+      if (this.react("wink", 1.3)) Sound.play("love");
     }, 1900);
   }
 
@@ -1473,6 +1576,10 @@ export class Island {
     if (State.mode === "hidden" && closedIsland(State.settings.closedIsland) === "mochi") {
       p = { cx: end.w / 2, cy: end.h / 2, diameter: CLOSED_BOT_D, opacity: 1 };
     }
+    // JARVIS on Home: no bigger than his card lets his ring and badge fit inside it.
+    if (State.mode === "expanded" && State.view === "overview") {
+      p = { ...p, diameter: Math.min(p.diameter, this.homeFitDiameter(p.cx, p.cy)) };
+    }
     const size = p.diameter / 0.6;
     const now = performance.now();
     // The drop's progress moves him continuously: he follows it directly.
@@ -1512,7 +1619,58 @@ export class Island {
     }
   }
 
+  /** Home's left card, where the big JARVIS lives, relative to the island (null when not shown). */
+  private homeCard(): { left: number; top: number; right: number; bottom: number } | null {
+    const card = this.islandEl.querySelector<HTMLElement>(".overview .left > .card, .overview .left .card");
+    if (!card) return null;
+    const c = card.getBoundingClientRect(), isl = this.islandEl.getBoundingClientRect();
+    if (c.width === 0) return null;
+    return { left: c.left - isl.left, top: c.top - isl.top, right: c.right - isl.left, bottom: c.bottom - isl.top };
+  }
+
+  /**
+   * The biggest he can be on Home with his ring (1.29 R out, 1.02 R up) and his badge (1.08 R
+   * left, 0.9 R up) inside his card, 4 px to spare, and short of the text 140 px in. R is half
+   * the diameter.
+   */
+  private homeFitDiameter(cx: number, cy: number): number {
+    const card = this.homeCard();
+    if (!card) return Infinity;
+    const keep = 4;
+    const R = Math.min(
+      (cy - card.top - keep) / 1.02,
+      (cx - card.left - keep) / 1.29,
+      (card.left + 140 - cx - keep) / 1.29,
+    );
+    return Math.max(40, 2 * R);
+  }
+
+  /**
+   * Whatever he does on Home (tilt, hop, dance, glow), he's drawn only inside his card: his canvas
+   * is clipped to the card's rounded rectangle. Elsewhere nothing is clipped.
+   */
+  private clipBotToCard() {
+    const card = State.mode === "expanded" && State.view === "overview" ? this.homeCard() : null;
+    if (!card) {
+      if (this.botCanvas.style.clipPath) this.botCanvas.style.clipPath = "";
+      return;
+    }
+    // The card is laid out after he was first aimed: once it is, he's sized to it.
+    const L = VIEW_LAYOUTS.overview;
+    const fit = this.homeFitDiameter(L.botX, L.botY ?? 102);
+    if (Math.abs(fit - this.homeFitSeen) > 0.5) {
+      this.homeFitSeen = fit;
+      this.updateBotTargets();
+    }
+    const b = this.botCanvas.getBoundingClientRect(), isl = this.islandEl.getBoundingClientRect();
+    const left = b.left - isl.left, top = b.top - isl.top;
+    const inset = [card.top - top, left + b.width - card.right, top + b.height - card.bottom, card.left - left]
+      .map((v) => `${Math.max(0, v).toFixed(1)}px`);
+    this.botCanvas.style.clipPath = `inset(${inset.join(" ")} round 22px)`;
+  }
+
   private drawBot(dt: number) {
+    this.clipBotToCard();
     const size = this.botSize.value;
     const w = Math.max(1, Math.round(size));
     const hCss = w + BOT_OVERHANG;

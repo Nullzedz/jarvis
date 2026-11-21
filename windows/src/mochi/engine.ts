@@ -40,7 +40,7 @@ interface Tween {
 
 type PropKey =
   | "yaw" | "pitch" | "roll" | "tilt" | "open" | "sx" | "sy"
-  | "oy" | "ox" | "tint" | "morph" | "hands" | "blush" | "es" | "badgeS"
+  | "oy" | "ox" | "tint" | "morph" | "hands" | "blush" | "es" | "badgeS" | "eyeTall"
   | "outfitPresence";
 
 interface BotStateCfg {
@@ -133,10 +133,14 @@ export const STATE_SOUND: Partial<Record<BotStateName, string>> = {
   sleeping: "sleep", dizzy: "dizzy",
 };
 
+// JARVIS: as the character sheet draws them: love and surprise and pride live in the bar itself
+// (its colour, its height, his chin), not in symbols.
 const EMOTE_EYE: Record<BotEmoteName, EyeShape> = {
-  love: "heart", surprised: "dot", proud: "star", wink: "wink",
+  love: "pill", surprised: "pill", proud: "pill", wink: "wink",
   yawn: "tired", happy: "happy", annoyed: "line",
 };
+/** Love's pink, Apple's #ff375f. */
+const LOVE_PINK: RGB = [1, 0.216, 0.373];
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
@@ -243,6 +247,11 @@ export class BotEngine {
   yaw = 0; pitch = 0; roll = 0; tilt = 0; open = 1;
   sx = 1; sy = 1; oy = 0; ox = 0;
   tint = 0; morph = 0; hands = 0; blush = 0; es = 1; badgeS = 0;
+  /** JARVIS: the light bar stretched tall (surprised: the character sheet's "pop"). */
+  eyeTall = 1;
+  /** JARVIS: the eye's colour for a moment (love: pink), until `eyeColorUntil` (s). */
+  eyeColor: RGB | null = null;
+  eyeColorUntil = 0;
 
   // Outfit (the main Mochi only — minis never wear one). `outfit` is what is
   // drawn; it changes only once the previous one has left.
@@ -556,23 +565,27 @@ export class BotEngine {
 
     switch (emote) {
       case "love":
-        this.anim("blush", [
-          [1, 300, Ease.out], [1, (duration - 0.6) * 1000, Ease.lin], [0, 300, Ease.inOut],
+        // The character sheet: the eye turns pink and beats twice.
+        this.eyeColor = LOVE_PINK;
+        this.eyeColorUntil = t + duration;
+        this.anim("es", [
+          [1.18, 140, Ease.out], [1, 160, Ease.inOut], [1.14, 140, Ease.out], [1, 260, Ease.inOut],
         ]);
-        this.emit("heart", 4);
-        this.anim("oy", [[-0.1, 160, Ease.out], [0, 300, Ease.back]]);
         break;
       case "surprised":
+        // The eye opens tall and he jumps a little.
         this.anim("oy", [[-0.3, 140, Ease.out], [0, 380, Ease.back]]);
-        this.anim("es", [[1.25, 120, Ease.out], [1, 500, Ease.inOut]]);
+        this.anim("eyeTall", [
+          [2.2, 140, Ease.out], [2.2, Math.max(200, (duration - 0.6) * 1000), Ease.lin], [1, 320, Ease.inOut],
+        ]);
         break;
       case "proud":
-        this.emit("star", 5);
+        // Chin up, a beat, back down.
         this.anim("tilt", [
-          [-0.14, 220, Ease.out], [-0.14, (duration - 0.5) * 1000, Ease.lin], [0, 280, Ease.inOut],
+          [-0.09, 260, Ease.out], [-0.09, (duration - 0.6) * 1000, Ease.lin], [0, 340, Ease.inOut],
         ]);
-        this.anim("blush", [
-          [0.7, 250, Ease.out], [0.7, (duration - 0.5) * 1000, Ease.lin], [0, 300, Ease.inOut],
+        this.anim("oy", [
+          [-0.07, 260, Ease.out], [-0.07, (duration - 0.6) * 1000, Ease.lin], [0, 340, Ease.inOut],
         ]);
         break;
       case "wink":
@@ -586,7 +599,8 @@ export class BotEngine {
         setTimeout(() => { this.eyeOverride = "closed"; this.emit("z", 2); }, 700);
         break;
       case "happy":
-        this.anim("blush", [[0.6, 200, Ease.out], [0, 600, Ease.inOut]]);
+        // Smiling eye, a little hop.
+        this.playBit("hop");
         break;
       case "annoyed":
         this.eyeOverride = "line";
@@ -987,6 +1001,7 @@ export class BotEngine {
 
   /** The light bar's colour: JARVIS blue at rest, the state colour when something happens. */
   private get eyeLight(): RGB {
+    if (this.eyeColor && now() < this.eyeColorUntil) return this.eyeColor;
     const light = mix3(VISOR_LIGHT, this.col, Math.min(1, this.tint / 0.7));
     // JARVIS: drowsy, the light dims toward grey.
     if (this.drowsy && this.state === "idle") return mix3(light, [0.39, 0.39, 0.4], 0.45);
@@ -1138,7 +1153,8 @@ export class BotEngine {
   private drawVisorEye(x: CanvasRenderingContext2D, shape: EyeShape, R: number, ink: string) {
     const w = R * 0.95; // bar length
     const h = R * 0.16; // bar thickness
-    const bar = (bw: number, bh: number, dy = 0) => {
+    const bar = (bw: number, bh0: number, dy = 0) => {
+      const bh = bh0 * this.eyeTall;
       roundRectPath(x, -bw / 2, dy - bh / 2, bw, bh, bh / 2);
       x.fill();
     };
