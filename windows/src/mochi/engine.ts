@@ -894,9 +894,7 @@ export class BotEngine {
     x.restore();
     x.restore();
 
-    // JARVIS: his eye's colour says the state; the old corner badges (•••, !, ?) sat on top of
-    // his visor and overlapped it, so only the minis keep them.
-    if (this.isMini && this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
+    if (this.badge && this.badgeS > 0.01 && this.morph < 0.25) {
       this.drawBadge(x, this.badge, R, cx, cy);
     }
     this.drawParticles(x, R, cx, cy);
@@ -955,11 +953,10 @@ export class BotEngine {
       if (pumpkin <= 0.001) return;
     } else {
       // Halo: the mood around the shell — none at rest, a pulse when JARVIS needs you.
-      // JARVIS: no ring around him either (the prototype has none; it overlapped the card).
-      const halo: number = 0;
+      // The ring in his state's colour round his shell, never a glow (glows read "too AI").
+      const halo = this.haloV * (1 - this.morph);
       if (halo > 0.02) {
         x.save();
-        // A thin ring in the state colour, never a glow (glows read "too AI").
         x.strokeStyle = rgba(this.col, halo * 0.8);
         x.lineWidth = Math.max(1.25, R * 0.045);
         x.scale(1 + 0.09 * 1.14, 1 + 0.09 * 1.4);
