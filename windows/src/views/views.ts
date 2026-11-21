@@ -275,8 +275,8 @@ function buildOverview(actions: ViewActions): ViewHost {
     ctxMenu.remove();
     hold();
   }
-  // Right-click anywhere on Home, empty space too: Edit opens the square under the pointer, else
-  // the first empty one, else the first. The menu opens inside the card that was clicked.
+  // Right-click in the squares' card (only there), empty space too: Edit opens the square under
+  // the pointer, else the first empty one, else the first. The menu opens inside that card.
   function onContext(e: MouseEvent, host: HTMLElement) {
     e.preventDefault();
     e.stopPropagation();
@@ -293,7 +293,6 @@ function buildOverview(actions: ViewActions): ViewHost {
     ctxMenu.style.top = `${Math.max(6, y)}px`;
     ctxEdit.focus();
   }
-  left.addEventListener("contextmenu", (e) => onContext(e, left));
   right.addEventListener("contextmenu", (e) => onContext(e, right));
   window.addEventListener("pointerdown", (e) => { if (!ctxMenu.contains(e.target as Node)) closeCtx(); }, true);
   ctxMenu.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeCtx(); } });
