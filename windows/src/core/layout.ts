@@ -74,8 +74,8 @@ export const NOTCH_H = 32;
 export const COMPACT_W = 132;
 export const EXPANDED_W = 640;
 
-export const ROUNDED_CORNER = 16; // hidden / compact: the closed pill's bottom is fully round
-export const EXPANDED_CORNER = 22;
+export const ROUNDED_CORNER = 26; // hidden / compact: the live demo's closed pill, 0 0 26 26
+export const EXPANDED_CORNER = 30; // the live demo's open notch
 
 /** Invisible hover strip that wakes the island when hidden. */
 export const WAKE_STRIP_W = 240;

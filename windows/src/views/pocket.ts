@@ -56,7 +56,7 @@ function field<E extends HTMLInputElement | HTMLTextAreaElement>(host: PocketHos
 export function buildReminders(host: PocketHost): ViewHost {
   const input = field(host, h("input", { type: "text", class: "pk-input", placeholder: t("Add a reminder, press Enter"), spellcheck: "false" }) as HTMLInputElement);
   const list = h("div", { class: "pk-list" });
-  const el = h("div", { class: "pk pk-rem" }, h("label", { class: "pk-add" }, h("span", { class: "pk-spark", text: "✦" }), input), list);
+  const el = h("div", { class: "view pk pk-rem" }, h("label", { class: "pk-add" }, h("span", { class: "pk-spark", text: "✦" }), input), list);
 
   function draw() {
     const all = Pocket.reminders().sort((a, b) => Number(a.done) - Number(b.done) || b.at - a.at);
@@ -104,7 +104,7 @@ export function noteTitle(n: Note): string {
 export function buildNotes(host: PocketHost): ViewHost {
   const list = h("div", { class: "pk-notes" });
   const area = field(host, h("textarea", { class: "pk-note", placeholder: t("Write something…"), spellcheck: "true" }) as HTMLTextAreaElement);
-  const el = h("div", { class: "pk pk-notewrap" }, list, area);
+  const el = h("div", { class: "view pk pk-notewrap" }, list, area);
   let current: string | null = null;
   let typing = 0;
 
@@ -170,7 +170,7 @@ export function clipAge(at: number, now = Date.now()): string {
 export function buildClipboard(): ViewHost {
   const list = h("div", { class: "pk-list pk-clips" });
   const clearBtn = h("button", { class: "pk-new pk-clear", text: t("Clear"), onclick: () => { void Bridge.clipboardClear(); clips = []; draw(); } });
-  const el = h("div", { class: "pk pk-clip" },
+  const el = h("div", { class: "view pk pk-clip" },
     h("div", { class: "pk-head" }, h("span", { class: "pk-cap", text: t("Copied lately · click one to copy it again") }), clearBtn),
     list);
   let clips: Clip[] = [];
