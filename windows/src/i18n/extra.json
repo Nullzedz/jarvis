@@ -9679,21 +9679,6 @@
       "tr": "Çalan bir şey yok",
       "zh-Hans": "没有正在播放"
     },
-    "Change main": {
-      "ar": "تغيير الرئيسي",
-      "bn": "মূল বদলান",
-      "de": "Hauptapp ändern",
-      "es": "Cambiar principal",
-      "fr": "Changer l'app principale",
-      "hi": "मुख्य बदलें",
-      "id": "Ganti utama",
-      "ja": "メインを変更",
-      "ko": "메인 변경",
-      "pt-BR": "Trocar principal",
-      "ru": "Сменить главное",
-      "tr": "Ana uygulamayı değiştir",
-      "zh-Hans": "更改主应用"
-    },
     "Main app": {
       "ar": "التطبيق الرئيسي",
       "bn": "মূল অ্যাপ",
@@ -9738,6 +9723,21 @@
       "ru": "Пусто",
       "tr": "Boş",
       "zh-Hans": "空"
+    },
+    "Click a square to change it.": {
+      "ar": "انقر على مربع لتغييره.",
+      "bn": "বদলাতে একটি বর্গে ক্লিক করুন।",
+      "de": "Klicke auf ein Quadrat, um es zu ändern.",
+      "es": "Haz clic en un cuadrado para cambiarlo.",
+      "fr": "Cliquez sur un carré pour le changer.",
+      "hi": "बदलने के लिए किसी वर्ग पर क्लिक करें।",
+      "id": "Klik kotak untuk menggantinya.",
+      "ja": "四角をクリックして変更します。",
+      "ko": "사각형을 클릭해 변경하세요.",
+      "pt-BR": "Clique em um quadrado para trocá-lo.",
+      "ru": "Нажмите на квадрат, чтобы изменить его.",
+      "tr": "Değiştirmek için bir kareye tıklayın.",
+      "zh-Hans": "点击方块即可更改。"
     }
   }
 }

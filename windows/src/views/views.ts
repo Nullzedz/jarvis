@@ -246,17 +246,23 @@ function buildOverview(actions: ViewActions): ViewHost {
   const pills = h("div", { class: "pills" });
   const right = card(null, pills);
   // JARVIS: choosing who's on Home (design A, opened by right-click → Edit). In edit mode the
-  // four slots each get a ⌄ and a list inside the card, the left card gets Change main, and a
-  // ✓ in the right card's corner finishes. The colour stays with the place (core/pills.ts
-  // slotColor), never with the app.
+  // four squares each get a ⌄ and a list inside the card, and the left card's text gives way
+  // to one panel: the main app (its own list) and Done. The colour stays with the place
+  // (core/pills.ts slotColor), never with the app.
   let editing = false;
   type Picking = { kind: "main" } | { kind: "slot"; slot: number } | null;
   let picking: Picking = null;
-  const editBtn = h("button", { class: "icon-btn slot-edit", onclick: () => setEditing(!editing) });
-  right.append(editBtn);
-  const changeMain = h("button", { class: "change-main", onclick: () => openPicker({ kind: "main" }) },
-    h("span", { text: t("Change main") }), svg(ICONS.chevronDown, 9, { stroke: 2.4 }));
-  left.append(changeMain);
+  const mainSquare = h("i", { class: "ep-sq" });
+  const mainName = h("span", { class: "ep-name" });
+  const mainBtn = h("button", { class: "ep-main", onclick: () => openPicker({ kind: "main" }) },
+    mainSquare, mainName, svg(ICONS.chevronDown, 9, { stroke: 2.4 }));
+  const editPanel = h("div", { class: "edit-panel" },
+    h("p", { class: "ep-cap", text: t("Main app") }),
+    mainBtn,
+    h("div", { class: "ep-foot" },
+      h("span", { class: "ep-hint", text: t("Click a square to change it.") }),
+      h("button", { class: "ep-done", text: t("Done"), onclick: () => setEditing(false) })));
+  left.append(editPanel);
   const picker = h("div", { class: "slot-picker" });
   picker.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); openPicker(null); } });
 
@@ -321,14 +327,9 @@ function buildOverview(actions: ViewActions): ViewHost {
     openPicker(null);
   }
   function drawEdit() {
-    clear(editBtn);
-    editBtn.append(svg(ICONS.check, 11, { stroke: 2.4 }));
-    editBtn.title = t("Done");
-    editBtn.setAttribute("aria-label", editBtn.title);
-    editBtn.classList.toggle("on", editing);
     left.classList.toggle("editing", editing);
     right.classList.toggle("editing", editing);
-    changeMain.style.display = editing ? "" : "none";
+    mainName.textContent = pillDefinition(State.mainPillId)?.name ?? "";
     if (!picking) { picker.remove(); return; }
     const d = sanitizeDeclared(State.settings, State.os);
     clear(picker);
