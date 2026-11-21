@@ -5,7 +5,7 @@
 // ones fade and sink to the bottom. Notes: the notes on the left, the open note on the
 // right, saved as you type.
 
-import { h, clear } from "./dom";
+import { h, clear, svg } from "./dom";
 import { t } from "../i18n/i18n";
 import { Bridge, onEvent, type ClipEntry } from "../core/bridge";
 import type { ViewHost } from "./views";
@@ -110,8 +110,15 @@ export function buildNotes(host: PocketHost): ViewHost {
     clear(list);
     list.append(h("button", { class: "pk-new", text: `+ ${t("New note")}`, onclick: () => add() }));
     for (const n of notes) {
-      list.append(h("button", { class: `pk-nb${n.id === current ? " on" : ""}`, onclick: () => { current = n.id; draw(); area.focus(); } },
-        h("span", { class: "pk-nt", text: noteTitle(n) }), h("span", { class: "pk-nd", text: when(n.at) })));
+      const item = h("button", { class: `pk-nb${n.id === current ? " on" : ""}`, onclick: () => { current = n.id; draw(); area.focus(); } },
+        h("span", { class: "pk-nt", text: noteTitle(n) }), h("span", { class: "pk-nd", text: when(n.at) }));
+      // Drag left, twice, to delete it.
+      list.append(swipeToRemove(item, () => {
+        save(NOTES_KEY, Pocket.notes().filter((x) => x.id !== n.id));
+        if (current === n.id) { current = null; area.value = ""; }
+        draw();
+        host.resize();
+      }));
     }
     const open = notes.find((n) => n.id === current);
     if (document.activeElement !== area) area.value = open?.text ?? "";
@@ -176,6 +183,81 @@ export function clipKindLabel(k: ClipKind): string {
   }
 }
 
+/** How far an open row rests (px), uncovering the red delete area behind it. */
+const SWIPE_OPEN = 56;
+/** From open, a second drag this much further left confirms the delete. */
+const SWIPE_CONFIRM = 40;
+let openRow: { close(): void } | null = null;
+const TRASH = "M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12";
+
+/**
+ * JARVIS: delete by dragging left, twice (no button). The first drag opens the row onto a red
+ * delete area; a second drag from there, further left, confirms: the row slides out, folds,
+ * and `remove` runs. Dragging back right, or not far enough, closes it. One row open at a time;
+ * a mostly vertical drag is left to scrolling; a drag never clicks what's under it.
+ */
+export function swipeToRemove(row: HTMLElement, remove: () => void): HTMLElement {
+  const wrap = h("div", { class: "cb-swipe" }, h("div", { class: "cb-under", "aria-hidden": "true" }, svg(TRASH, 16, { stroke: 2 })), row);
+  let start: { x: number; y: number; from: number } | null = null;
+  let offset = 0;
+  let dragged = false;
+  const place = (to: number, animate: boolean) => {
+    offset = to;
+    row.style.transition = animate ? "transform .28s cubic-bezier(.32,.72,0,1)" : "none";
+    row.style.transform = to ? `translateX(${to}px)` : "";
+  };
+  const me = { close: () => place(0, true) };
+  row.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    start = { x: e.clientX, y: e.clientY, from: offset };
+    dragged = false;
+  });
+  row.addEventListener("pointermove", (e) => {
+    if (!start) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!dragged) {
+      if (Math.abs(dx) < 6 || Math.abs(dy) > Math.abs(dx)) return;
+      dragged = true;
+      try { row.setPointerCapture(e.pointerId); } catch { /* fine without */ }
+      if (openRow && openRow !== me) openRow.close();
+    }
+    // The first drag stops at the open spot (with a little give); from open it follows further.
+    let to = Math.min(0, start.from + dx);
+    if (start.from === 0 && to < -SWIPE_OPEN) to = -SWIPE_OPEN - (-SWIPE_OPEN - to) * 0.3;
+    place(to, false);
+    wrap.classList.toggle("armed", start.from !== 0 && to < -SWIPE_OPEN - SWIPE_CONFIRM);
+  });
+  const end = () => {
+    if (!start) return;
+    const wasOpen = start.from !== 0;
+    start = null;
+    if (!dragged) return;
+    wrap.classList.remove("armed");
+    // Second drag, far enough: confirmed, gone.
+    if (wasOpen && offset < -SWIPE_OPEN - SWIPE_CONFIRM) {
+      openRow = null;
+      wrap.style.height = `${wrap.offsetHeight}px`;
+      place(-wrap.offsetWidth, true);
+      requestAnimationFrame(() => wrap.classList.add("gone"));
+      window.setTimeout(remove, 260);
+      return;
+    }
+    const open = offset < -SWIPE_OPEN / 2;
+    place(open ? -SWIPE_OPEN : 0, true);
+    openRow = open ? me : openRow === me ? null : openRow;
+  };
+  row.addEventListener("pointerup", end);
+  row.addEventListener("pointercancel", end);
+  // A drag is not a click on what's under it.
+  row.addEventListener("click", (e) => {
+    if (!dragged) return;
+    dragged = false;
+    e.stopPropagation();
+    e.preventDefault();
+  }, true);
+  return wrap;
+}
+
 export function buildClipboard(host: Pick<PocketHost, "resize">): ViewHost {
   const search = h("input", { class: "td-qa-in", placeholder: t("Search what you copied"), spellcheck: "false" }) as HTMLInputElement;
   const searchRow = h("label", { class: "pk-add td-qa cb-search" }, h("span", { class: "cb-glass", text: "⌕" }), search);
@@ -215,7 +297,8 @@ export function buildClipboard(host: Pick<PocketHost, "resize">): ViewHost {
           setTimeout(() => { copy.textContent = t("Copy"); }, 900);
         }
       };
-      list.append(h("div", { class: "clip" }, h("span", { class: "k", text: clipKindLabel(clipKind(c)) }), what, pin, copy));
+      const row = h("div", { class: "clip" }, h("span", { class: "k", text: clipKindLabel(clipKind(c)) }), what, pin, copy);
+      list.append(swipeToRemove(row, () => void Bridge.clipboardRemove(c.id)));
     }
   }
   search.addEventListener("input", draw);

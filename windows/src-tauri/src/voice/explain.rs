@@ -18,7 +18,9 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize, Webview
 use super::sight::Shot;
 
 pub const LABEL: &str = "explain";
-const PARKED: (i32, i32) = (-32000, -32000);
+// JARVIS: far off-screen, but not -32000: Windows reads that as "minimised" and drops a new window
+// at its default spot instead (near the top-left), where its edge showed as a pixel above everything.
+const PARKED: (i32, i32) = (-10000, -10000);
 
 /// Cards are on screen.
 static OPEN: AtomicBool = AtomicBool::new(false);
@@ -63,6 +65,7 @@ pub fn setup(app: &AppHandle) {
             return;
         }
     };
+    let _ = win.set_position(PhysicalPosition::new(PARKED.0, PARKED.1));
     super::sight::hide_from_capture(&win);
     crate::platform::prepare_pill_window(&win, crate::platform::DesktopMode::Poll);
     // Clickable only over a card: the pointer is watched while cards are up. Esc closes them all.

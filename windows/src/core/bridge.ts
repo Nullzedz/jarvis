@@ -291,6 +291,8 @@ export const Bridge = {
   clipboardUse: (id: number) => call<boolean>("clipboard_use", { id }),
   clipboardPin: (id: number, on: boolean) => call<void>("clipboard_pin", { id, on }),
   clipboardClear: () => call<void>("clipboard_clear"),
+  /** Forgets one copy (swiped away in the island). */
+  clipboardRemove: (id: number) => call<void>("clipboard_remove", { id }),
   /** The right press about to open the webview's menu was on this Home square (null: elsewhere). */
   contextZone: (slot: number | null) => call<void>("context_zone", { slot }),
   /** Seconds since the last keyboard or mouse input on the PC (src-tauri/src/presence.rs). */

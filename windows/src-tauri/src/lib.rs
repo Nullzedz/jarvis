@@ -946,6 +946,7 @@ pub fn run() {
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
+            clipboard_history::clipboard_remove,
             webview_menu::context_zone,
             presence::user_idle_seconds,
             presence::music_playing,
