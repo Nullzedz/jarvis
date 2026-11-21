@@ -4526,52 +4526,17 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 .overview .who, .overview .plan-head { padding-right: 72px; }
 .overview .int-card { padding-right: 44px; }
 
-/* JARVIS: Home's edit mode (design A), opened by right-click → Edit. Home looks as before until
-   then. In edit mode a ✓ sits in the right card's corner and the pills step 22 px in from both
-   sides so it never touches one. The menu and the lists open inside their own card (the main's
-   starts past his visor), so nothing hangs outside its background. */
+/* JARVIS: Home. Clicking a square makes it the main; right-click a square → Edit opens its
+   list. The menu and the list open inside the right card, so nothing hangs outside it. */
 .overview .ctx-menu { position: absolute; z-index: 4; min-width: 96px; background: #2c2c2e; border-radius: 10px; padding: 4px; animation: sp-in .15s cubic-bezier(.32, .72, 0, 1); }
 .overview .ctx-menu button { display: block; width: 100%; border: 0; background: none; border-radius: 7px; padding: 5px 10px; color: #f5f5f7; font: 12.5px var(--font); text-align: left; cursor: pointer; outline: 0; }
 .overview .ctx-menu button:hover, .overview .ctx-menu button:focus-visible { background: #0a84ff; }
-/* Edit mode's panel takes the left card's text area (past his visor), above the card's own
-   content; the lists open above it. */
-.overview .edit-panel { display: none; position: absolute; top: 8px; right: 8px; bottom: 8px; left: 140px; z-index: 2; background: #1a1b1e; border-radius: 16px; padding: 6px 6px 6px 4px; flex-direction: column; justify-content: center; gap: 8px; animation: sp-in .2s cubic-bezier(.32, .72, 0, 1); }
-.overview .card.editing .edit-panel { display: flex; }
-.overview .card.editing .jump, .overview .card.editing .live-btn { display: none !important; }
-.overview .ep-cap { margin: 0; font-size: 11px; color: #8e8e93; }
-.overview .ep-main { align-self: flex-start; display: flex; align-items: center; gap: 10px; max-width: 100%; border: 1px solid rgba(255, 255, 255, 0.08); background: #0e0f11; border-radius: 999px; padding: 6px 12px 6px 6px; color: #e5e5ea; font: 13px var(--font); cursor: pointer; transition: border-color .15s; }
-.overview .ep-main:hover { border-color: rgba(255, 255, 255, 0.2); }
-.overview .ep-sq { width: 30px; height: 22px; border-radius: 7px; background: #f5f6f8; flex: none; }
-.overview .ep-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.overview .ep-chev { display: grid; place-items: center; color: #8e8e93; flex: none; transition: transform .2s cubic-bezier(.32, .72, 0, 1); }
-.overview .edit-panel.open .ep-chev { transform: rotate(180deg); }
-.overview .edit-panel.open .ep-main { border-color: rgba(255, 255, 255, 0.2); }
-/* The dropdown sits right under the pill, in the panel, where Done was: three apps, then More… */
-.overview .ep-drop { display: none; grid-template-columns: 1fr; gap: 2px; animation: sp-in .2s cubic-bezier(.32, .72, 0, 1); }
-.overview .edit-panel.open .ep-drop { display: grid; }
-.overview .edit-panel.open .ep-foot { display: none; }
-.overview .edit-panel.open { gap: 6px; }
-.overview .edit-panel.open .ep-cap { display: none; }
-.overview .ep-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.overview .ep-more { display: none; flex: none; border: 0; background: none; padding: 0; color: #0a84ff; font: 12px var(--font); cursor: pointer; }
-.overview .ep-more:hover { color: #2b95ff; }
-.overview .edit-panel.open .ep-more { display: block; }
-.overview .ep-drop button { display: flex; align-items: center; gap: 8px; min-width: 0; border: 0; background: none; border-radius: 8px; padding: 4px 8px; color: #e5e5ea; font: 12px var(--font); text-align: left; cursor: pointer; }
-.overview .ep-drop button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.overview .ep-drop button:hover, .overview .ep-drop button.on { background: #2c2c2e; }
-.overview .ep-drop button.on { color: #fff; }
-.overview .ep-drop i { width: 14px; height: 10px; border-radius: 3px; flex: none; background: #48484a; }
-.overview .ep-drop i.main { background: #f5f6f8; }
-.overview .ep-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.overview .ep-hint { font-size: 11px; line-height: 1.35; color: #636366; min-width: 0; text-wrap: balance; }
-.overview .ep-done { flex: none; border: 0; border-radius: 999px; background: #0a84ff; color: #fff; font: 500 12px var(--font); padding: 5px 14px; cursor: pointer; transition: background .15s; }
-.overview .ep-done:hover { background: #2b95ff; }
 .overview .slot-picker { position: absolute; inset: 6px; z-index: 3; display: flex; flex-direction: column; background: #1c1c1e; border-radius: 14px; padding: 8px; animation: sp-in .2s cubic-bezier(.32, .72, 0, 1); }
-.overview .left .slot-picker { left: 140px; }
 @keyframes sp-in { from { opacity: 0; transform: translateY(4px); } }
 .overview .sp-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 6px 4px; font-size: 11px; color: #8e8e93; }
 .overview .sp-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: #2c2c2e; color: #8e8e93; display: grid; place-items: center; cursor: pointer; }
-.overview .sp-list { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; align-content: start; }
+.overview .sp-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; align-content: start; }
+.overview .sp-list::-webkit-scrollbar { display: none; }
 .overview .sp-list button { display: flex; align-items: center; gap: 8px; border: 0; background: none; border-radius: 8px; padding: 5px 8px; color: #e5e5ea; font: 12px var(--font); text-align: left; cursor: pointer; min-width: 0; }
 .overview .sp-list button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .overview .sp-list button:hover { background: #2c2c2e; }

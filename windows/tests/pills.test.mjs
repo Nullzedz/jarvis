@@ -180,9 +180,11 @@ test("a live session names its tool next to the project", () => {
 
 test("a declaration from an older or edited settings file is made usable", () => {
   assert.deepEqual(
-    sanitizeDeclared({ mainPill: "integration_stripe", activeIntegrations: ["integration_claude", "x"] }, "linux"),
+    sanitizeDeclared({ mainPill: "integration_nope", activeIntegrations: ["integration_claude", "x"] }, "linux"),
     { mainPill: "integration_claude", activeIntegrations: [] },
   );
+  // JARVIS: any app a square can hold may be the main (Home: click a square to make it the main).
+  assert.equal(sanitizeDeclared({ mainPill: "integration_stripe", activeIntegrations: [] }, "linux").mainPill, "integration_stripe");
   assert.deepEqual(
     sanitizeDeclared({ mainPill: "agent_cursor", activeIntegrations: ["agent_cursor", "integration_n8n", "integration_n8n", "integration_music"] }, "linux"),
     { mainPill: "agent_cursor", activeIntegrations: ["integration_n8n"] },
@@ -192,8 +194,9 @@ test("a declaration from an older or edited settings file is made usable", () =>
     sanitizeDeclared({ activeIntegrations: ["integration_github"] }, "windows"),
     { mainPill: "integration_claude", activeIntegrations: ["integration_github"] },
   );
+  // JARVIS: Claude Desktop can sit in a square, so it can be the main too.
   assert.equal(sanitizeDeclared({ mainPill: "agent_claude-desktop", activeIntegrations: [] }, "windows").mainPill,
-    "integration_claude");
+    "agent_claude-desktop");
 });
 
 test("up to four pills next to the main one, never the main one itself", () => {
@@ -348,7 +351,7 @@ test("the Claude Code idle card keeps the agent title when the task has a projec
 });
 
 // ── JARVIS: Home's slots (design A) ──
-import { MAIN_COLOR, SLOT_COLORS, setSlot, slotChoices, slotColor } from "../src/core/pills.ts";
+import { MAIN_COLOR, SLOT_COLORS, promoteToMain, setSlot, slotChoices, slotColor } from "../src/core/pills.ts";
 
 const home = { mainPill: "integration_claude", activeIntegrations: ["integration_resend", "integration_n8n", "integration_vercel", "integration_github"] };
 
@@ -384,4 +387,16 @@ test("Home's pills follow the slots' order, so the colours stay in place", () =>
   State.loadIntegrationTasks();
   assert.deepEqual(ids(), ["integration_claude", "integration_github", "integration_stripe", "integration_vercel", "integration_resend"]);
   assert.deepEqual(State.tasks.slice(1).map((t) => t.color), [...SLOT_COLORS]);
+});
+
+test("clicking a square makes it the main; the old main takes that square and its colour", () => {
+  assert.deepEqual(promoteToMain(home, "integration_vercel"), {
+    mainPill: "integration_vercel",
+    activeIntegrations: ["integration_resend", "integration_n8n", "integration_claude", "integration_github"],
+  });
+  assert.equal(promoteToMain(home, "integration_notion"), null);
+  assert.equal(promoteToMain(home, "integration_claude"), null);
+  const next = promoteToMain(home, "integration_vercel");
+  assert.equal(slotColor(next, "integration_vercel"), MAIN_COLOR);
+  assert.equal(slotColor(next, "integration_claude"), SLOT_COLORS[2]);
 });

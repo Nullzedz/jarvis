@@ -209,7 +209,8 @@ export interface Declared {
  * AppState.loadIntegrationTasks on macOS.
  */
 export function sanitizeDeclared(d: Declared, os: HostOs = HOST_OS): Declared {
-  const mains = new Set(mainPillChoices(os).map((p) => p.id));
+  // JARVIS: any app a square can hold may be the main (Home: click a square to make it the main).
+  const mains = new Set(availablePills(os).filter((p) => p.support === "yes").map((p) => p.id));
   const mainPill = mains.has(d.mainPill) ? d.mainPill : DEFAULT_MAIN_PILL;
   const offered = new Set(availablePills(os).map((p) => p.id));
   const activeIntegrations: string[] = [];
@@ -258,6 +259,18 @@ export function slotColor(d: Declared, id: string): string | null {
 /** The apps a slot can hold: every one this build offers and runs, but the main. */
 export function slotChoices(d: Declared, os: HostOs = HOST_OS): PillDefinition[] {
   return availablePills(os).filter((p) => p.support === "yes" && p.id !== d.mainPill);
+}
+
+/**
+ * JARVIS: a square clicked on Home becomes the main; the old main takes its square (and so
+ * that square's colour). Null when the app isn't in a square.
+ */
+export function promoteToMain(d: Declared, id: string): Declared | null {
+  const i = d.activeIntegrations.indexOf(id);
+  if (i < 0 || id === d.mainPill) return null;
+  const activeIntegrations = [...d.activeIntegrations];
+  activeIntegrations[i] = d.mainPill;
+  return { mainPill: id, activeIntegrations };
 }
 
 /**
