@@ -646,9 +646,14 @@ export interface NowPlaying {
   app: string;
   title: string;
   artist: string;
+  album: string;
   playing: boolean;
   /** The cover as a data URL. */
   art: string | null;
+  /** Seconds into the song at `at` (Unix ms), and its length in seconds (0: unknown). */
+  position: number;
+  duration: number;
+  at: number;
 }
 
 export type SpotifyAction = "playPause" | "next" | "previous" | "seek" | "shuffle" | "repeat" | "volume";
