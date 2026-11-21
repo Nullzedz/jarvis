@@ -473,6 +473,8 @@ export class Island {
   private setMode(mode: IslandMode) {
     const prev = State.mode;
     if (mode === prev) return;
+    // JARVIS: opening or folding counts as touching the notch (step 7: he sleeps a minute after the last touch).
+    State.lastActivity = performance.now();
     State.mode = mode;
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
@@ -1035,8 +1037,9 @@ export class Island {
     const calm = !State.paused && !State.mochiOnDesktop && State.effectiveState === "idle"
       && !this.engine.isDancing && !(State.mode === "expanded" && State.view === "greeting");
     const withHim = State.mode === "hidden" && this.closedShows && closedIsland(State.settings.closedIsland) === "mochi";
-    // Music wakes him too: he'd rather dance.
-    this.setAsleep(fallsAsleep(life.seconds, calm, withHim));
+    // A minute after the notch was last touched (hovered, clicked, opened or folded); music wakes
+    // him too: he'd rather dance.
+    this.setAsleep(fallsAsleep((t - State.lastActivity) / 1000, calm, withHim));
     const phase: IdlePhase = calm ? idlePhase(life.seconds) : "awake";
     if (phase !== life.phase) {
       life.phase = phase;
@@ -1093,6 +1096,7 @@ export class Island {
   wakeFromClosed() {
     if (State.mode !== "hidden") return;
     Sound.resume();
+    State.lastActivity = performance.now();
     this.fsm.mouseEntered();
   }
 
@@ -1150,6 +1154,7 @@ export class Island {
     // pointer coming onto it is all there is to hear, and it wakes the island.
     const wake = () => {
       Sound.resume();
+      State.lastActivity = performance.now();
       if (State.mode === "hidden") this.fsm.mouseEntered();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);

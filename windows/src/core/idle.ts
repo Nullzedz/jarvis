@@ -10,12 +10,13 @@ export type IdlePhase = "awake" | "playful" | "drowsy";
 
 export const PLAYFUL_AFTER_S = 30;
 export const DROWSY_AFTER_S = 240;
-/** Step 7 (design B): after 10 min of quiet the closed notch shrinks round him and he sleeps. */
-export const ASLEEP_AFTER_S = 600;
+/** Step 7 (design B): a minute after the notch was last touched, the closed notch shrinks round
+ *  him and he sleeps. Touched: hovered, clicked, opened or folded (not the rest of the PC). */
+export const ASLEEP_AFTER_S = 60;
 
-/** Asleep: long enough without input, he's idle, and the island is closed with him in it. */
-export function fallsAsleep(idleSeconds: number, calm: boolean, closedWithHim: boolean): boolean {
-  return calm && closedWithHim && idleSeconds >= ASLEEP_AFTER_S;
+/** Asleep: the notch untouched long enough, he's idle, and the island is closed with him in it. */
+export function fallsAsleep(untouchedSeconds: number, calm: boolean, closedWithHim: boolean): boolean {
+  return calm && closedWithHim && untouchedSeconds >= ASLEEP_AFTER_S;
 }
 
 export function idlePhase(idleSeconds: number): IdlePhase {
