@@ -25,7 +25,7 @@ import { UploadCanvas } from "../upload/canvas";
 import { USC, UploadSeq, uploadProgressCurve } from "../upload/sequence";
 import { dominantPct, planColor } from "../core/plan";
 import { language, t, tl } from "../i18n/i18n";
-import { claudeCompactPillVisible, closePlanCard, openPlanColor, planCardOpen } from "../views/usage";
+import { closePlanCard, openPlanColor, planCardOpen } from "../views/usage";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { h } from "../views/dom";
 import { buildSessionDropList, type SessionDropList } from "../views/session-drop";
@@ -1520,8 +1520,9 @@ export class Island {
       }
     }
 
-    // Compact mini grid
-    const showGrid = State.mode === "compact";
+    // Compact mini grid. JARVIS: the closed pill holds only his visor (the live demo);
+    // the agents have their own tab now.
+    const showGrid = false;
     this.miniGrid.style.opacity = showGrid ? "1" : "0";
     if (showGrid) {
       const others = State.otherTasks.slice(0, 4);
@@ -1537,7 +1538,8 @@ export class Island {
     }
 
     // Compact Claude plan indicator
-    const showPlan = claudeCompactPillVisible();
+    // JARVIS: not on the closed pill either; the plan chip lives in the open notch's header.
+    const showPlan = false;
     this.compactPlan.style.opacity = showPlan ? "1" : "0";
     this.compactPlan.style.pointerEvents = showPlan ? "auto" : "none";
     if (showPlan) {
@@ -1558,7 +1560,8 @@ export class Island {
   /** The clock sits in the middle of the compact island, where the notch is on a Mac. */
   private updateClock() {
     this.updateClosed();
-    const on = State.mode === "compact" && State.settings.showClock;
+    // JARVIS: no clock on the closed pill (the live demo shows only his visor there).
+    const on = false;
     this.clockEl.style.opacity = on ? "1" : "0";
     if (!on) return;
     const now = new Date();

@@ -69,10 +69,12 @@ export const PANEL_H = 320;
 // No notch on a PC: these are the hidden/compact sizes from docs/SPEC.md.
 export const NOTCH_W = 184;
 export const NOTCH_H = 32;
-export const COMPACT_W = 288; // NOTCH_W + 104
+// JARVIS: closed, the island is the live demo's small pill with only his visor in it
+// (docs/jarvis/design/prototypes/jarvis-notch.html: 132 × 32, bottom corners fully round).
+export const COMPACT_W = 132;
 export const EXPANDED_W = 640;
 
-export const ROUNDED_CORNER = 14; // hidden / compact
+export const ROUNDED_CORNER = 16; // hidden / compact: the closed pill's bottom is fully round
 export const EXPANDED_CORNER = 22;
 
 /** Invisible hover strip that wakes the island when hidden. */
@@ -173,10 +175,14 @@ export function botPosition(
     case "hidden":
       return { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
-      return { cx: 40, cy: 16, diameter: 20, opacity: 1 };
+      // JARVIS: his visor alone, in the middle of the closed pill.
+      return { cx: COMPACT_W / 2, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
-      if (view === "calendar") return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
+      // The full-width tabs: he steps aside, out of sight.
+      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard") {
+        return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
+      }
       if (view === "uploading") {
         return {
           cx: 36 + uploadProgress * 526,
