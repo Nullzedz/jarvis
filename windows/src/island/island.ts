@@ -7,7 +7,7 @@ import {
   CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
 } from "../core/closed";
 import {
-  EXPANDED_CORNER, EXPANDED_W, NOTCH_W, PANEL_H, PANEL_W,
+  EXPANDED_CORNER, NOTCH_W, PANEL_H, PANEL_W, STAGE_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
   islandSize,
   QUESTION_PICKER_H,
@@ -402,9 +402,9 @@ export class Island {
     );
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.greetingCanvas.width = Math.round(EXPANDED_W * dpr);
+    this.greetingCanvas.width = Math.round(STAGE_W * dpr);
     this.greetingCanvas.height = Math.round(150 * dpr);
-    this.greetingCanvas.style.width = `${EXPANDED_W}px`;
+    this.greetingCanvas.style.width = `${STAGE_W}px`;
     this.greetingCanvas.style.height = "150px";
 
     this.root.append(this.wakeStrip, this.islandEl);
@@ -913,8 +913,8 @@ export class Island {
     this.miniGrid.style.left = `${w - 40 - 14.5}px`;
     this.miniGrid.style.top = `${hh / 2 - 14.5}px`;
     this.clockEl.style.height = `${hh}px`;
-    this.greetingCanvas.style.left = `${(w - EXPANDED_W) / 2}px`;
-    this.uploadCanvas.el.style.left = `${(w - EXPANDED_W) / 2}px`;
+    this.greetingCanvas.style.left = `${(w - STAGE_W) / 2}px`;
+    this.uploadCanvas.el.style.left = `${(w - STAGE_W) / 2}px`;
 
     const viewportW = window.innerWidth > 0 ? window.innerWidth : PANEL_W;
     const rect = { x: (viewportW - w) / 2, y: 0, w, h: hh };
@@ -1310,8 +1310,8 @@ export class Island {
       const gctx = this.greetingCanvas.getContext("2d");
       if (gctx) {
         const dpr = Math.min(2, window.devicePixelRatio || 1);
-        if (this.greetingCanvas.width !== Math.round(EXPANDED_W * dpr)) {
-          this.greetingCanvas.width = Math.round(EXPANDED_W * dpr);
+        if (this.greetingCanvas.width !== Math.round(STAGE_W * dpr)) {
+          this.greetingCanvas.width = Math.round(STAGE_W * dpr);
           this.greetingCanvas.height = Math.round(150 * dpr);
         }
         gctx.setTransform(dpr, 0, 0, dpr, 0, 0);

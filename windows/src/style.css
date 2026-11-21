@@ -4496,7 +4496,9 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 .overview { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; height: 100%; }
 .overview > .left, .overview > .right { flex: none; width: auto; min-width: 0; }
 .overview .card { border-radius: 22px; background: #1a1b1e; border: 0; }
-.overview .int-card { height: 100%; box-sizing: border-box; padding: 14px 40px 14px 140px; justify-content: center; }
+.overview .int-card { height: 100%; box-sizing: border-box; padding: 14px 36px 14px 140px; justify-content: center; }
+.overview .int-head { white-space: nowrap; overflow: hidden; }
+.overview .int-head > span { overflow: hidden; text-overflow: ellipsis; }
 .overview .int-head { gap: 7px; }
 .overview .int-head b { font: 600 15px var(--font); color: #f5f5f7; }
 .overview .int-head > span { font: 400 13px var(--font); color: #aeaeb2; }

@@ -72,7 +72,10 @@ export const NOTCH_H = 32;
 // JARVIS: closed, the island is the live demo's small pill with only his visor in it
 // (docs/jarvis/design/prototypes/jarvis-notch.html: 132 × 32, bottom corners fully round).
 export const COMPACT_W = 132;
-export const EXPANDED_W = 640;
+// JARVIS: the notch prototype's open width (jarvis-notch.html: #notch.open { width: 700px }).
+export const EXPANDED_W = 700;
+/** The greeting and the drop sequence are drawn in a 640-wide space: centred in the notch. */
+export const STAGE_W = 640;
 
 export const ROUNDED_CORNER = 26; // hidden / compact: the live demo's closed pill, 0 0 26 26
 export const EXPANDED_CORNER = 30; // the live demo's open notch
@@ -186,7 +189,7 @@ export function botPosition(
       }
       if (view === "uploading") {
         return {
-          cx: 36 + uploadProgress * 526,
+          cx: (EXPANDED_W - STAGE_W) / 2 + 36 + uploadProgress * 526,
           cy: layout.botY ?? 103,
           diameter: layout.botDiameter,
           opacity: 1,
