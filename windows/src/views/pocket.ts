@@ -191,13 +191,15 @@ let openRow: { close(): void } | null = null;
 const TRASH = "M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12";
 
 /**
- * JARVIS: delete by dragging left, twice (no button). The first drag opens the row onto a red
- * delete area; a second drag from there, further left, confirms: the row slides out, folds,
- * and `remove` runs. Dragging back right, or not far enough, closes it. One row open at a time;
+ * JARVIS: delete by dragging left, twice. The first drag opens the row onto a red delete area
+ * with a trash; a second drag from there, further left, or a press on the trash, confirms: the
+ * row slides out, folds, and `remove` runs. Dragging back right, or not far enough, closes it. One row open at a time;
  * a mostly vertical drag is left to scrolling; a drag never clicks what's under it.
  */
 export function swipeToRemove(row: HTMLElement, remove: () => void): HTMLElement {
-  const wrap = h("div", { class: "cb-swipe" }, h("div", { class: "cb-under", "aria-hidden": "true" }, svg(TRASH, 16, { stroke: 2 })), row);
+  // The trash in the open space deletes too, with the same slide and fold.
+  const trash = h("button", { class: "cb-trash", title: t("Delete"), "aria-label": t("Delete"), tabindex: "-1" }, svg(TRASH, 16, { stroke: 2 }));
+  const wrap = h("div", { class: "cb-swipe" }, h("div", { class: "cb-under" }, trash), row);
   let start: { x: number; y: number; from: number } | null = null;
   let offset = 0;
   let dragged = false;
@@ -207,6 +209,14 @@ export function swipeToRemove(row: HTMLElement, remove: () => void): HTMLElement
     row.style.transform = to ? `translateX(${to}px)` : "";
   };
   const me = { close: () => place(0, true) };
+  const gone = () => {
+    openRow = null;
+    wrap.style.height = `${wrap.offsetHeight}px`;
+    place(-wrap.offsetWidth, true);
+    requestAnimationFrame(() => wrap.classList.add("gone"));
+    window.setTimeout(remove, 260);
+  };
+  trash.addEventListener("click", (e) => { e.stopPropagation(); gone(); });
   row.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;
     start = { x: e.clientX, y: e.clientY, from: offset };
@@ -235,11 +245,7 @@ export function swipeToRemove(row: HTMLElement, remove: () => void): HTMLElement
     wrap.classList.remove("armed");
     // Second drag, far enough: confirmed, gone.
     if (wasOpen && offset < -SWIPE_OPEN - SWIPE_CONFIRM) {
-      openRow = null;
-      wrap.style.height = `${wrap.offsetHeight}px`;
-      place(-wrap.offsetWidth, true);
-      requestAnimationFrame(() => wrap.classList.add("gone"));
-      window.setTimeout(remove, 260);
+      gone();
       return;
     }
     const open = offset < -SWIPE_OPEN / 2;
