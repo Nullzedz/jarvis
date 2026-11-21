@@ -27,23 +27,32 @@ const REFRESH_MS = 5 * 60_000;
  * and the ⏮ ⏯ ⏭ controls. Shared by the Overview and focus mode (src/views/focus.ts).
  */
 export function musicParts(): { art: HTMLElement; who: HTMLElement; src: HTMLElement; ctls: HTMLElement } {
+  const p = (cls: string, text: string) => h("p", { class: cls, text });
+  // JARVIS: what a music app plays (Apple Music, Spotify, TIDAL…; never a browser); else Spotify's
+  // own reading, as before.
+  const m = State.media;
   const s = Spotify.state;
   const track = s.track && !isAd(s.track) ? s.track : null;
-  const p = (cls: string, text: string) => h("p", { class: cls, text });
+  const title = m?.title ?? track?.title ?? null;
+  const artist = m?.artist ?? track?.artist ?? "";
+  const playing = m ? m.playing : s.playing;
+  const app = m?.app ?? "Spotify";
+  const cover = m ? m.art : currentArtwork();
+  const open = () => { if (!m || m.app === "Spotify") void Bridge.spotifyOpen(); };
   const art = h("span", { class: "art" });
-  const cover = currentArtwork();
   if (cover) art.style.backgroundImage = `url("${cover}")`;
-  art.onclick = () => void Bridge.spotifyOpen();
+  art.onclick = open;
   const who = h("div", { class: "ov-who" },
-    p("ov-track", track?.title ?? t("Nothing playing")),
-    ...(track ? [p("ov-artist", track.artist)] : []));
-  const src = h("span", { class: "src" }, h("button", { class: "on", text: "Spotify", onclick: () => void Bridge.spotifyOpen() }));
-  // "︎": the symbol as text, not Windows' coloured emoji square.
+    p("ov-track", title ?? t("Nothing playing")),
+    ...(title && artist ? [p("ov-artist", artist)] : []));
+  const src = h("span", { class: "src" }, h("button", { class: "on", text: app, onclick: open }));
+  // "\uFE0E": the symbol as text, not Windows' coloured emoji square.
   const ctl = (text: string, label: string, action: "previous" | "playPause" | "next") =>
-    h("button", { text: `${text}︎`, title: label, "aria-label": label, onclick: () => void Bridge.spotifyControl(action) });
+    h("button", { text: `${text}\uFE0E`, title: label, "aria-label": label,
+      onclick: () => void (m ? Bridge.mediaControl(action) : Bridge.spotifyControl(action)) });
   const ctls = h("div", { class: "ctl" },
     ctl("⏮", t("Previous"), "previous"),
-    ctl(s.playing ? "⏸" : "▶", s.playing ? t("Pause") : t("Play"), "playPause"),
+    ctl(playing ? "⏸" : "▶", playing ? t("Pause") : t("Play"), "playPause"),
     ctl("⏭", t("Next"), "next"));
   return { art, who, src, ctls };
 }
@@ -147,7 +156,7 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
       Focus.get() ? now.getSeconds() : 0, Focus.length,
       now.getMinutes(), google.length, fetchedAt, clips.length, clips[0]?.id, Pocket.reminders(), Pocket.notes().length,
       State.tasks.map((x) => [x.id, x.state, x.pillBadge, x.name]), State.pendingApproval?.pillId,
-      s.track?.id, s.playing, currentArtwork(),
+      s.track?.id, s.playing, currentArtwork(), State.media,
     ]);
     if (!force && key === shownKey) return;
     shownKey = key;
