@@ -942,6 +942,7 @@ pub fn run() {
             hub_window,
             clipboard_history::clipboard_history,
             clipboard_history::clipboard_use,
+            clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
             boot,
             gcal::gcal_connected,
