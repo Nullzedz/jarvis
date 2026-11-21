@@ -1095,17 +1095,17 @@ export class Island {
     return true;
   }
 
-  /** Stroking him: the pointer going back and forth over him, three turns in 1.2 s, is a happy hop. */
+  /** Stroking him: the pointer going back and forth over him, six turns in 2.5 s, is a happy hop. */
   private trackStroke(x: number) {
     const s = this.stroke;
     const dx = x - s.x;
-    if (Math.abs(dx) < 6) return;
+    if (Math.abs(dx) < 10) return;
     const dir = Math.sign(dx);
     s.x = x;
     if (s.dir !== 0 && dir !== s.dir) {
       const t = performance.now();
-      s.turns = [...s.turns.filter((u) => t - u < 1200), t];
-      if (s.turns.length >= 3) {
+      s.turns = [...s.turns.filter((u) => t - u < 2500), t];
+      if (s.turns.length >= 6) {
         s.turns = [];
         this.react("happy", 1.4);
       }
