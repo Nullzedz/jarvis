@@ -9678,6 +9678,51 @@
       "ru": "Ничего не играет",
       "tr": "Çalan bir şey yok",
       "zh-Hans": "没有正在播放"
+    },
+    "Slot {n}": {
+      "ar": "الخانة {n}",
+      "bn": "স্লট {n}",
+      "de": "Platz {n}",
+      "es": "Espacio {n}",
+      "fr": "Emplacement {n}",
+      "hi": "स्लॉट {n}",
+      "id": "Slot {n}",
+      "ja": "スロット {n}",
+      "ko": "슬롯 {n}",
+      "pt-BR": "Espaço {n}",
+      "ru": "Слот {n}",
+      "tr": "Yuva {n}",
+      "zh-Hans": "位置 {n}"
+    },
+    "Empty": {
+      "ar": "فارغ",
+      "bn": "খালি",
+      "de": "Leer",
+      "es": "Vacío",
+      "fr": "Vide",
+      "hi": "खाली",
+      "id": "Kosong",
+      "ja": "空",
+      "ko": "비어 있음",
+      "pt-BR": "Vazio",
+      "ru": "Пусто",
+      "tr": "Boş",
+      "zh-Hans": "空"
+    },
+    "+ Add": {
+      "ar": "+ إضافة",
+      "bn": "+ যোগ করুন",
+      "de": "+ Hinzufügen",
+      "es": "+ Añadir",
+      "fr": "+ Ajouter",
+      "hi": "+ जोड़ें",
+      "id": "+ Tambah",
+      "ja": "+ 追加",
+      "ko": "+ 추가",
+      "pt-BR": "+ Adicionar",
+      "ru": "+ Добавить",
+      "tr": "+ Ekle",
+      "zh-Hans": "+ 添加"
     }
   }
 }

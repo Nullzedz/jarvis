@@ -4,7 +4,7 @@ import type { BotEmoteName, BotStateName, IslandMode, IslandViewName } from "./l
 import type { EyeShape } from "../mochi/engine";
 import {
   DEFAULT_MAIN_PILL, HOST_OS, availablePills, orderPills, pillDefinition, sanitizeDeclared,
-  toggleDeclared, type HostOs, type PillDefinition,
+  slotColor, toggleDeclared, type Declared, type HostOs, type PillDefinition,
 } from "./pills";
 import type { CodexPlanUsage, PlanUsage } from "./plan";
 import type { ProviderId } from "./providers";
@@ -447,9 +447,9 @@ class AppState {
     // A colour picked in Settings reaches the pills that are already up.
     for (const t of this.tasks) {
       const def = pillDefinition(t.id);
-      if (def) t.color = pillColor(def.id, def.color, this.settings.pillColors);
+      if (def) t.color = slotColor(d, def.id) ?? pillColor(def.id, def.color, this.settings.pillColors);
     }
-    this.tasks = orderPills(this.tasks, d.mainPill);
+    this.tasks = orderPills(this.tasks, d.mainPill, d.activeIntegrations);
     if (!this.focusId || !this.tasks.some((t) => t.id === this.focusId)) this.focusId = d.mainPill;
     this.notify();
   }
@@ -519,6 +519,15 @@ class AppState {
     this.tasks.splice(at, 0, t);
     if (!this.focusId) this.focusId = t.id;
     this.notify();
+  }
+
+  /** JARVIS: Home's edit mode chose a new main app or slots; the old main hands over the focus. */
+  applyDeclared(next: Declared) {
+    const previousMain = this.mainPillId;
+    this.settings.mainPill = next.mainPill;
+    this.settings.activeIntegrations = next.activeIntegrations;
+    this.loadIntegrationTasks();
+    if (this.mainPillId !== previousMain) this.setFocus(this.mainPillId);
   }
 
   /** Declares or undeclares a pill (max 4 next to the main one). */

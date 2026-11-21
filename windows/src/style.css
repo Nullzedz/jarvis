@@ -4509,7 +4509,7 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 .overview .int-actions .link-btn:hover { color: #0a84ff !important; }
 .overview .card .jump { top: 12px; right: 14px; width: 22px; height: 22px; border-radius: 50%; background: #2c2c2e; color: #8e8e93; }
 .overview .pills { grid-auto-rows: auto; gap: 8px; padding: 14px; align-content: center; }
-.overview .pill { height: auto; padding: 6px 14px 6px 6px; gap: 10px; background: #0e0f11; border: 1px solid rgba(255, 255, 255, 0.08); transition: border-color .15s; }
+.overview .pill { height: auto; padding: 6px 14px; gap: 10px; background: #0e0f11; border: 1px solid rgba(255, 255, 255, 0.08); transition: border-color .15s; }
 .overview .pill:hover { transform: none; filter: none; border-color: rgba(255, 255, 255, 0.2); }
 .overview .pill .mini { margin-left: 0; }
 .overview .pill .lbl { position: static; flex: 1; padding: 0; text-align: center; font: 400 13px var(--font); color: #e5e5ea; }
@@ -4525,3 +4525,21 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 /* Text in the card's top line clears the two round buttons (↗ and live) at its right. */
 .overview .who, .overview .plan-head { padding-right: 72px; }
 .overview .int-card { padding-right: 44px; }
+
+/* JARVIS: Home. Clicking a square makes it the main; right-click in the squares' card → Edit
+   (on the webview's own menu) opens a square's list, inside the right card. */
+.overview .pill.empty { justify-content: center; border: 1px dashed rgba(255, 255, 255, 0.18); background: none; cursor: pointer; font: inherit; }
+.overview .pill.empty:hover { border-color: rgba(255, 255, 255, 0.35); }
+.overview .pill.empty .lbl { color: #8e8e93; }
+.overview .slot-picker { position: absolute; inset: 6px; z-index: 3; display: flex; flex-direction: column; background: #1c1c1e; border-radius: 14px; padding: 8px; animation: sp-in .2s cubic-bezier(.32, .72, 0, 1); }
+@keyframes sp-in { from { opacity: 0; transform: translateY(4px); } }
+.overview .sp-head { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 6px 4px; font-size: 11px; color: #8e8e93; }
+.overview .sp-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: #2c2c2e; color: #8e8e93; display: grid; place-items: center; cursor: pointer; }
+.overview .sp-list { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; align-content: start; }
+.overview .sp-list::-webkit-scrollbar { display: none; }
+.overview .sp-list button { display: flex; align-items: center; gap: 8px; border: 0; background: none; border-radius: 8px; padding: 5px 8px; color: #e5e5ea; font: 12px var(--font); text-align: left; cursor: pointer; min-width: 0; }
+.overview .sp-list button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.overview .sp-list button:hover { background: #2c2c2e; }
+.overview .sp-list button.on { background: #2c2c2e; color: #fff; }
+.overview .sp-list i { width: 14px; height: 10px; border-radius: 3px; flex: none; }
+.overview .sp-list i.none { border: 1px dashed #636366; }

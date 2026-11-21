@@ -12,13 +12,13 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { highlightRow, listRows, openRow } from "./github";
-import { pillDefinition, sessionSubtitle } from "../core/pills";
+import { pillDefinition, promoteToMain, sanitizeDeclared, sessionSubtitle, setSlot, slotChoices, slotColor, type Declared } from "../core/pills";
 import {
   PlanCard, buildPlanPill, claudePillVisible, codexPillVisible, planCardOpen, refreshCodexPlanUsage,
 } from "./usage";
 import { buildDiffCard } from "./diff";
 import { lastTextStep } from "../core/diff";
-import { Bridge } from "../core/bridge";
+import { Bridge, onEvent } from "../core/bridge";
 import { buildRecap } from "./recap";
 import { buildWardrobe } from "./wardrobe";
 import { buildUpdate } from "./update";
@@ -242,6 +242,74 @@ function buildOverview(actions: ViewActions): ViewHost {
   const left = card(null, leftBody, jump, liveBtn);
   const pills = h("div", { class: "pills" });
   const right = card(null, pills);
+  // JARVIS: who's on Home. Clicking a square makes that app the main: it takes the left card
+  // and turns white, and the old main takes its square and that square's colour. Right-click a
+  // square → Edit opens its list over the right card, to put another app there. The colour stays
+  // with the place (core/pills.ts slotColor), never with the app.
+  let pickingSlot: number | null = null;
+  const picker = h("div", { class: "slot-picker" });
+  picker.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); pickSlot(null); } });
+
+  /** A square's click: it becomes the main. Anything else (a session's pill) just shows its card. */
+  function promote(id: string) {
+    const next = promoteToMain(sanitizeDeclared(State.settings, State.os), id);
+    if (!next) { actions.setFocus(id); return; }
+    actions.blip();
+    save(next);
+  }
+
+  // Right-click: the webview's own menu (Back, Refresh…), with Edit on top when the press was in
+  // the squares' card (src-tauri/src/webview_menu.rs). The press tells Rust where it was before
+  // the menu opens on release; Edit opens the square under it, else the first empty one.
+  window.addEventListener("pointerdown", (e) => {
+    if (e.button !== 2) return;
+    const target = e.target as HTMLElement;
+    let slot: number | null = null;
+    if (State.view === "overview" && right.contains(target)) {
+      const d = sanitizeDeclared(State.settings, State.os);
+      const at = target.closest("[data-slot], .pill") as HTMLElement | null;
+      const under = at?.dataset.slot != null ? Number(at.dataset.slot) : at?.dataset.id ? d.activeIntegrations.indexOf(at.dataset.id) : -1;
+      slot = under >= 0 ? under : Math.min(d.activeIntegrations.length, 3);
+    }
+    void Bridge.contextZone(slot);
+  }, true);
+  void onEvent<number>("home-edit", (slot) => pickSlot(slot));
+  /** The island stays open while a square's list is up. */
+  function hold() { actions.holdOpen(pickingSlot != null); }
+
+  function pickSlot(slot: number | null, quiet = false) {
+    pickingSlot = slot;
+    hold();
+    if (!quiet) { pillIds = ""; State.notify(); }
+  }
+  function save(next: Declared) {
+    State.applyDeclared(next);
+    void Bridge.saveSettings(State.settings);
+  }
+  /** A square's list, over the right card. */
+  function drawPicker() {
+    if (pickingSlot == null) { picker.remove(); return; }
+    const d = sanitizeDeclared(State.settings, State.os);
+    const slot = pickingSlot;
+    clear(picker);
+    const row = (label: string, color: string | null, on: boolean, pick: () => void) => {
+      const sq = h("i");
+      if (color) sq.style.background = color; else sq.classList.add("none");
+      return h("button", { class: on ? "on" : "", onclick: pick }, sq, h("span", { text: label }),
+        on ? svg(ICONS.check, 10, { stroke: 2.4 }) : null);
+    };
+    const close = h("button", { class: "sp-x", title: t("Close"), "aria-label": t("Close"), onclick: () => pickSlot(null) }, svg(ICONS.xmark, 9));
+    const list = h("div", { class: "sp-list" });
+    const current = d.activeIntegrations[slot] ?? null;
+    picker.append(h("p", { class: "sp-head" }, h("span", { text: t("Slot {n}", { n: slot + 1 }) }), close), list);
+    const choose = (next: string[] | null) => { if (next) save({ ...d, activeIntegrations: next }); pickSlot(null); };
+    if (current) list.append(row(t("Empty"), null, false, () => choose(setSlot(d, slot, null, State.os))));
+    for (const def of slotChoices(d, State.os)) {
+      list.append(row(def.name, slotColor(d, def.id) ?? "#48484a", def.id === current, () => choose(setSlot(d, slot, def.id, State.os))));
+    }
+    right.append(picker);
+    (list.querySelector(".on") as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
+  }
   // Opened from a plan pill in the header: stands in for the left card.
   const plan = new PlanCard();
   let planTimer: number | null = null;
@@ -469,19 +537,30 @@ function buildOverview(actions: ViewActions): ViewHost {
       highlightRow(rows, State.cardSelection, State.cardSelection !== shownSelection);
       shownSelection = State.cardSelection;
 
+      // Editing ends when Home goes away or the island folds.
+      if ((State.view !== "overview" || State.mode !== "expanded") && pickingSlot != null) pickSlot(null, true);
+      const declared = sanitizeDeclared(State.settings, State.os);
       const others = State.otherTasks.slice(0, 4);
-      const pillKey = others.map((t) => `${t.id}:${t.color}:${t.pillBadge ?? ""}`).join("|");
+      const pillKey = others.map((t) => `${t.id}:${t.color}:${t.pillBadge ?? ""}`).join("|")
+        + `~${declared.mainPill}:${declared.activeIntegrations.join(",")}:${pickingSlot}`;
       if (pillKey !== pillIds) {
         pillIds = pillKey;
         clear(pills);
         spotifyPill = null;
+        drawPicker();
         for (const t of others) {
           if (t.id === SPOTIFY_ID) {
-            spotifyPill = buildSpotifyPill(t, () => actions.setFocus(t.id));
+            spotifyPill = buildSpotifyPill(t, () => promote(t.id));
             pills.append(spotifyPill.el);
           } else {
-            pills.append(buildPill(t, actions));
+            pills.append(buildPill(t, actions, () => promote(t.id)));
           }
+        }
+        // Empty squares (fewer than four apps chosen): "+ Add" opens that square's list.
+        for (let slot = declared.activeIntegrations.length; slot < 4 && pills.childElementCount < 4; slot++) {
+          const n = slot;
+          pills.append(h("button", { class: "pill empty", "data-slot": String(n), onclick: () => pickSlot(n) },
+            h("span", { class: "lbl", text: t("+ Add") })));
         }
         pruneMiniBots();
       }
@@ -504,12 +583,12 @@ export function hasSessionTicker(task: AgentTask): boolean {
   return isSession && (task.state !== "idle" || task.steps.length > 0);
 }
 
-function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
+function buildPill(task: AgentTask, actions: ViewActions, onClick?: () => void): HTMLElement {
   const label = task.id === "integration_claude" ? pillDefinition(task.id)!.name : task.name;
   const canvas = createMiniBot(task, 30); // JARVIS: the prototype's pill square, 36 × 26
   const pill = h(
     "div",
-    { class: "pill", onclick: () => actions.setFocus(task.id) },
+    { class: "pill", "data-id": task.id, onclick: onClick ?? (() => actions.setFocus(task.id)) },
     canvas,
     h("span", { class: "lbl", text: label }),
   );
