@@ -273,6 +273,15 @@ fn clean(text: &str) -> String {
 }
 
 /// Esc, or a click elsewhere: the box goes away.
+/// The front page's "Ask JARVIS anything" pill: the box opens without a picture of the screen.
+#[tauri::command]
+pub fn ask_open(app: AppHandle) {
+    *SEEN.lock().unwrap() = None;
+    ADD.store(false, std::sync::atomic::Ordering::Relaxed);
+    let app2 = app.clone();
+    let _ = app.run_on_main_thread(move || open(&app2, ""));
+}
+
 #[tauri::command]
 pub fn ask_close(app: AppHandle) {
     close(&app);

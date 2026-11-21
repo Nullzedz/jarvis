@@ -1,4 +1,4 @@
-// Language changes must update the existing sidebar as well as its page.
+// Language changes must update the existing sidebar (the redesign's rail) as well as its page.
 import { beforeEach, test } from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
@@ -38,8 +38,14 @@ window.addEventListener = () => {};
 
 const { h } = await import("../src/views/dom.ts");
 const { onLanguageChange, setLanguage, t } = await import("../src/i18n/i18n.ts");
-const { FLOW_PAGES, NOTCH_PAGES, startHub } = await import("../src/hub/shell.ts");
-const pages = [...FLOW_PAGES, ...NOTCH_PAGES];
+const { FLOW_PAGES, startHub } = await import("../src/hub/shell.ts");
+const { SECTIONS } = await import("../src/hub/sections.ts");
+// The sidebar: the sections in order, Settings last (Mail only on Windows).
+const windows = navigator.userAgent.includes("Windows");
+const railSections = [
+  ...SECTIONS.filter((s) => s.id !== "settings" && (!s.windowsOnly || windows)),
+  SECTIONS.find((s) => s.id === "settings"),
+];
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 beforeEach(() => {
@@ -60,16 +66,16 @@ async function openHub() {
   for (const input of root.find(".hub-search-input")) input.value = "";
   // The settings entry point wires language changes to this public method.
   const off = onLanguageChange(() => hub.redraw());
-  return { root, hub, off, buttons: root.find(".hub-item") };
+  return { root, hub, off, buttons: root.find(".jv-ri") };
 }
 
 test("language redraw relabels sidebar nodes and preserves selection and navigation", async () => {
   const { root, hub, off, buttons } = await openHub();
   try {
-    const logo = root.find(".hub-brand")[0].find("CANVAS")[0];
-    const labels = buttons.map((button) => button.find("SPAN")[0]);
-    const groups = root.find(".hub-group");
-    buttons[FLOW_PAGES.length].fire("click");
+    const logo = root.find(".jv-rlogo")[0].find(".jv-visor")[0];
+    const labels = buttons.map((button) => button.find(".n")[0]);
+    const settingsButton = buttons[buttons.length - 1];
+    settingsButton.fire("click");
     await settle();
     assert.equal(hub.current(), "general");
     assert.equal(root.find("H1")[0].textContent, "General");
@@ -78,20 +84,18 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
     for (const language of ["fr", "ar", "en"]) {
       setLanguage(language);
       await settle();
-      assert.deepEqual(root.find(".hub-item"), buttons, "keep the existing buttons");
-      assert.deepEqual(buttons.map((button) => button.find("SPAN")[0]), labels);
-      assert.deepEqual(buttons.map((button) => button.textContent), pages.map((page) => page.title()));
-      assert.equal(groups[0].textContent, "Flow");
-      assert.equal(groups[1].textContent, t("Notch"));
+      assert.deepEqual(root.find(".jv-ri"), buttons, "keep the existing buttons");
+      assert.deepEqual(buttons.map((button) => button.find(".n")[0]), labels);
+      assert.deepEqual(labels.map((label) => label.textContent), railSections.map((s) => s.name()));
       assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
-      assert.equal(root.find(".hub-brand")[0].find("CANVAS")[0], logo);
+      assert.equal(root.find(".jv-rlogo")[0].find(".jv-visor")[0], logo);
       assert.equal(hub.current(), "general");
-      assert.deepEqual(buttons.filter((button) => button.classList.contains("on")), [buttons[FLOW_PAGES.length]]);
+      assert.deepEqual(buttons.filter((button) => button.classList.contains("on")), [settingsButton]);
       assert.equal(root.find("H1")[0].textContent, t("General"));
       assert.equal(document.documentElement.dataset.dir, language === "ar" ? "rtl" : "ltr");
     }
     assert.deepEqual(calls, [], "redrawing must not save settings or request data");
-    buttons[0].fire("click");
+    buttons[railSections.findIndex((s) => s.id === "notes")].fire("click");
     await settle();
     assert.equal(hub.current(), "dictation", "existing click listeners still work");
   } finally {
@@ -126,8 +130,7 @@ test("the sidebar uses the selected language on its first render", async () => {
   setLanguage("es");
   const { root, off, buttons } = await openHub();
   try {
-    assert.deepEqual(buttons.map((button) => button.textContent), pages.map((page) => page.title()));
-    assert.equal(root.find(".hub-group")[1].textContent, t("Notch"));
+    assert.deepEqual(buttons.map((button) => button.find(".n")[0].textContent), railSections.map((s) => s.name()));
     assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
   } finally {
     off();
