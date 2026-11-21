@@ -4,6 +4,7 @@
 // its coloured band. Port of FlowHub.swift.
 
 import "./hub.css";
+import { initTheme } from "../theme/theme";
 import { h, clear } from "../views/dom";
 import { t, onLanguageChange } from "../i18n/i18n";
 import { onEvent } from "../core/bridge";
@@ -95,6 +96,7 @@ const DEFAULT_STATUS: FlowStatus = {
 
 export async function startHub(root: HTMLElement, opts: HubOptions) {
   document.body.classList.add("hub-window");
+  initTheme();
   // The window is created hidden and only shown and hidden afterwards: its
   // canvases animate only while it is on screen (#792).
   await onEvent<boolean>("hub-visible", setWindowShown);
