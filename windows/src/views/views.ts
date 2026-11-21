@@ -31,7 +31,7 @@ import { WHATSAPP_ID } from "../core/whatsapp";
 import { MAIL_ID } from "../core/mail";
 import { buildMailCard } from "./mail";
 import { buildCalendar } from "./gcal";
-import { buildNotes, buildReminders } from "./pocket";
+import { buildClipboard, buildNotes, buildReminders } from "./pocket";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
@@ -138,6 +138,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   // JARVIS: the bigger notch's own tabs (SPEC §7).
   const tabReminders = h("button", { class: "tab", title: t("Reminders"), onclick: () => go("reminders") }, svg("M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM8.2 12.2l2.6 2.6 5-5.6", 17, { stroke: 1.7 }));
   const tabNotes = h("button", { class: "tab", title: t("Notes"), onclick: () => go("notes") }, svg("M6 3.5h12v17H6zM9.5 8.5h5M9.5 12h5M9.5 15.5h3", 17, { stroke: 1.7 }));
+  const tabClipboard = h("button", { class: "tab", title: t("Clipboard"), onclick: () => go("clipboard") }, svg("M7 5h10a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 17 21H7a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 7 5zM9.5 3.5h5v3h-5z", 17, { stroke: 1.7 }));
 
   const gearBtn = h("button", { title: tl("Settings"), onclick: () => go("settings") }, svg(ICONS.gearLine, 18, { stroke: 1.6 }));
   const soundBtn = h("button", { title: tl("Mute"), onclick: () => actions.toggleSound() }, svg(ICONS.speakerLine, 18, { stroke: 1.6 }));
@@ -158,7 +159,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabReminders, tabNotes),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabReminders, tabNotes, tabClipboard),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn, closeBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
@@ -174,6 +175,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabCalendar.classList.toggle("on", v === "calendar");
       tabReminders.classList.toggle("on", v === "reminders");
       tabNotes.classList.toggle("on", v === "notes");
+      tabClipboard.classList.toggle("on", v === "clipboard");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(v === "settings" ? svg(ICONS.gearFill, 18) : svg(ICONS.gearLine, 18, { stroke: 1.6 }));
@@ -909,6 +911,7 @@ export function buildViews(
   const pocket = { keyboard: (on: boolean) => actions.keyboard(on), holdOpen: (on: boolean) => actions.holdOpen(on) };
   map.set("reminders", buildReminders(pocket));
   map.set("notes", buildNotes(pocket));
+  map.set("clipboard", buildClipboard());
   map.set("live", buildLive(actions, onChatHeightChange));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));

@@ -25,3 +25,11 @@
 .pk-nd { font-size: 11px; color: #8e8e93; }
 .pk-note { resize: none; background: #1c1c1e; border: 0; outline: 0; border-radius: 14px; padding: 10px 12px; color: #e5e5ea; font: 13px/1.6 var(--font); }
 .pk-note:disabled { opacity: .6; }
+
+.pk-head { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+.pk-cap { font-size: 11px; color: #8e8e93; }
+.pk-clips { max-height: 150px; display: flex; flex-direction: column; gap: 4px; }
+.pk-cr { display: flex; align-items: center; gap: 10px; border: 0; background: #1c1c1e; border-radius: 10px; padding: 7px 11px; color: #e5e5ea; font: 12.5px var(--font); text-align: left; cursor: pointer; transition: background .15s; }
+.pk-cr:hover { background: #2c2c2e; }
+.pk-cr.copied { background: rgba(48, 209, 88, .22); }
+.pk-cr .pk-nd { flex: none; }

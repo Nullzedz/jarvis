@@ -33,7 +33,8 @@ export type IslandViewName =
   | "live"
   // JARVIS: the bigger notch's Reminders and Notes tabs (src/views/pocket.ts).
   | "reminders"
-  | "notes";
+  | "notes"
+  | "clipboard";
 
 export type BotStateName =
   | "idle"
@@ -117,6 +118,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   // JARVIS: Reminders and Notes. Like the calendar, he steps aside to leave them the width.
   reminders: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   notes: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  clipboard: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually

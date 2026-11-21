@@ -7,6 +7,7 @@
 
 import { h, clear } from "./dom";
 import { t } from "../i18n/i18n";
+import { Bridge, onEvent } from "../core/bridge";
 import type { ViewHost } from "./views";
 import "./pocket.css";
 
@@ -151,4 +152,51 @@ export function buildNotes(host: PocketHost): ViewHost {
   });
   draw();
   return { el, sync: draw, focus: () => area.focus() };
+}
+
+// ── Clipboard ────────────────────────────────────────────────────────────────
+
+export interface Clip { text: string; at: number }
+
+/** "now", "4 min", "2 h", or the day. */
+export function clipAge(at: number, now = Date.now()): string {
+  const m = Math.floor((now - at) / 60_000);
+  if (m < 1) return t("now");
+  if (m < 60) return `${m} min`;
+  if (m < 24 * 60) return `${Math.floor(m / 60)} h`;
+  return new Date(at).toLocaleDateString(undefined, { weekday: "short" });
+}
+
+export function buildClipboard(): ViewHost {
+  const list = h("div", { class: "pk-list pk-clips" });
+  const clearBtn = h("button", { class: "pk-new pk-clear", text: t("Clear"), onclick: () => { void Bridge.clipboardClear(); clips = []; draw(); } });
+  const el = h("div", { class: "pk pk-clip" },
+    h("div", { class: "pk-head" }, h("span", { class: "pk-cap", text: t("Copied lately · click one to copy it again") }), clearBtn),
+    list);
+  let clips: Clip[] = [];
+
+  function draw() {
+    clear(list);
+    clearBtn.style.visibility = clips.length ? "visible" : "hidden";
+    if (clips.length === 0) {
+      list.append(h("p", { class: "pk-empty", text: t("What you copy shows here. Kept in memory only, never saved.") }));
+      return;
+    }
+    for (const c of clips) {
+      const row = h("button", { class: "pk-cr", title: c.text.slice(0, 400) },
+        h("span", { class: "pk-text", text: c.text.replace(/\s+/g, " ") }),
+        h("span", { class: "pk-nd", text: clipAge(c.at) }));
+      row.onclick = async () => {
+        if (await Bridge.clipboardUse(c.text)) {
+          row.classList.add("copied");
+          setTimeout(() => row.classList.remove("copied"), 900);
+        }
+      };
+      list.append(row);
+    }
+  }
+  void onEvent<Clip[]>("clipboard-history", (next) => { clips = next; draw(); });
+  const refresh = async () => { clips = (await Bridge.clipboardHistory()) ?? clips; draw(); };
+  void refresh();
+  return { el, sync: () => void refresh() };
 }

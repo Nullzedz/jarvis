@@ -9464,6 +9464,51 @@
       "ru": "Напоминания",
       "tr": "Anımsatıcılar",
       "zh-Hans": "提醒事项"
+    },
+    "Copied lately · click one to copy it again": {
+      "ar": "نُسخ مؤخرًا · انقر على عنصر لنسخه مجددًا",
+      "bn": "সম্প্রতি কপি করা · আবার কপি করতে একটিতে ক্লিক করুন",
+      "de": "Zuletzt kopiert · klicken, um erneut zu kopieren",
+      "es": "Copiado hace poco · haz clic para volver a copiar",
+      "fr": "Copié récemment · cliquez pour recopier",
+      "hi": "हाल में कॉपी किया · दोबारा कॉपी करने के लिए क्लिक करें",
+      "id": "Baru disalin · klik untuk menyalin lagi",
+      "ja": "最近のコピー · クリックで再コピー",
+      "ko": "최근 복사함 · 클릭하면 다시 복사",
+      "pt-BR": "Copiado recentemente · clique para copiar de novo",
+      "ru": "Недавно скопировано · нажмите, чтобы скопировать снова",
+      "tr": "Son kopyalananlar · yeniden kopyalamak için tıklayın",
+      "zh-Hans": "最近复制 · 点击即可再次复制"
+    },
+    "What you copy shows here. Kept in memory only, never saved.": {
+      "ar": "ما تنسخه يظهر هنا. يُحفظ في الذاكرة فقط ولا يُخزَّن أبدًا.",
+      "bn": "আপনি যা কপি করেন তা এখানে দেখাবে। শুধু মেমরিতে থাকে, কখনো সংরক্ষণ হয় না।",
+      "de": "Was du kopierst, erscheint hier. Nur im Arbeitsspeicher, nie gespeichert.",
+      "es": "Lo que copies aparece aquí. Solo en memoria, nunca se guarda.",
+      "fr": "Ce que vous copiez s'affiche ici. En mémoire seulement, jamais enregistré.",
+      "hi": "आप जो कॉपी करते हैं वह यहाँ दिखता है। सिर्फ़ मेमोरी में, कभी सहेजा नहीं जाता।",
+      "id": "Yang Anda salin muncul di sini. Hanya di memori, tidak pernah disimpan.",
+      "ja": "コピーした内容がここに表示されます。メモリ上だけで、保存はしません。",
+      "ko": "복사한 내용이 여기에 표시됩니다. 메모리에만 있고 저장되지 않아요.",
+      "pt-BR": "O que você copia aparece aqui. Só na memória, nunca salvo.",
+      "ru": "Скопированное появится здесь. Только в памяти, никогда не сохраняется.",
+      "tr": "Kopyaladıklarınız burada görünür. Yalnızca bellekte tutulur, asla kaydedilmez.",
+      "zh-Hans": "你复制的内容会显示在这里。仅保存在内存中，从不写入磁盘。"
+    },
+    "Clipboard": {
+      "ar": "الحافظة",
+      "bn": "ক্লিপবোর্ড",
+      "de": "Zwischenablage",
+      "es": "Portapapeles",
+      "fr": "Presse-papiers",
+      "hi": "क्लिपबोर्ड",
+      "id": "Papan klip",
+      "ja": "クリップボード",
+      "ko": "클립보드",
+      "pt-BR": "Área de transferência",
+      "ru": "Буфер обмена",
+      "tr": "Pano",
+      "zh-Hans": "剪贴板"
     }
   }
 }
