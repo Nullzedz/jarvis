@@ -7,7 +7,7 @@
 
 import { h, clear } from "./dom";
 import { t } from "../i18n/i18n";
-import { Bridge, onEvent } from "../core/bridge";
+import { Bridge, onEvent, type ClipEntry } from "../core/bridge";
 import type { ViewHost } from "./views";
 import "./pocket.css";
 
@@ -145,25 +145,43 @@ export function buildNotes(host: PocketHost): ViewHost {
 }
 
 // ── Clipboard ────────────────────────────────────────────────────────────────
+// One to one with the notch prototype's Clipboard pane: a search field, then each copy
+// as a row: what it is in a grey tag, the copy (an image as its small picture), a pin
+// ★ (orange when pinned; pinned ones stay on top) and a blue Copy.
 
-export interface Clip { text: string; at: number }
+export type ClipKind = "text" | "link" | "email" | "code" | "image";
 
-/** "now", "4 min", "2 h", or the day. */
-export function clipAge(at: number, now = Date.now()): string {
-  const m = Math.floor((now - at) / 60_000);
-  if (m < 1) return t("now");
-  if (m < 60) return `${m} min`;
-  if (m < 24 * 60) return `${Math.floor(m / 60)} h`;
-  return new Date(at).toLocaleDateString(undefined, { weekday: "short" });
+/** What a copy is: what its tag says. */
+export function clipKind(c: Pick<ClipEntry, "kind" | "text">): ClipKind {
+  if (c.kind === "image") return "image";
+  const s = c.text.trim();
+  if (/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(s)) return "email";
+  if (/^(https?:\/\/|www\.)\S+$/i.test(s) || /^[\w-]+(\.[\w-]+)+\/\S*$/.test(s)) return "link";
+  if (
+    /[{};]\s*$|=>|\(\)|::|^\s*(const|let|var|function|def|class|import|export|fn|pub|return|if|for|while)\b/m.test(s) ||
+    /^(\$ |npm |npx |git |cargo |cd |ls |python |node |pip |curl )/m.test(s) ||
+    /\n[ \t]{2,}\S/.test(s)
+  ) return "code";
+  return "text";
+}
+
+/** The tag's words, in the island's language. */
+export function clipKindLabel(k: ClipKind): string {
+  switch (k) {
+    case "link": return t("Link");
+    case "email": return t("Email");
+    case "code": return t("Code");
+    case "image": return t("Image");
+    default: return t("Text");
+  }
 }
 
 export function buildClipboard(host: Pick<PocketHost, "resize">): ViewHost {
-  const list = h("div", { class: "pk-list pk-clips" });
-  const clearBtn = h("button", { class: "pk-new pk-clear", text: t("Clear"), onclick: () => { void Bridge.clipboardClear(); clips = []; draw(); } });
-  const el = h("div", { class: "view pk pk-clip" },
-    h("div", { class: "pk-head" }, h("span", { class: "pk-cap", text: t("Copied lately · click one to copy it again") }), clearBtn),
-    list);
-  let clips: Clip[] = [];
+  const search = h("input", { class: "td-qa-in", placeholder: t("Search what you copied"), spellcheck: "false" }) as HTMLInputElement;
+  const searchRow = h("label", { class: "pk-add td-qa cb-search" }, h("span", { class: "cb-glass", text: "⌕" }), search);
+  const list = h("div", { class: "cb-list" });
+  const el = h("div", { class: "view pk pk-clip" }, searchRow, list);
+  let clips: ClipEntry[] = [];
 
   function draw() {
     paint();
@@ -171,26 +189,39 @@ export function buildClipboard(host: Pick<PocketHost, "resize">): ViewHost {
   }
   function paint() {
     clear(list);
-    clearBtn.style.visibility = clips.length ? "visible" : "hidden";
-    if (clips.length === 0) {
-      list.append(h("p", { class: "pk-empty", text: t("What you copy shows here. Kept in memory only, never saved.") }));
+    const q = search.value.trim().toLowerCase();
+    const shown = clips
+      .filter((c) => !q || c.text.toLowerCase().includes(q) || clipKindLabel(clipKind(c)).toLowerCase().includes(q))
+      .sort((a, b) => Number(b.pinned) - Number(a.pinned));
+    if (shown.length === 0) {
+      list.append(h("p", { class: "pk-empty", text: q ? t("Nothing copied matches.") : t("What you copy shows here. Kept in memory only, never saved.") }));
       return;
     }
-    for (const c of clips) {
-      const row = h("button", { class: "pk-cr", title: c.text.slice(0, 400) },
-        h("span", { class: "pk-text", text: c.text.replace(/\s+/g, " ") }),
-        h("span", { class: "pk-nd", text: clipAge(c.at) }));
-      row.onclick = async () => {
-        if (await Bridge.clipboardUse(c.text)) {
-          row.classList.add("copied");
-          setTimeout(() => row.classList.remove("copied"), 900);
+    for (const c of shown) {
+      const what = c.kind === "image" && c.thumb
+        ? h("span", { class: "t cb-img" }, h("img", { src: c.thumb, alt: "" }), h("span", { text: c.text }))
+        : h("span", { class: "t", text: c.text.replace(/\s+/g, " "), title: c.text.slice(0, 400) });
+      const pin = h("button", {
+        class: c.pinned ? "pin on" : "pin",
+        text: "★",
+        title: c.pinned ? t("Unpin") : t("Pin"),
+        "aria-label": c.pinned ? t("Unpin") : t("Pin"),
+        onclick: () => void Bridge.clipboardPin(c.id, !c.pinned),
+      });
+      const copy = h("button", { class: "cb-copy", text: t("Copy") });
+      copy.onclick = async () => {
+        if (await Bridge.clipboardUse(c.id)) {
+          copy.textContent = t("Copied");
+          setTimeout(() => { copy.textContent = t("Copy"); }, 900);
         }
       };
-      list.append(row);
+      list.append(h("div", { class: "clip" }, h("span", { class: "k", text: clipKindLabel(clipKind(c)) }), what, pin, copy));
     }
   }
-  void onEvent<Clip[]>("clipboard-history", (next) => { clips = next; draw(); });
+  search.addEventListener("input", draw);
+  search.addEventListener("keydown", (e) => e.stopPropagation());
+  void onEvent<ClipEntry[]>("clipboard-history", (next) => { clips = next; draw(); });
   const refresh = async () => { clips = (await Bridge.clipboardHistory()) ?? clips; draw(); };
   void refresh();
-  return { el, sync: () => void refresh(), fitHeight: () => contentHeight(el) };
+  return { el, sync: () => void refresh(), focus: () => search.focus(), fitHeight: () => contentHeight(el) };
 }

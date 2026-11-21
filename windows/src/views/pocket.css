@@ -65,3 +65,16 @@
 .td-btn { border: 0; border-radius: 999px; padding: 5px 13px; background: #2c2c2e; color: #f5f5f7; font: 500 12px var(--font); cursor: pointer; }
 .td-help { border: 0; background: none; color: #0a84ff; font: 12px var(--font); cursor: pointer; }
 .td-error { margin: 4px 0 0; font-size: 11px; color: #ff453a; }
+
+/* ── Clipboard, one to one with the notch prototype's pane ── */
+.cb-glass { color: #8e8e93; }
+.cb-list { display: flex; flex-direction: column; }
+.pk-clip .clip { display: flex; align-items: center; gap: 10px; padding: 8px 11px; background: #1c1c1e; border-radius: 12px; margin: 0 0 6px; font-size: 12.5px; }
+.pk-clip .clip .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f5f5f7; }
+.pk-clip .clip .k { font-size: 10.5px; color: #8e8e93; background: #2c2c2e; border-radius: 999px; padding: 1px 7px; flex: none; }
+.pk-clip .pin { border: 0; background: none; color: #636366; font-size: 14px; padding: 0; cursor: pointer; flex: none; transition: color .15s; }
+.pk-clip .pin.on { color: #ff9f0a; }
+.pk-clip .cb-copy { border: 0; background: none; color: #0a84ff; font: 12px var(--font); padding: 0; cursor: pointer; flex: none; min-width: 44px; text-align: right; }
+.pk-clip .cb-img { display: flex; align-items: center; gap: 9px; }
+.pk-clip .cb-img img { height: 32px; max-width: 72px; border-radius: 6px; object-fit: cover; flex: none; }
+.pk-clip .cb-img span { color: #8e8e93; }

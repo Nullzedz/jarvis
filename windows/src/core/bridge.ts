@@ -45,6 +45,18 @@ export interface LiveWindow {
 export const IS_TAURI =
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** JARVIS: one copy in the island's clipboard history (clipboard_history.rs). */
+export interface ClipEntry {
+  id: number;
+  kind: "text" | "image";
+  /** The text; for an image, its size ("1280 × 720"). */
+  text: string;
+  at: number;
+  pinned: boolean;
+  /** An image's small picture, a data: URL. */
+  thumb: string | null;
+}
+
 async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T | null> {
   if (!IS_TAURI) return null;
   try {
@@ -275,8 +287,9 @@ export const Bridge = {
   /** The main window's own controls (it has no title bar). */
   hubWindow: (action: "minimize" | "maximize" | "close" | "drag") => call<void>("hub_window", { action }),
   /** JARVIS: the island's clipboard history, newest first (in memory only). */
-  clipboardHistory: () => call<{ text: string; at: number }[]>("clipboard_history"),
-  clipboardUse: (text: string) => call<boolean>("clipboard_use", { text }),
+  clipboardHistory: () => call<ClipEntry[]>("clipboard_history"),
+  clipboardUse: (id: number) => call<boolean>("clipboard_use", { id }),
+  clipboardPin: (id: number, on: boolean) => call<void>("clipboard_pin", { id, on }),
   clipboardClear: () => call<void>("clipboard_clear"),
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
