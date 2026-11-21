@@ -30,7 +30,10 @@ export type IslandViewName =
   // JARVIS: the calendar tab (src/views/gcal.ts).
   | "calendar"
   // JARVIS: the live code view of a Claude Code session (src/views/live.ts).
-  | "live";
+  | "live"
+  // JARVIS: the bigger notch's Reminders and Notes tabs (src/views/pocket.ts).
+  | "reminders"
+  | "notes";
 
 export type BotStateName =
   | "idle"
@@ -111,6 +114,9 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   calendar: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   // JARVIS: the live code view, one file card — his eye small in the card's header, top left.
   live: { height: 252, botX: 44, botY: 58, botDiameter: 22, agentMode: "none" },
+  // JARVIS: Reminders and Notes. Like the calendar, he steps aside to leave them the width.
+  reminders: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  notes: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
