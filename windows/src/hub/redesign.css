@@ -120,7 +120,7 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
   box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .25);
   opacity: 0; transform: translateX(-34px) scale(.3); pointer-events: none;
   /* Going back in: quick, all together, so they're gone before the sidebar closes. */
-  transition: transform .16s ease-in, opacity .12s ease-in, filter .15s ease;
+  transition: transform .1s ease-in, opacity .08s ease-in, filter .15s ease;
 }
 /* macOS's own traffic-light colours */
 .jv-dot.close { background: #ff5f57; }

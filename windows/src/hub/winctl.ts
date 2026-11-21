@@ -35,17 +35,14 @@ export function windowControls(): HTMLElement {
   face.addEventListener("dblclick", () => void Bridge.hubWindow("maximize"));
   edge.addEventListener("dblclick", () => void Bridge.hubWindow("maximize"));
 
-  let shut = 0;
   const open = (on: boolean) => {
-    clearTimeout(shut);
     if (on) {
       wc.classList.add("open");
       document.body.classList.add("wc-open");
     } else {
-      shut = window.setTimeout(() => {
-        wc.classList.remove("open");
-        document.body.classList.remove("wc-open");
-      }, 60); // just enough to ignore a pointer's twitch
+      // At once: the same move that takes the pointer off the sidebar closes them both.
+      wc.classList.remove("open");
+      document.body.classList.remove("wc-open");
     }
   };
   // Open near his corner only, not along the whole top edge; once open they stay while
