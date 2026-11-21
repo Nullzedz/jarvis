@@ -9,6 +9,7 @@ import { Bridge } from "../core/bridge";
 import { visor } from "../theme/theme";
 
 const NEAR_TOP = 56; // px from the top where the dots come out
+const CORNER_W = 240; // and from the left: his corner, not the whole top edge
 
 export function windowControls(): HTMLElement {
   const face = visor(36);
@@ -44,11 +45,20 @@ export function windowControls(): HTMLElement {
       shut = window.setTimeout(() => {
         wc.classList.remove("open");
         document.body.classList.remove("wc-open");
-      }, 450);
+      }, 250);
     }
   };
-  window.addEventListener?.("mousemove", (e) => open(e.clientY < NEAR_TOP || wc.matches(":hover")));
-  document.documentElement?.addEventListener?.("mouseleave", () => open(false));
+  // Open near his corner only, not along the whole top edge; once open they stay while
+  // the pointer is on him, the dots or the sidebar they opened, and close as soon as it leaves.
+  const rail = () => document.querySelector(".jv-rail");
+  window.addEventListener?.("mousemove", (e) => {
+    const nearCorner = e.clientY < NEAR_TOP && e.clientX < CORNER_W;
+    const onThem = wc.matches(":hover") || (wc.classList.contains("open") && !!rail()?.matches(":hover"));
+    open(nearCorner || onThem);
+  });
+  // Leaving the window (towards its edge, say) sends no more moves: close then too.
+  document.addEventListener?.("mouseout", (e) => { if (!(e as MouseEvent).relatedTarget) open(false); });
+  window.addEventListener?.("blur", () => open(false));
 
   return h("div", { class: "jv-winctl" }, edge, wc);
 }
