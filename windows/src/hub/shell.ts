@@ -242,7 +242,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   };
   const railItem = (sec: Section) => {
     const g = h("span", { class: "g", style: `--c:${sec.color}` });
-    g.append(sectionIcon(sec.id, 21));
+    g.append(sectionIcon(sec.id, 19));
     const b = h("button", { class: "jv-ri", title: sec.name(), "aria-label": sec.name(), onclick: () => go(sec.id) }, g, h("span", { class: "n", text: sec.name() }));
     rail.set(sec.id, b);
     return b;

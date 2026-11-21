@@ -11,20 +11,22 @@ body.hub-window { background: var(--jv-bg); color: var(--jv-t1); }
   /* Closing is quicker than opening (the open states below set .32s). */
   transition: width .2s var(--jv-ease), box-shadow .2s ease, transform .45s var(--jv-ease), opacity .3s ease;
 }
-.jv-rail:hover { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
+.jv-rail:hover { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
 body.at-home .jv-rail { transform: translateX(-110px); opacity: 0; pointer-events: none; }
 .jv-rlogo { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 4px; margin-bottom: 8px; white-space: nowrap; font-weight: 600; font-size: 14px; }
 .jv-ri {
-  display: flex; align-items: center; gap: 12px; height: 44px; width: 100%; flex: none; padding: 0 4px;
+  display: flex; align-items: center; gap: 10px; height: 40px; width: 100%; flex: none; padding: 0 6px;
   border: 0; border-radius: 14px; background: none; color: var(--jv-t2); text-align: left; white-space: nowrap; cursor: pointer; font: inherit;
 }
 .jv-ri:hover { background: var(--jv-s1); color: var(--jv-t1); }
 .jv-ri.on { background: var(--jv-s2); color: var(--jv-t1); }
-.jv-ri .g { width: 36px; height: 36px; flex: none; border-radius: 10px; display: grid; place-items: center; transition: background .25s ease, color .25s ease; }
+/* Colour fades in as the sidebar opens, and is gone at once when it closes: nothing to flicker. */
+.jv-ri .g { width: 32px; height: 32px; flex: none; border-radius: 9px; display: grid; place-items: center; transition: none; }
+.jv-rail:hover .jv-ri .g, body.wc-open:not(.at-home) .jv-rail .jv-ri .g { transition: background .2s ease, color .2s ease; }
 .jv-ri .g svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .jv-rail:hover .jv-ri .g { background: var(--c); color: #fff; }
-.jv-rail .n { font-size: 14px; opacity: 0; transform: translateX(-6px); transition: opacity .2s ease, transform .2s ease; }
-.jv-rail:hover .n { opacity: 1; transform: none; transition-delay: .08s; }
+.jv-rail .n { font-size: 13px; opacity: 0; transform: translateX(-6px); transition: none; }
+.jv-rail:hover .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
 .jv-rail .spacer { flex: 1 1 auto; }
 .jv-rail .hub-status { padding: 4px 8px; white-space: nowrap; overflow: hidden; }
 .jv-rail:not(:hover) .hub-status span { opacity: 0; }
@@ -135,7 +137,7 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
 .jv-rlogo-slot { width: 36px; height: 25px; flex: none; }
 body.wc-open .jv-rlogo .n { opacity: 0 !important; }
 /* On a section page the sidebar opens with them, so the dots sit inside it, not over the page. */
-body.wc-open:not(.at-home) .jv-rail { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
+body.wc-open:not(.at-home) .jv-rail { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
 body.wc-open:not(.at-home) .jv-rail .jv-ri .g { background: var(--c); color: #fff; }
-body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; }
+body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
 @media (prefers-reduced-motion: reduce) { .jv-dot, .jv-wc-face { transition: none; } }
