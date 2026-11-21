@@ -209,10 +209,10 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     if (home) {
       // Coming back from a section the panel slides wider (about half a second):
       // the squares follow it frame by frame until it has settled.
-      const until = performance.now() + 900;
+      let frames = 55; // about 900 ms; counted, not timed, so a test's instant frames still end
       const follow = () => {
         home?.layout();
-        if (home && performance.now() < until) requestAnimationFrame(follow);
+        if (home && --frames > 0) requestAnimationFrame(follow);
       };
       requestAnimationFrame(follow);
     }

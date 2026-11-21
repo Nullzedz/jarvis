@@ -109,7 +109,7 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
 
 /* ── The window's controls: his visor in the top-left corner, three dots slide out from behind him ── */
 .jv-dragedge { position: fixed; top: 0; left: 0; right: 0; height: 10px; z-index: 39; }
-.jv-wc { position: fixed; left: 24px; top: 28px; z-index: 40; display: flex; align-items: center; gap: 12px; }
+.jv-wc { position: fixed; left: 28px; top: 28px; z-index: 40; display: flex; align-items: center; gap: 12px; }
 .jv-wc-face { cursor: grab; transition: transform .35s var(--jv-ease); }
 .jv-wc-face:active { cursor: grabbing; }
 .jv-wc.open .jv-wc-face > b { animation: none; transform: translateX(14%); transition: transform .3s var(--jv-ease); }
@@ -131,4 +131,8 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
 /* The sidebar keeps a place for him, and hides his name while the dots are out. */
 .jv-rlogo-slot { width: 36px; height: 25px; flex: none; }
 body.wc-open .jv-rlogo .n { opacity: 0 !important; }
+/* On a section page the sidebar opens with them, so the dots sit inside it, not over the page. */
+body.wc-open:not(.at-home) .jv-rail { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); }
+body.wc-open:not(.at-home) .jv-rail .jv-ri .g { background: var(--c); color: #fff; }
+body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .jv-dot, .jv-wc-face { transition: none; } }
