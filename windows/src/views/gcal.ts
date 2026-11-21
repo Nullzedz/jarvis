@@ -1,17 +1,17 @@
-// JARVIS: the calendar tab of the island. Read-only Google Calendar, from the
-// calendar's secret iCal address (src-tauri/src/gcal.rs, parsed by core/ics.ts).
-//
-// Two views, switched with a toggle that is remembered:
-// - Today: the day as a horizontal timeline, events at their real time, a "now" line.
-// - Week: seven columns with the events as pills, today outlined.
-// Not connected: a field to paste the link. Refreshed every five minutes while shown.
+// JARVIS: the island's Today tab, one to one with the notch prototype's
+// (docs/jarvis/design/prototypes/jarvis-notch.html): a Today / Week switch; Today is the strip of
+// seven days from today, the plain-language quick add and the day's events; Week is seven
+// columns of event pills. Events come from your Google Calendar (read-only, its secret iCal
+// address: src-tauri/src/gcal.rs, parsed by core/ics.ts) and from what you add here, kept on
+// this PC. Refreshed every five minutes while shown.
 
 import { Bridge } from "../core/bridge";
 import { State } from "../core/state";
 import { eventsBetween, type CalEvent } from "../core/ics";
 import { dayKey } from "../core/calendar";
 import { h, clear } from "./dom";
-import { language, t, tn } from "../i18n/i18n";
+import { Pocket } from "../core/pocket";
+import { language, t } from "../i18n/i18n";
 import type { ViewHost } from "./views";
 
 const REFRESH_MS = 5 * 60_000;
@@ -22,8 +22,12 @@ const DAY_MS = 86_400_000;
 export type CalMode = "day" | "week";
 
 export interface GcalHost {
-  /** The island takes the keyboard for the link field, and gives it back. */
+  /** The island takes the keyboard for a text field, and gives it back. */
   keyboard(on: boolean): void;
+  /** Something is being typed: the island stays open until it's done. */
+  holdOpen(on: boolean): void;
+  /** What the tab holds changed: the notch fits it again. */
+  resize(): void;
 }
 
 type Status =
@@ -101,9 +105,68 @@ export function nextEvent(events: CalEvent[], now: Date): CalEvent | null {
   return events.find((e) => !e.allDay && e.start > now) ?? null;
 }
 
+// ── Quick add (pure, tested in tests/gcal.test.mjs) ──────────────────────────
+
+export interface QuickAdd {
+  kind: "calendar" | "reminder";
+  title: string;
+  /** Days from today. */
+  day: number;
+  /** "13:00", or null when no time was said. */
+  time: string | null;
+}
+
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+
+/** "Type like you talk", as the prototype reads it: "lunch with Maya tomorrow 1pm". */
+export function parseQuickAdd(text: string, today: Date): QuickAdd {
+  const lower = text.toLowerCase();
+  const kind = /\b(remind|buy|call|send)\b/.test(lower) ? "reminder" : "calendar";
+  let day = 0;
+  if (/\btomorrow\b/.test(lower)) day = 1;
+  else {
+    const named = WEEKDAYS.findIndex((d) => new RegExp(`\\b${d}`).test(lower));
+    if (named >= 0) day = (named - today.getDay() + 7) % 7;
+  }
+  let time: string | null = null;
+  const m = lower.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\b(\d{1,2}):(\d{2})\b/);
+  if (m) {
+    let hr = Number(m[1] ?? m[4]);
+    const min = m[2] ?? m[5] ?? "00";
+    if (m[3] === "pm" && hr < 12) hr += 12;
+    if (m[3] === "am" && hr === 12) hr = 0;
+    if (hr < 24) time = `${String(hr).padStart(2, "0")}:${min}`;
+  }
+  const title = text
+    .replace(/\b(tomorrow|today|at|on)\b/gi, "")
+    .replace(new RegExp(`\\b(${WEEKDAYS.join("|")})[a-z]*\\b`, "gi"), "")
+    .replace(/\b\d{1,2}(:\d{2})?\s*(am|pm)\b|\b\d{1,2}:\d{2}\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return { kind, title: title.charAt(0).toUpperCase() + title.slice(1), day, time };
+}
+
 // ── View ──────────────────────────────────────────────────────────────────────
 
 const timeText = (d: Date) => d.toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" });
+
+/** The colour of an event's dot or pill: the prototype's system colours. */
+const TONE: Record<Tone, string> = { blue: "#0a84ff", teal: "#30d158", amber: "#ff9f0a", purple: "#bf5af2" };
+const MINE = "#64d2ff"; // what you add here (the prototype's quick-add colour)
+
+interface MyEvent { id: string; title: string; start: number; time: string | null }
+const MINE_KEY = "jarvis.events";
+function myEvents(): MyEvent[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(MINE_KEY) ?? "[]");
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+function saveMine(v: MyEvent[]) {
+  try { localStorage.setItem(MINE_KEY, JSON.stringify(v)); } catch { /* not remembered */ }
+}
 
 function readMode(): CalMode {
   try {
@@ -117,19 +180,50 @@ function saveMode(mode: CalMode) {
   try {
     localStorage.setItem(MODE_KEY, mode);
   } catch {
-    /* a private profile: the toggle simply isn't remembered */
+    /* a private profile: the switch simply isn't remembered */
   }
 }
 
+interface Row { title: string; time: string; color: string; sort: number }
+
 export function buildCalendar(host: GcalHost): ViewHost {
-  const el = h("div", { class: "view gcal" });
+  const el = h("div", { class: "view pk td" });
   let status: Status = { kind: "loading" };
   let mode: CalMode = readMode();
-  /** Days (day mode) or weeks (week mode) away from today. */
-  let offset = 0;
+  /** The chosen day in the strip: days from today. */
+  let chosen = 0;
   let timer: number | null = null;
   let token = 0;
   let renderedKey = "";
+
+  // The quick add lives across redraws, so what you're typing is never lost.
+  const qa = h("input", { class: "td-qa-in", placeholder: t("Type like you talk: lunch with Maya tomorrow 1pm"), spellcheck: "false" }) as HTMLInputElement;
+  const kindTag = h("em", { class: "td-kind", text: t("Calendar") });
+  const qaRow = h("label", { class: "pk-add td-qa" }, h("span", { class: "pk-spark", text: "✦" }), qa, kindTag);
+  qa.addEventListener("focus", () => host.keyboard(true));
+  qa.addEventListener("blur", () => { host.keyboard(false); host.holdOpen(false); });
+  qa.addEventListener("input", () => {
+    const v = qa.value;
+    host.holdOpen(v.trim() !== "");
+    kindTag.textContent = parseQuickAdd(v, new Date()).kind === "reminder" ? t("Reminder") : t("Calendar");
+    kindTag.classList.toggle("on", v.trim().length > 3);
+  });
+  qa.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key !== "Enter" || !qa.value.trim()) return;
+    const q = parseQuickAdd(qa.value.trim(), new Date());
+    if (q.kind === "reminder") {
+      Pocket.addReminder(q.title);
+    } else {
+      const day = addDays(startOfDay(new Date()), q.day);
+      saveMine([...myEvents(), { id: Date.now().toString(36), title: q.title, start: day.getTime(), time: q.time }]);
+      chosen = q.day < 7 ? q.day : chosen;
+    }
+    qa.value = "";
+    kindTag.classList.remove("on");
+    host.holdOpen(false);
+    render(true);
+  });
 
   async function load() {
     const tok = ++token;
@@ -144,8 +238,7 @@ export function buildCalendar(host: GcalHost): ViewHost {
       const text = await Bridge.gcalFetch();
       if (tok !== token) return;
       const today = startOfDay(new Date());
-      // Two months back and three ahead: the arrows stay instant.
-      status = { kind: "ready", events: eventsBetween(text, addDays(today, -62), addDays(today, 93)), at: Date.now() };
+      status = { kind: "ready", events: eventsBetween(text, addDays(today, -7), addDays(today, 14)), at: Date.now() };
     } catch (err) {
       if (tok !== token) return;
       status = { kind: "error", message: String(err) };
@@ -169,194 +262,110 @@ export function buildCalendar(host: GcalHost): ViewHost {
     }
   }
 
-  async function disconnect() {
-    await Bridge.gcalDisconnect();
-    status = { kind: "disconnected", error: null, busy: false };
-    render(true);
-  }
-
   function setMode(next: CalMode) {
     if (next === mode) return;
     mode = next;
-    offset = 0;
     saveMode(mode);
     render(true);
   }
 
-  function move(step: number) {
-    offset = step === 0 ? 0 : offset + step;
-    render(true);
+  /** Everything on a day: Google's events and yours, by time. */
+  function rowsOn(day: Date): Row[] {
+    const google = status.kind === "ready" ? eventsOn(status.events, day) : [];
+    const rows: Row[] = google.map((e) => ({
+      title: e.title,
+      time: e.allDay ? t("All day") : timeText(e.start),
+      color: TONE[toneOf(e.title)],
+      sort: e.allDay ? -1 : e.start.getTime(),
+    }));
+    const key = dayKey(day);
+    for (const m of myEvents()) {
+      if (dayKey(new Date(m.start)) !== key) continue;
+      const [hh, mm] = (m.time ?? "0:0").split(":").map(Number);
+      rows.push({ title: m.title, time: m.time ?? "—", color: MINE, sort: m.time ? day.getTime() + (hh * 60 + mm) * 60_000 : Infinity });
+    }
+    return rows.sort((a, b) => a.sort - b.sort);
   }
 
-  // ── Pieces ──
+  // ── Pieces, as the prototype draws them ──
 
-  function toggle(): HTMLElement {
+  function switcher(): HTMLElement {
     const btn = (m: CalMode, label: string) =>
-      h("button", { class: mode === m ? "gcal-seg on" : "gcal-seg", text: label, onclick: () => setMode(m) });
-    return h("div", { class: "gcal-toggle" }, btn("day", t("Today")), btn("week", t("Week")));
+      h("button", { class: mode === m ? "on" : "", text: label, onclick: () => setMode(m) });
+    return h("div", { class: "td-top" }, h("span", { class: "td-src" }, btn("day", t("Today")), btn("week", t("Week"))));
   }
 
-  function nav(): HTMLElement {
-    return h("div", { class: "gcal-nav" },
-      h("button", { class: "gcal-arrow", text: "‹", title: t("Back"), onclick: () => move(-1) }),
-      h("button", { class: offset === 0 ? "gcal-today on" : "gcal-today", text: t("Today"), onclick: () => move(0) }),
-      h("button", { class: "gcal-arrow", text: "›", title: t("Next"), onclick: () => move(1) }),
-    );
-  }
-
-  function topRow(title: string, sub: string): HTMLElement {
-    return h("div", { class: "gcal-top" },
-      h("div", { class: "gcal-heading" }, h("b", { text: title }), h("span", { text: sub })),
-      toggle(),
-      nav(),
-    );
-  }
-
-  function dayView(events: CalEvent[], now: Date): Node[] {
-    const day = addDays(startOfDay(now), offset);
-    const isToday = offset === 0;
-    const onDay = eventsOn(events, day);
-    const title = day.toLocaleDateString(language(), { weekday: "long", day: "numeric", month: "short" });
-    const sub = tn("{count} event", "{count} events", onDay.length);
-    const { blocks, lanes, fromHour, toHour } = layoutDay(events, day);
-    const span = toHour - fromHour;
-
-    const track = h("div", { class: "gcal-track" });
-    for (let hr = fromHour + 1; hr < toHour; hr++) {
-      const line = h("div", { class: "gcal-hourline" });
-      line.style.left = `${((hr - fromHour) / span) * 100}%`;
-      track.append(line);
-    }
-    const laneH = 100 / lanes;
-    for (const b of blocks) {
-      const block = h("div", { class: `gcal-block tone-${toneOf(b.event.title)}` },
-        h("span", { class: "gcal-block-title", text: b.event.title }),
-        h("span", { class: "gcal-block-time", text: timeText(b.event.start) }),
-      );
-      block.style.left = `calc(${b.left * 100}% + 2px)`;
-      block.style.width = `calc(${b.width * 100}% - 4px)`;
-      block.style.top = `calc(${b.lane * laneH}% + 4px)`;
-      block.style.height = `calc(${laneH}% - 8px)`;
-      if (isToday && b.event.start <= now && b.event.end > now) block.classList.add("live");
-      block.title = `${b.event.title}\n${timeText(b.event.start)} – ${timeText(b.event.end)}${b.event.location ? `\n${b.event.location}` : ""}`;
-      track.append(block);
-    }
-    if (isToday) {
-      const hours = (now.getTime() - startOfDay(now).getTime()) / 3_600_000;
-      if (hours >= fromHour && hours <= toHour) {
-        const nowLine = h("div", { class: "gcal-now" });
-        nowLine.style.left = `${((hours - fromHour) / span) * 100}%`;
-        track.append(nowLine);
-      }
-    }
-    if (!blocks.length) track.append(h("div", { class: "gcal-empty", text: t("Nothing planned.") }));
-
-    const scale = h("div", { class: "gcal-scale" });
-    for (let hr = fromHour; hr <= toHour; hr += span > 12 ? 2 : 1) {
-      const tick = h("span", { text: String(hr % 24) });
-      tick.style.left = `${((hr - fromHour) / span) * 100}%`;
-      scale.append(tick);
-    }
-
-    const footer = h("div", { class: "gcal-foot" });
-    const allDay = onDay.filter((e) => e.allDay);
-    for (const e of allDay.slice(0, 2)) footer.append(h("span", { class: `gcal-chip tone-${toneOf(e.title)}`, text: e.title }));
-    if (isToday) {
-      const next = nextEvent(onDay, now);
-      if (next) {
-        const mins = Math.round((next.start.getTime() - now.getTime()) / 60_000);
-        const when = mins < 60 ? t("in {n} min", { n: mins }) : timeText(next.start);
-        footer.append(h("span", { class: "gcal-next", text: t("Next: {title}, {when}", { title: next.title, when }) }));
-      }
-    }
-    return [topRow(title, sub), track, scale, footer];
-  }
-
-  function weekView(events: CalEvent[], now: Date): Node[] {
-    const monday = addDays(startOfWeek(now), offset * 7);
-    const sunday = addDays(monday, 6);
-    const fmt = (d: Date) => d.toLocaleDateString(language(), { day: "numeric", month: "short" });
-    const grid = h("div", { class: "gcal-weekgrid" });
+  function dayView(now: Date): Node[] {
+    const today = startOfDay(now);
+    const days = h("div", { class: "td-days" });
     for (let i = 0; i < 7; i++) {
-      const day = addDays(monday, i);
-      const isToday = dayKey(day) === dayKey(now);
-      const col = h("div", { class: isToday ? "gcal-col today" : "gcal-col" },
-        h("div", { class: "gcal-col-head" },
-          h("span", { text: isToday ? t("Today") : day.toLocaleDateString(language(), { weekday: "short" }) }),
-          h("b", { text: String(day.getDate()) }),
-        ),
-      );
-      const list = eventsOn(events, day);
-      const shown = list.slice(0, 4);
-      let nowPlaced = !isToday;
-      for (const e of shown) {
-        if (!nowPlaced && !e.allDay && e.start > now) {
-          col.append(h("div", { class: "gcal-col-now" }));
-          nowPlaced = true;
-        }
-        const pill = h("div", { class: `gcal-pill tone-${toneOf(e.title)}` },
-          h("span", { class: "gcal-pill-time", text: e.allDay ? "•" : timeText(e.start) }),
-          h("span", { class: "gcal-pill-title", text: e.title }),
-        );
-        pill.title = `${e.title}\n${e.allDay ? t("All day") : `${timeText(e.start)} – ${timeText(e.end)}`}${e.location ? `\n${e.location}` : ""}`;
+      const d = addDays(today, i);
+      days.append(h("button", { class: i === chosen ? "td-day on" : "td-day", onclick: () => { chosen = i; render(true); } },
+        document.createTextNode(d.toLocaleDateString(language(), { weekday: "short" })),
+        h("b", { text: String(d.getDate()) })));
+    }
+    const list = h("div", { class: "td-events" });
+    const rows = rowsOn(addDays(today, chosen));
+    if (rows.length === 0) list.append(h("p", { class: "td-none", text: status.kind === "loading" ? t("Reading your calendar…") : t("Nothing planned.") }));
+    for (const r of rows) {
+      const dot = h("i");
+      dot.style.background = r.color;
+      list.append(h("div", { class: "td-ev" }, dot, document.createTextNode(r.title), h("span", { text: r.time })));
+    }
+    return [days, qaRow, list];
+  }
+
+  function weekView(now: Date): Node[] {
+    const today = startOfDay(now);
+    const grid = h("div", { class: "td-wk" });
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(today, i);
+      const col = h("div", { class: i === 0 ? "today" : "" },
+        h("b", { text: `${d.toLocaleDateString(language(), { weekday: "short" })} ${d.getDate()}` }));
+      for (const r of rowsOn(d).slice(0, 4)) {
+        const pill = h("p", { class: "e", text: `${r.time === "—" ? "" : `${r.time} `}${r.title}` });
+        pill.style.background = r.color;
         col.append(pill);
       }
-      if (!nowPlaced && shown.length) col.append(h("div", { class: "gcal-col-now" }));
-      if (list.length > shown.length) col.append(h("div", { class: "gcal-more", text: t("+{count} more", { count: list.length - shown.length }) }));
       grid.append(col);
     }
-    const monthTitle = monday.toLocaleDateString(language(), { month: "long", year: "numeric" });
-    return [topRow(monthTitle, `${fmt(monday)} – ${fmt(sunday)}`), grid];
+    return [grid];
   }
 
-  function connectForm(s: Extract<Status, { kind: "disconnected" }>): Node[] {
-    const field = h("input", { class: "gcal-field", placeholder: t("Paste your secret iCal address"), spellcheck: "false" }) as HTMLInputElement;
+  /** Not connected: a quiet line under your own events, to link Google Calendar. */
+  function connectRow(s: Extract<Status, { kind: "disconnected" }>): Node[] {
+    const field = h("input", { class: "td-link", placeholder: t("Paste your secret iCal address"), spellcheck: "false" }) as HTMLInputElement;
     field.addEventListener("focus", () => host.keyboard(true));
     field.addEventListener("blur", () => host.keyboard(false));
     field.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") void connect(field.value);
       ev.stopPropagation();
     });
-    const nodes: Node[] = [
-      h("div", { class: "gcal-heading" }, h("b", { text: t("Calendar") }), h("span", { text: t("Connect your Google Calendar (read-only).") })),
-      h("div", { class: "gcal-connect" },
-        field,
-        h("button", { class: "gcal-btn", text: s.busy ? t("Checking…") : t("Connect"), onclick: () => void connect(field.value) }),
-        h("button", { class: "link-btn", text: t("Where is it?"), onclick: () => void Bridge.openUrl(HELP_URL) }),
-      ),
-    ];
-    if (s.error) nodes.push(h("div", { class: "gcal-error", text: s.error }));
+    const nodes: Node[] = [h("div", { class: "td-connect" },
+      h("span", { class: "td-cap", text: "Google Calendar" }),
+      field,
+      h("button", { class: "td-btn", text: s.busy ? t("Checking…") : t("Connect"), onclick: () => void connect(field.value) }),
+      h("button", { class: "td-help", text: t("Where is it?"), onclick: () => void Bridge.openUrl(HELP_URL) }),
+    )];
+    if (s.error) nodes.push(h("p", { class: "td-error", text: s.error }));
     return nodes;
   }
 
   function render(force = false) {
     const now = new Date();
-    const key = JSON.stringify([status.kind, status.kind === "ready" ? status.at : 0, mode, offset, now.getMinutes()]);
+    const key = JSON.stringify([status.kind, status.kind === "ready" ? status.at : 0, mode, chosen, now.getMinutes(), now.getDate()]);
     if (!force && key === renderedKey) return;
     renderedKey = key;
+    const typing = document.activeElement === qa;
     clear(el);
-    const body = h("div", { class: "gcal-body" });
-    el.append(body);
-    switch (status.kind) {
-      case "loading":
-        body.append(h("div", { class: "gcal-heading" }, h("b", { text: t("Calendar") }), h("span", { text: t("Reading your calendar…") })));
-        return;
-      case "disconnected":
-        body.append(...connectForm(status));
-        return;
-      case "error":
-        body.append(
-          h("div", { class: "gcal-heading" }, h("b", { text: t("Calendar") })),
-          h("div", { class: "gcal-error", text: status.message }),
-          h("div", { class: "gcal-connect" },
-            h("button", { class: "gcal-btn", text: t("Retry"), onclick: () => void load() }),
-            h("button", { class: "link-btn", text: t("Use another link"), onclick: () => void disconnect() }),
-          ),
-        );
-        return;
-      case "ready":
-        body.append(...(mode === "day" ? dayView(status.events, now) : weekView(status.events, now)));
+    el.append(switcher(), ...(mode === "day" ? dayView(now) : weekView(now)));
+    if (status.kind === "disconnected") el.append(...connectRow(status));
+    if (status.kind === "error") {
+      el.append(h("p", { class: "td-error", text: status.message }),
+        h("div", { class: "td-connect" }, h("button", { class: "td-btn", text: t("Retry"), onclick: () => void load() })));
     }
+    if (typing) qa.focus();
+    host.resize();
   }
 
   function startTimer() {
@@ -384,6 +393,11 @@ export function buildCalendar(host: GcalHost): ViewHost {
       } else {
         stopTimer();
       }
+    },
+    focus: () => qa.focus(),
+    fitHeight: () => {
+      const last = el.lastElementChild as HTMLElement | null;
+      return last ? last.offsetTop + last.offsetHeight + 12 : 0;
     },
   };
 }
