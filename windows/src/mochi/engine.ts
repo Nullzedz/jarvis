@@ -76,6 +76,15 @@ export const VISOR_BOTTOM: RGB = [0.863, 0.875, 0.894]; // #DCDFE4
 const SLOT_TOP = "#0b0f17";
 const SLOT_BOTTOM = "#1b2433";
 const SLOT_RIM = "rgba(201,205,212,0.9)"; // #C9CDD4
+/** How far each bigger expression reaches above and below its own centre, in R (the bar
+ *  shapes fit the resting slot and aren't listed): what the slot must open to hold. */
+const SLOT_FIT: Partial<Record<EyeShape, [number, number]>> = {
+  happy: [-0.15, 0.26],
+  flat: [-0.15, 0.26],
+  spiral: [-0.27, 0.27],
+  heart: [-0.26, 0.24],
+  star: [-0.27, 0.27],
+};
 /** The visor has no hands: Mochi's wave left with Mochi. */
 const NO_HANDS = true;
 export const VISOR_LIGHT: RGB = [0.039, 0.518, 1]; // #0A84FF — the idle eye
@@ -243,6 +252,10 @@ export class BotEngine {
 
   /** Dancing to music; `dancingLevel` follows it, 0→1 in 0.3 s, 1→0 in 0.5 s. */
   isDancing = false;
+  /** How tall his eye slot is open now, in R (0 = not drawn yet), and when it was last drawn. */
+  private slotGrow = 0;
+  private slotWant = 0;
+  private slotT = 0;
   dancingLevel = 0;
 
   // Mouth spring (fraction of R)
@@ -605,6 +618,7 @@ export class BotEngine {
     return (
       this.tweens.size > 0 ||
       this.particles.length > 0 ||
+      Math.abs(this.slotWant - this.slotGrow) > 0.004 ||
       this.cfg.bounces || this.cfg.scans || this.cfg.breathes || this.cfg.zz || this.cfg.sweat ||
       this.isMini ||
       // JARVIS: the thinking sweep moves, and the halo eases in and out.
@@ -939,10 +953,10 @@ export class BotEngine {
       if (pumpkin <= 0.001) return;
     } else {
       // Halo: the mood around the shell — none at rest, a pulse when JARVIS needs you.
+      // The ring in his state's colour round his shell, never a glow (glows read "too AI").
       const halo = this.haloV * (1 - this.morph);
       if (halo > 0.02) {
         x.save();
-        // A thin ring in the state colour, never a glow (glows read "too AI").
         x.strokeStyle = rgba(this.col, halo * 0.8);
         x.lineWidth = Math.max(1.25, R * 0.045);
         x.scale(1 + 0.09 * 1.14, 1 + 0.09 * 1.4);
@@ -1015,15 +1029,32 @@ export class BotEngine {
       const eyeMult = this.isMini ? 1.6 : 1.0;
       // The slot is cut into the shell and turns with the head; the bar glances inside it.
       const slotA = this.isMini ? 0 : 1 - this.morph;
-      const sw = rx * 1.21, sh = R * 0.34;
+      const sw = rx * 1.21, rest = R * 0.34;
+      // An expression that needs more room than the thin bar opens the slot upward: its
+      // bottom edge stays put, its top rises until the whole expression fits, never below
+      // the resting slot; it sinks back when the expression ends.
+      const fit = SLOT_FIT[shape];
+      const pad = R * 0.07;
+      const want = fit ? Math.max(rest, (fit[1] - fit[0]) * R * this.es + pad * 2) : rest;
+      const tNow = now();
+      const k = 1 - Math.exp(-Math.min(0.1, tNow - this.slotT) * 16);
+      this.slotT = tNow;
+      this.slotWant = want / R;
+      this.slotGrow += (this.slotWant - this.slotGrow) * (this.slotGrow === 0 ? 1 : k);
+      const sh = Math.max(rest, this.slotGrow * R);
+      const bottom = ey + rest / 2;
+      const top = bottom - sh;
       const sx = Math.sin(eyeYaw) * cp * rx * 0.25;
       const room = Math.max(0, sw / 2 - (R * 0.95 * this.es) / 2 - R * 0.08);
       const ex = slotA > 0.02 ? sx + Math.sin(eyeYaw) * cp * room * 1.6 : Math.sin(eyeYaw) * cp * rx * 0.7;
-      const inSlot = slotA > 0.02 && !["happy", "flat", "spiral", "heart", "star"].includes(shape);
+      // Where the expression sits: the bar in the middle of the resting slot; a bigger one
+      // resting on the slot's floor, so it's revealed as the slot opens above it.
+      const eyY = fit && slotA > 0.02 ? bottom - pad - fit[1] * R * this.es : ey;
+      const inSlot = slotA > 0.02;
       if (slotA > 0.02) {
         x.save();
         x.globalAlpha *= slotA;
-        roundRectPath(x, sx - (sw * fx) / 2, ey - sh / 2, sw * fx, sh, sh / 2);
+        roundRectPath(x, sx - (sw * fx) / 2, top, sw * fx, sh, Math.min(sh / 2, R * 0.17));
         const sg = x.createLinearGradient(0, ey - sh / 2, 0, ey + sh / 2);
         sg.addColorStop(0, SLOT_TOP);
         sg.addColorStop(1, SLOT_BOTTOM);
@@ -1036,10 +1067,10 @@ export class BotEngine {
       }
       x.save();
       if (inSlot) {
-        roundRectPath(x, sx - (sw * fx) / 2, ey - sh / 2, sw * fx, sh, sh / 2);
+        roundRectPath(x, sx - (sw * fx) / 2, top, sw * fx, sh, Math.min(sh / 2, R * 0.17));
         x.clip();
       }
-      x.translate(ex, ey);
+      x.translate(ex, eyY);
       x.scale(fx, 1);
       this.drawVisorEye(x, shape, R * eyeMult * this.es, ink);
       x.restore();
