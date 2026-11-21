@@ -81,6 +81,9 @@ export interface ViewHost {
   tick?(nowMs: number): boolean | void;
   /** Ctrl+O / Ctrl+E while the view is on screen (island/shortcuts.ts). */
   command?(command: ViewCommand): void;
+  /** JARVIS: how tall the view's own content is, in px. Set, the notch is as tall as that
+   *  (the prototype's fit()) instead of a fixed height. */
+  fitHeight?(): number;
 }
 
 // ── Shared pieces ─────────────────────────────────────────────────────────────
@@ -908,10 +911,10 @@ export function buildViews(
   map.set("whatsNew", buildWhatsNew());
   map.set("launch", buildLaunch(actions));
   map.set("calendar", buildCalendar({ keyboard: (on) => actions.keyboard(on) }));
-  const pocket = { keyboard: (on: boolean) => actions.keyboard(on), holdOpen: (on: boolean) => actions.holdOpen(on) };
+  const pocket = { keyboard: (on: boolean) => actions.keyboard(on), holdOpen: (on: boolean) => actions.holdOpen(on), resize: onChatHeightChange };
   map.set("reminders", buildReminders(pocket));
   map.set("notes", buildNotes(pocket));
-  map.set("clipboard", buildClipboard());
+  map.set("clipboard", buildClipboard(pocket));
   map.set("live", buildLive(actions, onChatHeightChange));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));

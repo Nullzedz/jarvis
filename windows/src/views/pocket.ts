@@ -16,6 +16,18 @@ export interface PocketHost {
   keyboard(on: boolean): void;
   /** Something is being typed: the island stays open until it's done. */
   holdOpen(on: boolean): void;
+  /** What the tab holds changed: the notch fits it again. */
+  resize(): void;
+}
+
+/** How tall a tab's content is: from its top to its last child's bottom, plus its bottom
+ *  padding (the prototype's fit(), which measures .inner). Lists don't scroll here; the notch
+ *  stops at the window and the tab scrolls only past that. */
+function contentHeight(el: HTMLElement): number {
+  const last = el.lastElementChild as HTMLElement | null;
+  if (!last) return 0;
+  const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+  return last.offsetTop + last.offsetHeight + pad;
 }
 
 export interface Reminder { id: string; text: string; done: boolean; at: number }
@@ -59,6 +71,10 @@ export function buildReminders(host: PocketHost): ViewHost {
   const el = h("div", { class: "view pk pk-rem" }, h("label", { class: "pk-add" }, h("span", { class: "pk-spark", text: "✦" }), input), list);
 
   function draw() {
+    paint();
+    host.resize();
+  }
+  function paint() {
     const all = Pocket.reminders().sort((a, b) => Number(a.done) - Number(b.done) || b.at - a.at);
     clear(list);
     if (all.length === 0) {
@@ -90,8 +106,8 @@ export function buildReminders(host: PocketHost): ViewHost {
     host.holdOpen(false);
     draw();
   });
-  draw();
-  return { el, sync: draw, focus: () => input.focus() };
+  paint();
+  return { el, sync: paint, focus: () => input.focus(), fitHeight: () => contentHeight(el) };
 }
 
 // ── Notes ────────────────────────────────────────────────────────────────────
@@ -151,7 +167,7 @@ export function buildNotes(host: PocketHost): ViewHost {
     }, 300);
   });
   draw();
-  return { el, sync: draw, focus: () => area.focus() };
+  return { el, sync: draw, focus: () => area.focus(), fitHeight: () => contentHeight(el) };
 }
 
 // ── Clipboard ────────────────────────────────────────────────────────────────
@@ -167,7 +183,7 @@ export function clipAge(at: number, now = Date.now()): string {
   return new Date(at).toLocaleDateString(undefined, { weekday: "short" });
 }
 
-export function buildClipboard(): ViewHost {
+export function buildClipboard(host: Pick<PocketHost, "resize">): ViewHost {
   const list = h("div", { class: "pk-list pk-clips" });
   const clearBtn = h("button", { class: "pk-new pk-clear", text: t("Clear"), onclick: () => { void Bridge.clipboardClear(); clips = []; draw(); } });
   const el = h("div", { class: "view pk pk-clip" },
@@ -176,6 +192,10 @@ export function buildClipboard(): ViewHost {
   let clips: Clip[] = [];
 
   function draw() {
+    paint();
+    host.resize();
+  }
+  function paint() {
     clear(list);
     clearBtn.style.visibility = clips.length ? "visible" : "hidden";
     if (clips.length === 0) {
@@ -198,5 +218,5 @@ export function buildClipboard(): ViewHost {
   void onEvent<Clip[]>("clipboard-history", (next) => { clips = next; draw(); });
   const refresh = async () => { clips = (await Bridge.clipboardHistory()) ?? clips; draw(); };
   void refresh();
-  return { el, sync: () => void refresh() };
+  return { el, sync: () => void refresh(), fitHeight: () => contentHeight(el) };
 }
