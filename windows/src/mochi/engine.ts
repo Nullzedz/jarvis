@@ -214,6 +214,9 @@ export function danceTransform(seconds: number, level: number, R: number) {
   };
 }
 
+/** JARVIS: the waveform his eye becomes while music plays is Apple's purple. */
+const MUSIC_PURPLE = "#bf5af2";
+
 /**
  * JARVIS: how much of the dance fits the room he has (px: sideways, upward), for a body of
  * radius R. At full size his widest reach is 0.44 R sideways (sway, side-step and tilt) and
@@ -1201,6 +1204,7 @@ export class BotEngine {
         const pulse = 0.55 + 0.45 * Math.abs(Math.sin(Math.PI * beat));
         const amp = h * 1.05 * pulse * Math.min(1, this.dancingLevel * 1.4);
         const steps = 28;
+        x.strokeStyle = MUSIC_PURPLE;
         x.lineWidth = h * 0.75;
         x.lineCap = "round";
         x.lineJoin = "round";
