@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS character sheet</title>
+<style>
+  :root { --s0:#0e0f11; --s1:#1c1c1e; --s2:#2c2c2e; --t2:#8e8e93; --t3:#636366; --blue:#0a84ff;
+    --font:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif; --mono:"Cascadia Mono",Consolas,monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #000; color: #f5f5f7; font: 14px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  p { margin: 0; }
+  header, section, footer { max-width: 1180px; margin: 0 auto; padding: 0 32px; }
+  header { padding-top: 54px; display: grid; grid-template-columns: 1fr 340px; gap: 30px; align-items: center; }
+  header h1 { font-size: 46px; font-weight: 600; letter-spacing: -.02em; margin: 0; line-height: 1.05; } header h1 span { color: var(--t3); }
+  header p { color: var(--t2); font-size: 15px; margin-top: 14px; max-width: 560px; }
+  section { padding-top: 64px; }
+  h2 { font-size: 24px; font-weight: 600; margin: 0 0 4px; }
+  .why { color: var(--t2); margin: 0 0 20px; max-width: 760px; }
+  .grid { display: grid; gap: 14px; }
+  .g4 { grid-template-columns: repeat(4, 1fr); } .g3 { grid-template-columns: repeat(3, 1fr); } .g2 { grid-template-columns: repeat(2, 1fr); }
+  .card { background: var(--s0); border-radius: 18px; padding: 16px 16px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .stage { position: relative; height: 150px; display: grid; place-items: center; border-radius: 12px; background: #050506; overflow: hidden; }
+  .stage.tall { height: 260px; }
+  .stage > svg[width="100%"] { position: absolute; inset: 0; }
+  .name { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .name b { font-weight: 600; font-size: 14.5px; }
+  .name code { font: 11.5px var(--mono); color: var(--t3); }
+  .note { font-size: 12.5px; color: var(--t2); line-height: 1.5; }
+  .replay { align-self: flex-start; font: 500 12.5px var(--font); color: var(--blue); background: var(--s1); border: 0; border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .replay:hover { background: var(--s2); }
+  .spec { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; font-size: 13px; color: var(--t2); }
+  .spec b { color: #f5f5f7; font-weight: 500; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 4px; vertical-align: -1px; margin-right: 6px; }
+  footer { padding-top: 60px; padding-bottom: 80px; color: var(--t3); font-size: 12.5px; }
+
+  /* ── His animations (all transform/opacity, one light from above, no glow) ── */
+  .j { overflow: visible; }
+  .j .body, .j .eyewrap, .j .eye, .j .lid, .j .top { transform-box: view-box; }
+  @keyframes look { 0%,18% { transform: translateX(0) } 24%,40% { transform: translateX(-11px) } 46%,62% { transform: translateX(11px) } 68%,100% { transform: translateX(0) } }
+  @keyframes blink { 0%,86%,92%,100% { transform: scaleY(1) } 89% { transform: scaleY(.08) } }
+  @keyframes tilt { 0%,30% { transform: rotate(0) } 38%,58% { transform: rotate(-4deg) } 66%,100% { transform: rotate(0) } }
+  @keyframes type { 0%,100% { transform: translateX(-14px) } 50% { transform: translateX(14px) } }
+  @keyframes bob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-2px) } }
+  @keyframes scanSlow { 0%,100% { transform: translateX(-16px) } 50% { transform: translateX(16px) } }
+  @keyframes sweep { 0% { transform: translateX(-30px) } 100% { transform: translateX(30px) } }
+  @keyframes sway { 0%,100% { transform: rotate(-3deg) } 50% { transform: rotate(3deg) } }
+  @keyframes lean { 0%,100% { transform: translateY(0) rotate(0) } 50% { transform: translateY(-3px) rotate(0) } }
+  @keyframes flash { 0%,60%,100% { opacity: 1 } 70%,90% { opacity: .35 } }
+  @keyframes shake { 0%,60%,100% { transform: translateX(0) } 66% { transform: translateX(-5px) } 72% { transform: translateX(5px) } 78% { transform: translateX(-3px) } 84% { transform: translateX(2px) } }
+  @keyframes hop { 0%,55%,100% { transform: translateY(0) scale(1,1) } 62% { transform: translateY(0) scale(1.04,.95) } 72% { transform: translateY(-12px) scale(.98,1.03) } 84% { transform: translateY(0) scale(1.03,.97) } }
+  @keyframes droop { 0%,100% { transform: translateY(0) } 50% { transform: translateY(2px) } }
+  @keyframes breathe { 0%,100% { transform: scale(1,1) } 50% { transform: scale(1.012,.99) } }
+  @keyframes wobble { 0%,100% { transform: rotate(-6deg) } 50% { transform: rotate(6deg) } }
+  @keyframes zig { 0%,100% { transform: translateX(-12px) } 25% { transform: translateX(10px) } 50% { transform: translateX(-6px) } 75% { transform: translateX(14px) } }
+  @keyframes pulse2 { 0%,40%,100% { transform: scale(1) } 50% { transform: scale(1.15) } 60% { transform: scale(1) } 70% { transform: scale(1.12) } }
+  @keyframes pop { 0%,30%,100% { transform: scale(1,1) translateY(0) } 40% { transform: scale(1,2.2) translateY(-2px) } 80% { transform: scale(1,2.2) translateY(-2px) } }
+  @keyframes jumpS { 0%,28%,100% { transform: translateY(0) } 38% { transform: translateY(-10px) } 50% { transform: translateY(0) } }
+  @keyframes chin { 0%,30%,100% { transform: rotate(0) translateY(0) } 45%,80% { transform: rotate(-5deg) translateY(-4px) } }
+  @keyframes winkL { 0%,40%,70%,100% { transform: scaleY(1) } 50%,60% { transform: scaleY(.08) } }
+  @keyframes stretch { 0%,25%,100% { transform: scale(1,1) } 45%,65% { transform: scale(.96,1.08) } }
+  @keyframes shut { 0%,25%,100% { transform: scaleY(1) } 40%,70% { transform: scaleY(.08) } }
+  @keyframes bounce112 { 0%,100% { transform: translateY(0) scale(1.02,.97) } 50% { transform: translateY(-9px) scale(.98,1.02) } }
+  @keyframes swayD { 0%,100% { transform: rotate(-4deg) } 50% { transform: rotate(4deg) } }
+  @keyframes eq { 0%,100% { transform: scaleY(.3) } 50% { transform: scaleY(1) } }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>JARVIS <span>· character sheet</span></h1>
+    <p>Design A, "the object": a matte white body, light from above, and a real slot cut into him where the blue eye lives and moves. No glow, no glass. His life comes from where he looks, how he leans and how he blinks.</p>
+  </div>
+  <svg class="j" id="heroJ" viewBox="0 0 200 145" width="340" height="246"></svg>
+</header>
+
+<section id="anatomy">
+  <h2>Anatomy</h2>
+  <p class="why">The proportions everything is built from, at the reference size of 140 × 98.</p>
+  <div class="grid g2">
+    <div class="card"><div class="stage tall"><svg viewBox="0 0 260 190" width="360" height="263" id="anat"></svg></div></div>
+    <div class="card" style="justify-content:center;padding:22px 24px">
+      <div class="spec">
+        <span>Body</span><b>140 × 98, corner 34 (a soft squircle)</b>
+        <span>Material</span><b><i class="sw" style="background:#f6f7f9"></i>#f6f7f9 top to <i class="sw" style="background:#dcdfe4"></i>#dcdfe4 bottom, matte</b>
+        <span>Top edge</span><b>a 1.5 px white line, the light catching his top</b>
+        <span>Eye slot</span><b>88 × 20, corner 10, cut into him: <i class="sw" style="background:#0b0f17"></i>#0b0f17 inside, a 1 px rim</b>
+        <span>Eye</span><b><i class="sw" style="background:#0a84ff"></i>#0a84ff bar 64 × 10, always inside the slot</b>
+        <span>Shadow</span><b>a faint contact patch under him, nothing else</b>
+        <span>Never</span><b>glows, halos, gradients on the eye, glass, outlines in colour</b>
+        <span>Moods change</span><b>the eye's colour, length and place, his tilt, never his shape</b>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="turn">
+  <h2>Turnaround</h2>
+  <p class="why">He's a real object about a third as deep as he is wide, so he can turn in the island and on the desktop.</p>
+  <div class="grid g4" id="turnGrid"></div>
+</section>
+
+<section id="sizes">
+  <h2>Sizes</h2>
+  <p class="why">From the front page down to a window's header icon; the slot and eye stay readable at every size.</p>
+  <div class="card"><div class="stage" style="height:130px;display:flex;align-items:flex-end;justify-content:center;gap:40px;padding-bottom:22px" id="sizeRow"></div></div>
+</section>
+
+<section id="states">
+  <h2>States</h2>
+  <p class="why">The eleven states the island already drives (<code style="font:12px var(--mono);color:var(--t3)">BotStateName</code>), redrawn for this design. They loop.</p>
+  <div class="grid g4" id="stateGrid"></div>
+</section>
+
+<section id="reactions">
+  <h2>Reactions</h2>
+  <p class="why">Short one-offs he plays on top of a state. Replay any of them.</p>
+  <div class="grid g3" id="reactGrid"></div>
+</section>
+
+<section id="signature">
+  <h2>Signature animations</h2>
+  <p class="why">The island's set pieces, kept and redrawn for the object: his start-up, the folder drop, riding the fold, dancing, the mini visors on the pills, and flying to the desktop.</p>
+  <div class="grid g2" id="sigGrid"></div>
+</section>
+
+<footer>Design A. Colours: white #f6f7f9 → #dcdfe4, slot #0b0f17, eye #0a84ff (green #30d158 working, purple #bf5af2 thinking, teal #64d2ff searching, orange #ff9f0a needs you, red #ff453a error, pink #ff375f love, grey #636366 resting). Motion: transform and opacity only.</footer>
+
+<script>
+// ── His drawing: one function, every pose ─────────────────────────────────────
+// opts: eye colour, eye width, body / eye-wrap / eye animation, a lid, a curved eye.
+let uid = 0;
+function jarvis(svg, o = {}) {
+  const id = ++uid, col = o.color || "#0a84ff", ew = o.eyeW ?? 64, ex = 100 - ew / 2;
+  svg.setAttribute("viewBox", svg.getAttribute("viewBox") || "0 0 200 145");
+  svg.innerHTML = `<defs>
+    <linearGradient id="m${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f7f9"/><stop offset=".7" stop-color="#eceef1"/><stop offset="1" stop-color="#dcdfe4"/></linearGradient>
+    <linearGradient id="s${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0f17"/><stop offset="1" stop-color="#1b2433"/></linearGradient>
+    <clipPath id="c${id}"><rect x="56" y="58" width="88" height="20" rx="10"/></clipPath></defs>
+    <ellipse cx="100" cy="128" rx="54" ry="5" fill="#fff" opacity=".07"/>
+    <g class="body" style="transform-origin:100px 122px;${o.body || ""}">
+      <rect x="30" y="24" width="140" height="98" rx="34" fill="url(#m${id})"/>
+      <path d="M64 25 H136" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".9"/>
+      <rect x="56" y="58" width="88" height="20" rx="10" fill="url(#s${id})"/>
+      <g clip-path="url(#c${id})">
+        <g class="eyewrap" style="transform-origin:100px 68px;${o.wrap || ""}">
+          ${o.curve ? `<path d="M${ex + 4} 72 Q100 60 ${ex + ew - 4} 72" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round"/>`
+                    : `<rect class="eye" x="${ex}" y="63" width="${ew}" height="10" rx="5" fill="${col}" style="transform-origin:100px 68px;${o.eye || ""}"/>`}
+        </g>
+        ${o.lid != null ? `<rect class="lid" x="56" y="${o.lid}" width="88" height="20" fill="#e3e5e9"/>` : ""}
+        <rect x="56" y="58" width="88" height="3" fill="#000" opacity=".55"/>
+      </g>
+      <rect x="56" y="58" width="88" height="20" rx="10" fill="none" stroke="#c9cdd4" stroke-width="1"/>
+    </g>`;
+  return svg;
+}
+const mk = (w = 170, h = 123) => { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("class", "j"); s.setAttribute("width", w); s.setAttribute("height", h); s.setAttribute("viewBox", "0 0 200 145"); return s; };
+const card = (parent, name, code, note, svg, replay) => {
+  const c = document.createElement("div"); c.className = "card";
+  const st = document.createElement("div"); st.className = "stage"; st.append(svg);
+  c.append(st);
+  c.insertAdjacentHTML("beforeend", `<div class="name"><b>${name}</b>${code ? `<code>${code}</code>` : ""}</div><p class="note">${note}</p>`);
+  if (replay) { const b = document.createElement("button"); b.className = "replay"; b.textContent = "Replay"; b.onclick = replay; c.append(b); }
+  parent.append(c); return st;
+};
+
+// Hero: idle, glancing, tilting and blinking.
+jarvis(document.getElementById("heroJ"), { body: "animation:tilt 7s cubic-bezier(.4,0,.2,1) infinite", wrap: "animation:look 7s cubic-bezier(.4,0,.2,1) infinite", eye: "animation:blink 5s ease-in-out infinite" });
+
+// ── Anatomy diagram ──
+(() => {
+  const a = document.getElementById("anat");
+  a.innerHTML = `<g transform="translate(30 20)">${jarvis(mk(), {}).innerHTML}</g>
+    <g stroke="#636366" stroke-width="1" fill="none"><path d="M60 158 H200" /><path d="M60 154 v8 M200 154 v8"/><path d="M216 44 V142"/><path d="M212 44 h8 M212 142 h8"/></g>
+    <g fill="#8e8e93" font-size="11" font-family="Segoe UI, system-ui"><text x="130" y="176" text-anchor="middle">140</text><text x="232" y="96">98</text>
+    <text x="10" y="20">top edge</text><text x="10" y="96">slot</text><text x="10" y="112">eye</text></g>
+    <g stroke="#3a3a3c"><path d="M48 18 L100 45"/><path d="M36 92 L86 88"/><path d="M30 108 L100 89"/></g>`;
+})();
+
+// ── Turnaround ──
+(() => {
+  const g = document.getElementById("turnGrid");
+  const views = [
+    ["Front", "The face you know.", (s) => jarvis(s, {})],
+    ["Three-quarter", "Turned 30°: his depth shows on the right side.", (s) => { jarvis(s, { wrap: "transform:translateX(8px)" }); s.querySelector(".body").insertAdjacentHTML("afterbegin", `<path d="M150 30 Q176 34 178 64 V100 Q176 120 150 122 Z" fill="#c7cbd2"/>`); s.querySelector(".body").setAttribute("transform", "translate(-6 0)"); }],
+    ["Side", "About a third as deep as he is wide; the slot is a notch in his edge.", (s) => { s.innerHTML = `<ellipse cx="100" cy="128" rx="26" ry="4" fill="#fff" opacity=".07"/><rect x="80" y="24" width="42" height="98" rx="18" fill="#e6e8ec"/><rect x="80" y="24" width="20" height="98" rx="10" fill="#f3f4f6"/><path d="M80 63 h6 v10 h-6" fill="#0b0f17"/>`; }],
+    ["Back", "Plain, with a fine seam where the lid hinges.", (s) => { s.innerHTML = `<ellipse cx="100" cy="128" rx="54" ry="5" fill="#fff" opacity=".07"/><rect x="30" y="24" width="140" height="98" rx="34" fill="#e9ebee"/><path d="M34 68 H166" stroke="#cfd3d9" stroke-width="1.2"/><rect x="92" y="96" width="16" height="4" rx="2" fill="#d5d8dd"/>`; }],
+  ];
+  for (const [n, note, draw] of views) { const s = mk(); draw(s); card(g, n, "", note, s); }
+})();
+
+// ── Sizes ──
+(() => {
+  const r = document.getElementById("sizeRow");
+  for (const [w, label] of [[200, "Front page · 200"], [110, "Agents orbit · 110"], [56, "Sidebar · 56"], [32, "Notch · 32"], [22, "Window header · 22"]]) {
+    const wrap = document.createElement("div"); wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px";
+    const s = mk(w, w * .725); jarvis(s, {}); wrap.append(s);
+    wrap.insertAdjacentHTML("beforeend", `<span style="font-size:11.5px;color:#636366">${label}</span>`); r.append(wrap);
+  }
+})();
+
+// ── States ──
+(() => {
+  const g = document.getElementById("stateGrid");
+  const S = [
+    ["Idle", "idle", "Glances around, tilts, blinks now and then.", { body: "animation:tilt 7s cubic-bezier(.4,0,.2,1) infinite", wrap: "animation:look 7s cubic-bezier(.4,0,.2,1) infinite", eye: "animation:blink 5s ease-in-out infinite" }],
+    ["Working", "working", "Eye turns green and darts along the slot like he's typing; a small bob.", { color: "#30d158", body: "animation:bob .5s ease-in-out infinite", eyeW: 34, wrap: "animation:type .55s ease-in-out infinite" }],
+    ["Thinking", "thinking", "A short purple dash drifts slowly side to side; head tilted.", { color: "#bf5af2", body: "transform:rotate(-4deg)", eyeW: 22, wrap: "animation:scanSlow 2.4s cubic-bezier(.4,0,.2,1) infinite" }],
+    ["Searching", "searching", "A short teal beam sweeps the whole slot while he sways.", { color: "#64d2ff", body: "animation:sway 2s ease-in-out infinite", eyeW: 16, wrap: "animation:sweep .9s linear infinite alternate" }],
+    ["Needs you", "approval", "Eye turns orange and flashes twice; he leans in.", { color: "#ff9f0a", body: "animation:lean 1.2s ease-in-out infinite", eye: "animation:flash 1.2s steps(1) infinite" }],
+    ["Question", "question", "Eye lifts in the slot, head cocked.", { body: "transform:rotate(6deg)", eyeW: 48, wrap: "transform:translateY(-3px)" }],
+    ["Error", "error", "Eye goes red and he gives a short shake.", { color: "#ff453a", body: "animation:shake 1.8s ease-in-out infinite" }],
+    ["Finished", "finished", "Eye curves into a smile and he hops.", { curve: true, body: "animation:hop 1.8s ease-in-out infinite" }],
+    ["Rate limit", "ratelimit", "Eye dims to grey under a heavy lid; he slumps.", { color: "#636366", lid: 50, body: "animation:droop 3s ease-in-out infinite" }],
+    ["Sleeping", "sleeping", "Lid shut to a thin line; slow breathing.", { color: "#3a3a3c", lid: 55, body: "animation:breathe 4s ease-in-out infinite" }],
+    ["Dizzy", "dizzy", "Eye wanders off its path; he wobbles.", { eyeW: 30, body: "animation:wobble 1s ease-in-out infinite", wrap: "animation:zig 1s ease-in-out infinite" }],
+  ];
+  for (const [n, code, note, o] of S) card(g, n, code, note, jarvis(mk(), o));
+})();
+
+// ── Reactions ── (play once; Replay restarts)
+(() => {
+  const g = document.getElementById("reactGrid");
+  const R = [
+    ["Love", "love", "Eye turns pink and beats twice.", { color: "#ff375f", eye: "animation:pulse2 1.6s ease-in-out 1" }],
+    ["Surprised", "surprised", "Eye opens tall and he jumps a little.", { eye: "animation:pop 1.6s ease-in-out 1", body: "animation:jumpS 1.6s ease-in-out 1" }],
+    ["Proud", "proud", "Chin up, a beat, back down.", { body: "animation:chin 2s ease-in-out 1" }],
+    ["Wink", "wink", "A quick close of the lid on one side.", { eye: "animation:winkL 1.4s ease-in-out 1;transform-origin:70px 68px" }],
+    ["Yawn", "yawn", "Stretches taller while his eye closes.", { body: "animation:stretch 2.4s ease-in-out 1", eye: "animation:shut 2.4s ease-in-out 1" }],
+    ["Happy", "happy", "Smiling eye, a little hop.", { curve: true, body: "animation:hop 1.4s ease-in-out 1" }],
+  ];
+  for (const [n, code, note, o] of R) {
+    const s = mk();
+    const play = () => { jarvis(s, o); };
+    play(); card(g, n, code, note, s, play);
+  }
+})();
+
+// ── Signature animations: JS timelines on the same drawing ──
+const tween = (ms, fn, ease = (k) => 1 - Math.pow(1 - k, 3)) => new Promise((done) => { const t0 = performance.now(); const step = (n) => { const k = Math.max(0, Math.min(1, (n - t0) / ms)); fn(ease(k)); k < 1 ? requestAnimationFrame(step) : done(); }; requestAnimationFrame(step); });
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const lerp = (a, b, k) => a + (b - a) * k;
+const runs = {};
+function once(key, fn) { runs[key] = (runs[key] || 0) + 1; const me = runs[key]; return fn(() => runs[key] !== me); }
+
+const sig = document.getElementById("sigGrid");
+function sigCard(name, note, w, h, start) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("viewBox", `0 0 ${w} ${h}`); s.setAttribute("width", "100%"); s.setAttribute("height", "100%"); s.setAttribute("class", "j");
+  const st = card(sig, name, "", note, s, () => start(s));
+  st.classList.add("tall"); st.style.height = "280px";
+  start(s);
+}
+
+// 1 · Start-up: a ring draws itself, spins, closes into his shape; the shell fills; a spark stretches into the eye; he blinks.
+sigCard("Start-up", "A ring of light draws itself and spins up, bends into his rounded shape, the white shell fills in behind it, a spark at the centre stretches into the eye, and he blinks.", 400, 260, (s) => once("boot", async (stale) => {
+  s.innerHTML = `<rect id="sh" x="130" y="82" width="140" height="98" rx="34" fill="#eceef1" opacity="0"/><rect id="ring" x="150" y="80" width="100" height="100" rx="50" fill="none" stroke="#0a84ff" stroke-width="4" stroke-linecap="round"/>
+    <rect id="slt" x="156" y="116" width="88" height="20" rx="10" fill="#0b0f17" opacity="0"/><rect id="eye" x="198" y="121" width="4" height="10" rx="5" fill="#0a84ff" opacity="0"/>`;
+  const ring = s.querySelector("#ring"), sh = s.querySelector("#sh"), slt = s.querySelector("#slt"), eye = s.querySelector("#eye");
+  const L = 320; ring.style.strokeDasharray = L; ring.style.strokeDashoffset = L; ring.style.transformOrigin = "200px 130px";
+  await tween(700, (k) => { ring.style.strokeDashoffset = L * (1 - k); ring.style.transform = `rotate(${k * 270}deg)`; }); if (stale()) return;
+  await tween(650, (k) => { const w = lerp(100, 140, k), h = lerp(100, 98, k); ring.setAttribute("x", 200 - w / 2); ring.setAttribute("y", 131 - h / 2); ring.setAttribute("width", w); ring.setAttribute("height", h); ring.setAttribute("rx", lerp(50, 34, k)); ring.style.transform = `rotate(${270 + k * 90}deg)`; }); if (stale()) return;
+  await tween(380, (k) => { sh.setAttribute("opacity", k); ring.setAttribute("stroke-opacity", 1 - k); slt.setAttribute("opacity", k); }); if (stale()) return;
+  eye.setAttribute("opacity", 1);
+  await tween(420, (k) => { const w = lerp(4, 64, k); eye.setAttribute("x", 200 - w / 2); eye.setAttribute("width", w); }, (k) => 1 - Math.pow(1 - k, 4)); if (stale()) return;
+  await wait(380); eye.style.transformOrigin = "200px 126px";
+  await tween(160, (k) => { eye.style.transform = `scaleY(${1 - .92 * Math.sin(k * Math.PI)})`; });
+}));
+
+// 2 · The folder drop, like opening an AirPods case. The top third of him is the lid,
+// hinged at the back along the split just above his eye. Every movement is computed
+// in his own drawing's coordinates (SVG transform attributes), so nothing pivots
+// around the wrong point.
+sigCard("The folder drop", "Like opening an AirPods case: his lid (the top third, split just above the eye) is hinged at the back. It lifts and tilts away from you, so it foreshortens and its pale underside shows, with the dark opening behind. The file drops in and vanishes inside him, the lid snaps shut with a small bounce, he chews twice, a bar fills, and his eye smiles.", 400, 280, (s) => once("drop", async (stale) => {
+  // Body 140 x 98 at (130, 132); split line at y = 160; slot below it in the base.
+  const X = 130, Y = 132, W = 140, H = 98, R = 34, SPLIT = 160, BOT = Y + H;
+  s.innerHTML = `<defs>
+      <linearGradient id="dBase" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef0f3"/><stop offset="1" stop-color="#d9dce2"/></linearGradient>
+      <linearGradient id="dLid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f8fa"/><stop offset="1" stop-color="#eceef1"/></linearGradient>
+      <linearGradient id="dSlot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0f17"/><stop offset="1" stop-color="#1b2433"/></linearGradient>
+      <clipPath id="dAbove"><rect x="0" y="0" width="400" height="${SPLIT + 2}"/></clipPath>
+      <clipPath id="dEye"><rect x="156" y="172" width="88" height="20" rx="10"/></clipPath>
+    </defs>
+    <ellipse cx="200" cy="${BOT + 8}" rx="58" ry="5" fill="#fff" opacity=".07"/>
+    <g id="dAll">
+      <!-- the lid: its pale underside first, then its top face -->
+      <g id="dLidG">
+        <rect id="dUnder" x="${X + 4}" y="${SPLIT - 2}" width="${W - 8}" height="2" rx="1" fill="#c9cdd4"/>
+        <g id="dFace"><path d="M${X} ${SPLIT} V${Y + R} Q${X} ${Y} ${X + R} ${Y} H${X + W - R} Q${X + W} ${Y} ${X + W} ${Y + R} V${SPLIT} Z" fill="url(#dLid)"/>
+          <path d="M${X + 34} ${Y + 1} H${X + W - 34}" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/></g>
+      </g>
+      <!-- the dark opening at the top of the base, seen as the lid lifts -->
+      <rect id="dHole" x="${X + 10}" y="${SPLIT - 6}" width="${W - 20}" height="10" rx="5" fill="#07090d" opacity="0"/>
+      <!-- the file, clipped so it disappears into him at the split line -->
+      <g clip-path="url(#dAbove)"><g id="dFile">
+        <rect x="-24" y="-30" width="48" height="58" rx="7" fill="#2c2c2e"/><path d="M10 -30 v12 h14" fill="#48484a"/>
+        <rect x="-16" y="-8" width="22" height="3" rx="1.5" fill="#8e8e93"/><rect x="-16" y="0" width="30" height="3" rx="1.5" fill="#8e8e93"/><rect x="-16" y="8" width="18" height="3" rx="1.5" fill="#8e8e93"/></g></g>
+      <!-- the base: the front wall below the split, the slot and eye -->
+      <path d="M${X} ${SPLIT} H${X + W} V${BOT - R} Q${X + W} ${BOT} ${X + W - R} ${BOT} H${X + R} Q${X} ${BOT} ${X} ${BOT - R} Z" fill="url(#dBase)"/>
+      <rect x="156" y="172" width="88" height="20" rx="10" fill="url(#dSlot)"/>
+      <g clip-path="url(#dEye)"><rect id="dEyeBar" x="168" y="177" width="64" height="10" rx="5" fill="#0a84ff"/>
+        <path id="dSmile" d="M172 189 Q200 175 228 189" fill="none" stroke="#0a84ff" stroke-width="7" stroke-linecap="round" opacity="0"/>
+        <rect x="156" y="172" width="88" height="3" fill="#000" opacity=".55"/></g>
+      <rect x="156" y="172" width="88" height="20" rx="10" fill="none" stroke="#c9cdd4"/>
+      <!-- the hairline split, always visible on the closed case -->
+      <path id="dSeam" d="M${X} ${SPLIT} H${X + W}" stroke="#c4c8cf" stroke-width="1"/>
+    </g>
+    <rect id="dBarBg" x="150" y="${BOT + 22}" width="100" height="4" rx="2" fill="#2c2c2e" opacity="0"/><rect id="dBar" x="150" y="${BOT + 22}" width="0" height="4" rx="2" fill="#0a84ff"/>`;
+  const $ = (id) => s.querySelector("#" + id);
+  const face = $("dFace"), under = $("dUnder"), hole = $("dHole"), file = $("dFile"), all = $("dAll"), eye = $("dEyeBar"), smile = $("dSmile");
+  const lidH = SPLIT - Y;
+  // Lid opening k (0 shut, 1 open, may overshoot a little): the top face lifts and foreshortens
+  // around the hinge at its back; its underside grows below it; the hole appears.
+  const lid = (k) => {
+    const squash = 1 - 0.62 * Math.min(k, 1.05), uh = Math.max(2, 20 * k);
+    const gap = 7 * Math.max(0, Math.min(k, 1.05)), top = SPLIT - gap - uh + 2;
+    under.setAttribute("y", top); under.setAttribute("height", uh);
+    face.setAttribute("transform", `translate(0 ${top}) scale(1 ${squash}) translate(0 ${-SPLIT})`);
+    hole.setAttribute("y", SPLIT - gap - 1); hole.setAttribute("height", gap + 3);
+    hole.setAttribute("opacity", Math.min(1, k * 1.4));
+    $("dSeam").setAttribute("opacity", 1 - Math.min(1, k * 3));
+  };
+  const at = (x, y, sc) => file.setAttribute("transform", `translate(${x} ${y}) scale(${sc})`);
+  const body = (sx, sy) => all.setAttribute("transform", `translate(200 ${BOT}) scale(${sx} ${sy}) translate(-200 ${-BOT})`);
+  const easeOutBack = (k) => { const c = 1.6; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+  const easeIn = (k) => k * k * k;
+
+  lid(0); at(200, 40, 1); body(1, 1); smile.setAttribute("opacity", 0); eye.setAttribute("opacity", 1);
+  $("dBar").setAttribute("width", 0); $("dBarBg").setAttribute("opacity", 0);
+  // He notices: the eye looks up toward the file.
+  await tween(260, (k) => eye.setAttribute("transform", `translate(0 ${-3 * k})`)); if (stale()) return;
+  // The lid swings open (ease-out with a touch of overshoot), the file hovering above.
+  await tween(420, (k) => lid(easeOutBack(k))); if (stale()) return;
+  // The file falls in, speeding up and shrinking a little as it goes "into" him.
+  await tween(480, (k) => at(200, 40 + k * 150, 1 - k * 0.35), easeIn); if (stale()) return;
+  // Lid snaps shut fast, then the whole case squashes on the impact.
+  await tween(150, (k) => lid(1 - k), easeIn); if (stale()) return;
+  await tween(220, (k) => { const q = Math.sin(k * Math.PI); body(1 + q * 0.05, 1 - q * 0.07); }); if (stale()) return;
+  eye.setAttribute("transform", "");
+  // Chews twice: small squashes, the eye squinting.
+  for (let i = 0; i < 2; i++) {
+    await tween(170, (k) => { const q = Math.sin(k * Math.PI); body(1 + q * 0.03, 1 - q * 0.045); eye.setAttribute("transform", `translate(0 182) scale(1 ${1 - q * 0.6}) translate(0 -182)`); }); if (stale()) return;
+  }
+  eye.setAttribute("transform", "");
+  // Saved: a bar fills underneath, then the eye smiles.
+  $("dBarBg").setAttribute("opacity", 1);
+  await tween(900, (k) => $("dBar").setAttribute("width", k * 100), (k) => k); if (stale()) return;
+  await tween(200, (k) => { eye.setAttribute("opacity", 1 - k); smile.setAttribute("opacity", k); });
+}));
+
+// 3 · Riding the fold: from the big start-up pose into the compact island.
+sigCard("Riding the fold", "After the start-up he rides the island as it folds: the black island shrinks to its compact pill and carries him into his small spot at its left.", 400, 260, (s) => once("fold", async (stale) => {
+  s.innerHTML = `<rect id="isl" x="40" y="0" width="320" height="200" rx="30" fill="#0e0f11"/><g id="vis"></g>`;
+  const isl = s.querySelector("#isl"), vis = s.querySelector("#vis");
+  vis.innerHTML = jarvis(mk(), {}).innerHTML;
+  const set = (x, y, sc) => vis.setAttribute("transform", `translate(${x} ${y}) scale(${sc}) translate(-100 -73)`);
+  set(200, 100, 1); await wait(500); if (stale()) return;
+  await tween(800, (k) => { const w = lerp(320, 170, k), h = lerp(200, 40, k); isl.setAttribute("x", 200 - w / 2); isl.setAttribute("width", w); isl.setAttribute("height", h); isl.setAttribute("rx", lerp(30, 20, k)); set(lerp(200, 140, k), lerp(100, 20, k), lerp(1, .22, k)); }, (k) => (k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2)); if (stale()) return;
+  s.insertAdjacentHTML("beforeend", `<text x="160" y="25" fill="#aeaeb2" font-size="11" font-family="Segoe UI, system-ui">9:31 · Standup</text>`);
+}));
+
+// 4 · Dancing to music: the 112-BPM bounce and sway, a small equaliser below.
+(() => {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 400 260"); s.setAttribute("width", "100%"); s.setAttribute("height", "100%");
+  const inner = jarvis(mk(), { eyeW: 50, curve: true }).innerHTML;
+  s.innerHTML = `<g transform="translate(100 40)"><g style="transform-origin:100px 122px;animation:swayD 1.07s ease-in-out infinite"><g style="transform-origin:100px 122px;animation:bounce112 .535s ease-in-out infinite">${inner}</g></g></g>
+    <g transform="translate(176 214)">${[0, 1, 2, 3, 4, 5].map((i) => `<rect x="${i * 9}" y="0" width="5" height="22" rx="2.5" fill="#30d158" style="transform-origin:${i * 9 + 2.5}px 22px;animation:eq ${.35 + (i % 3) * .12}s ease-in-out ${i * .07}s infinite"/>`).join("")}</g>`;
+  const st = card(sig, "Dancing", "", "When Spotify or Apple Music plays, he bounces on the beat (112 BPM) and sways, eye smiling. A small equaliser sits under him.", s);
+  st.classList.add("tall"); st.style.height = "280px";
+})();
+
+// 5 · Mini visors on the pills: each pill's own small JARVIS, its eye showing that session's state.
+(() => {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 400 260"); s.setAttribute("width", "100%"); s.setAttribute("height", "100%");
+  const pills = [["korus", "#30d158", { color: "#30d158", wrap: "animation:type .55s ease-in-out infinite", eyeW: 34 }], ["api-server", "#ff9f0a", { color: "#ff9f0a", eye: "animation:flash 1.2s steps(1) infinite" }], ["jarvis-ui", "#bf5af2", { color: "#bf5af2", eyeW: 22, wrap: "animation:scanSlow 2.4s ease-in-out infinite" }], ["docs-site", "#636366", { curve: true }]];
+  s.innerHTML = pills.map(([n, c, o], i) => `<g transform="translate(40 ${36 + i * 52})"><rect width="320" height="40" rx="20" fill="#0e0f11" stroke="rgba(255,255,255,.12)"/>
+    <g transform="translate(6 5) scale(.3)">${jarvis(mk(), o).innerHTML}</g><text x="74" y="25" fill="#f5f5f7" font-size="14" font-family="Segoe UI, system-ui">${n}</text><circle cx="298" cy="20" r="5" fill="${c}"/></g>`).join("");
+  const st = card(sig, "Mini visors on the pills", "", "Every agent pill in the island carries a tiny JARVIS whose eye shows that session: typing, waiting for you, thinking, done.", s);
+  st.classList.add("tall"); st.style.height = "280px";
+})();
+
+// 6 · To the desktop and back: he leaves the island, lands in a corner, and comes back up when something needs you.
+sigCard("To the desktop and back", "Drag him out of the island and he flies to the desktop, landing with a squash. When an agent needs you he flies back up into the island, eye orange.", 400, 260, (s) => once("fly", async (stale) => {
+  s.innerHTML = `<rect x="130" y="0" width="140" height="34" rx="17" fill="#0e0f11"/><g id="v"></g>`;
+  const v = s.querySelector("#v"); v.innerHTML = jarvis(mk(), {}).innerHTML;
+  const set = (x, y, sc, r = 0, sx = 1, sy = 1) => v.setAttribute("transform", `translate(${x} ${y}) rotate(${r}) scale(${sc * sx} ${sc * sy}) translate(-100 -73)`);
+  set(150, 17, .2); await wait(400); if (stale()) return;
+  await tween(900, (k) => { const x = lerp(150, 320, k), y = lerp(17, 210, k) - Math.sin(k * Math.PI) * 60; set(x, y, lerp(.2, .42, k), Math.sin(k * Math.PI) * 14); }, (k) => k * k * (3 - 2 * k)); if (stale()) return;
+  await tween(240, (k) => { const q = Math.sin(k * Math.PI); set(320, 210, .42, 0, 1 + q * .12, 1 - q * .12); }); if (stale()) return;
+  await wait(900); if (stale()) return;
+  v.innerHTML = jarvis(mk(), { color: "#ff9f0a" }).innerHTML;
+  await tween(800, (k) => { const x = lerp(320, 150, k), y = lerp(210, 17, k) - Math.sin(k * Math.PI) * 40; set(x, y, lerp(.42, .2, k), -Math.sin(k * Math.PI) * 10); }, (k) => k * k * (3 - 2 * k));
+}));
+</script>
+</body>
+</html>
