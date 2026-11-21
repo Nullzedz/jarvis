@@ -42,6 +42,52 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Eas
 
 export const closeCurve = cubicBezier(0.45, 0, 0.2, 1);
 
+/** JARVIS: the notch prototype's one motion (jarvis-notch.html): 0.42 s, cubic-bezier(.32,.72,0,1),
+ *  for the notch's width, height and corners, and for him riding along with it. */
+export const NOTCH_MS = 420;
+export const notchCurve = cubicBezier(0.32, 0.72, 0, 1);
+
+/**
+ * A value that glides to its target on the notch's curve and ends exactly when it's told to,
+ * so what rides on the notch (JARVIS) arrives together with it: never lagging, never overshooting.
+ */
+export class Glide {
+  value: number;
+  target: number;
+  private from: number;
+  private start = 0;
+  private end = 0;
+
+  constructor(value: number) {
+    this.value = value;
+    this.target = value;
+    this.from = value;
+  }
+
+  set(value: number) {
+    this.value = this.target = this.from = value;
+    this.end = 0;
+  }
+
+  /** Glides to `v`, arriving at `endAt` (a performance.now() time). */
+  to(v: number, endAt: number, now = performance.now()) {
+    this.from = this.value;
+    this.target = v;
+    this.start = now;
+    this.end = Math.max(now + 1, endAt);
+  }
+
+  get settled(): boolean {
+    return this.value === this.target;
+  }
+
+  step(_dt?: number, now = performance.now()) {
+    if (this.value === this.target) return;
+    const p = clamp((now - this.start) / (this.end - this.start), 0, 1);
+    this.value = p >= 1 ? this.target : lerp(this.from, this.target, notchCurve(p));
+  }
+}
+
 /**
  * SwiftUI-equivalent spring: ω₀ = 2π / response, ζ = dampingFraction.
  * Integrated per frame (sub-stepped) so a dropped frame never destabilises it.
@@ -99,6 +145,7 @@ export class Tracked {
   private curveStart = 0;
   private curveDur = 0;
   private mode: "spring" | "curve" | "idle" = "idle";
+  private useNotchCurve = false;
 
   constructor(value: number) {
     this.spring = new Spring(value);
@@ -124,6 +171,12 @@ export class Tracked {
     this.mode = "spring";
   }
 
+  /** JARVIS: the notch prototype's motion, both ways (0.42 s, cubic-bezier(.32,.72,0,1)). */
+  tweenTo(v: number, now = performance.now()) {
+    this.curveTowards(v, NOTCH_MS, now);
+    this.useNotchCurve = true;
+  }
+
   /** Timed curve to `v` (close / shrink), no overshoot. */
   curveTowards(v: number, durationMs = 340, now = performance.now()) {
     this.curveFrom = this.spring.value;
@@ -133,6 +186,7 @@ export class Tracked {
     this.spring.target = v;
     this.spring.velocity = 0;
     this.mode = "curve";
+    this.useNotchCurve = false;
   }
 
   step(dt: number, now = performance.now()) {
@@ -145,7 +199,7 @@ export class Tracked {
       }
     } else if (this.mode === "curve") {
       const p = clamp((now - this.curveStart) / this.curveDur, 0, 1);
-      this.spring.value = lerp(this.curveFrom, this.curveTo, closeCurve(p));
+      this.spring.value = lerp(this.curveFrom, this.curveTo, (this.useNotchCurve ? notchCurve : closeCurve)(p));
       if (p >= 1) {
         this.spring.velocity = 0;
         this.mode = "idle";

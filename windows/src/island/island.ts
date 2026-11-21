@@ -1,7 +1,7 @@
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
-import { Tracked, Spring, clamp } from "../core/anim";
+import { Tracked, Glide, NOTCH_MS, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, type DragDropPayload } from "../core/bridge";
 import {
   CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
@@ -105,9 +105,12 @@ export class Island {
   private width = new Tracked(NOTCH_W);
   private height = new Tracked(0);
   private radius = new Tracked(ROUNDED_CORNER);
-  private botCx = new Spring(46);
-  private botCy = new Spring(16);
-  private botSize = new Spring(10);
+  // JARVIS: he rides on the notch's own curve and arrives with it (Glide), never on a spring of his own.
+  private botCx = new Glide(46);
+  private botCy = new Glide(16);
+  private botSize = new Glide(10);
+  /** When the notch's current move ends (performance.now() time). */
+  private geomEnd = 0;
 
   private engine = new BotEngine();
   private greeting = new Greeting();
@@ -881,14 +884,14 @@ export class Island {
 
   private animateGeometry(shrinking: boolean) {
     const { w, h, r } = this.targetSize();
-    if (shrinking) {
-      this.width.curveTowards(w);
-      this.height.curveTowards(h);
-      this.radius.curveTowards(r);
-    } else {
-      this.width.springTo(w);
-      this.height.springTo(h);
-      this.radius.springTo(r);
+    // JARVIS: one motion both ways, the notch prototype's: width, height and corners together.
+    void shrinking;
+    const now = performance.now();
+    if (w !== this.width.value || h !== this.height.value || r !== this.radius.value) {
+      this.width.tweenTo(w, now);
+      this.height.tweenTo(h, now);
+      this.radius.tweenTo(r, now);
+      this.geomEnd = now + NOTCH_MS;
     }
     this.ensureRunning();
   }
@@ -1357,14 +1360,28 @@ export class Island {
   };
 
   private updateBotTargets() {
-    let p = botPosition(State.mode, State.view, this.height.value, State.uploadProgress);
-    // The closed island with Mochi in it, as on a Mac without a notch.
+    // JARVIS: where he ends up is read from where the notch ends up, not where it is mid-move,
+    // and he gets there on the notch's curve at the same moment: he rides it, tied to it.
+    const end = this.targetSize();
+    let p = botPosition(State.mode, State.view, end.h, State.uploadProgress);
+    // The closed island with him in it: the middle of the closed pill.
     if (State.mode === "hidden" && closedIsland(State.settings.closedIsland) === "mochi") {
-      p = { cx: this.width.value / 2, cy: this.height.value / 2, diameter: CLOSED_BOT_D, opacity: 1 };
+      p = { cx: end.w / 2, cy: end.h / 2, diameter: CLOSED_BOT_D, opacity: 1 };
     }
-    this.botCx.target = p.cx;
-    this.botCy.target = p.cy;
-    this.botSize.target = p.diameter / 0.6;
+    const size = p.diameter / 0.6;
+    const now = performance.now();
+    // The drop's progress moves him continuously: he follows it directly.
+    if (State.mode === "expanded" && State.view === "uploading") {
+      this.botCx.set(p.cx);
+      this.botCy.set(p.cy);
+      this.botSize.set(size);
+    } else {
+      const endAt = this.geomEnd > now ? this.geomEnd : now + NOTCH_MS;
+      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, now); };
+      glide(this.botCx, p.cx);
+      glide(this.botCy, p.cy);
+      glide(this.botSize, size);
+    }
 
     const greetingActive = State.mode === "expanded" && State.view === "greeting";
     // The drop canvas draws its own Mochi; two of them would overlap. Out on the
@@ -1504,6 +1521,8 @@ export class Island {
 
     const live = expanded && !greetingActive;
     this.contentEl.style.opacity = live ? "1" : "0";
+    // The prototype's .inner: in after the notch has started opening, out before it folds.
+    this.contentEl.style.transition = live ? "opacity .25s ease .12s" : "opacity .2s ease";
     // While the drop sequence owns the body its buttons are painted on the canvas
     // underneath, so only the header may keep taking clicks up here.
     this.contentEl.style.pointerEvents = live && !this.uploadActive ? "auto" : "none";
