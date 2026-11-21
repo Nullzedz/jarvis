@@ -2,7 +2,8 @@
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Glide, NOTCH_MS, clamp } from "../core/anim";
-import { Bridge, IS_TAURI, onDragDrop, type DragDropPayload } from "../core/bridge";
+import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload } from "../core/bridge";
+import { bitGapMs, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
 import {
   CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
 } from "../core/closed";
@@ -87,6 +88,9 @@ export class Island {
   private closedLook = { x: 0, y: 0 };
   private closedAwakeUntil = 0;
   private closedBlink: number | null = null;
+  /** JARVIS's idle life (core/idle.ts): where it is, and the look a "look around" bit gives. */
+  private idleLife = { phase: "awake" as IdlePhase, last: null as IdleBit | null, nextAt: 0, seconds: 0, polledAt: 0 };
+  private bitLook: number | null = null;
   private closedLife: number | null = null;
   /** The size the window was last folded to, so a new one is only sent on a change. */
   private collapsedTo = { w: 0, h: 0 };
@@ -169,6 +173,7 @@ export class Island {
     this.build();
     this.wireFsm();
     this.wireInput();
+    this.startIdleLife();
     this.engine.onDizzy = () => this.handleDizzy();
     this.greeting.onComplete = () => {
       // JARVIS: the eye wakes up dead centre, holds a beat and blinks, then follows.
@@ -1000,6 +1005,60 @@ export class Island {
     }, 5000);
   }
 
+  /**
+   * JARVIS's idle life (step 6 of #22): with the PC quiet he plays little bits, then winds
+   * down (core/idle.ts). Only while he's idle and not dancing; any input wakes him at once.
+   * Ticks every second; the PC's idle time is asked every 2 s.
+   */
+  private startIdleLife() {
+    window.setInterval(() => this.tickIdleLife(), 1000);
+    void onEvent<boolean>("music-playing", (on) => { State.anyMusic = on; State.notify(); });
+    void Bridge.musicPlaying().then((on) => { State.anyMusic = on === true; State.notify(); });
+  }
+
+  private tickIdleLife() {
+    const life = this.idleLife;
+    const t = performance.now();
+    if (t - life.polledAt > 2000) {
+      life.polledAt = t;
+      void Bridge.userIdleSeconds().then((s) => { life.seconds = typeof s === "number" ? s : 0; });
+    }
+    const calm = !State.paused && !State.mochiOnDesktop && State.effectiveState === "idle"
+      && !this.engine.isDancing && !(State.mode === "expanded" && State.view === "greeting");
+    const phase: IdlePhase = calm ? idlePhase(life.seconds) : "awake";
+    if (phase !== life.phase) {
+      life.phase = phase;
+      this.engine.setDrowsy(phase === "drowsy");
+      // The first bit comes soon after he gets playful; the first yawn soon after drowsy.
+      life.nextAt = t + 4000 + Math.random() * 6000;
+      this.wakeFor(600);
+    }
+    if (phase === "awake" || t < life.nextAt) return;
+    if (phase === "playful") {
+      const bit = pickBit(life.last, Math.random());
+      life.last = bit;
+      if (bit === "look") {
+        this.bitLook = -0.8;
+        window.setTimeout(() => { this.bitLook = 0.8; }, 700);
+        window.setTimeout(() => { this.bitLook = null; }, 1400);
+      } else {
+        this.engine.playBit(bit);
+      }
+      this.wakeFor(1900);
+      life.nextAt = t + bitGapMs(Math.random());
+    } else {
+      this.engine.triggerEmote("yawn", 2.4);
+      this.wakeFor(2800);
+      life.nextAt = t + yawnGapMs(Math.random());
+    }
+  }
+
+  /** Keeps his frames going for `ms`, on the closed pill too. */
+  private wakeFor(ms: number) {
+    if (State.mode === "hidden") this.closedAwakeUntil = Math.max(this.closedAwakeUntil, performance.now() + ms);
+    this.ensureRunning();
+  }
+
   /** The pointer is on the folded window (Rust's `closed-hover`): the island wakes. */
   wakeFromClosed() {
     if (State.mode !== "hidden") return;
@@ -1472,7 +1531,7 @@ export class Island {
     // Dances while music plays: always in the compact island, expanded only on
     // the music pill's card (BotCanvasView, macOS). Asked every frame.
     this.engine.setDancing(islandDances({
-      music: State.spotifyPlaying,
+      music: State.dancingMusic,
       state: State.effectiveState,
       mode: State.mode,
       view: State.view,
@@ -1495,6 +1554,8 @@ export class Island {
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */
   private lookX(): number {
+    // JARVIS: an idle "look around" bit leads, wherever the pointer is.
+    if (this.bitLook != null) return this.bitLook;
     // In the closed island the cursor isn't followed: he looks around by himself.
     if (State.mode === "hidden") return this.closedLook.x;
     const rect = this.islandRect();

@@ -303,6 +303,14 @@ class AppState {
     return this.stateOverride ?? this.focusTask?.state ?? "idle";
   }
 
+  /** JARVIS: anything plays music in Windows' media panel (src-tauri/src/presence.rs). */
+  anyMusic = false;
+
+  /** JARVIS: music plays, from any player: he dances. */
+  get dancingMusic(): boolean {
+    return this.anyMusic || this.spotifyPlaying;
+  }
+
   /** Spotify plays on a declared pill: Mochi dances (Linux; never on Windows yet). */
   get spotifyPlaying(): boolean {
     return musicPlaying(Spotify.state, sanitizeDeclared(this.settings, this.os).activeIntegrations);

@@ -47,6 +47,7 @@ mod sounds;
 mod speech;
 mod spotify;
 mod tray;
+mod presence;
 mod update;
 mod voice;
 #[cfg(windows)]
@@ -946,6 +947,8 @@ pub fn run() {
             clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
             webview_menu::context_zone,
+            presence::user_idle_seconds,
+            presence::music_playing,
             boot,
             gcal::gcal_connected,
             gcal::gcal_connect,
@@ -1182,6 +1185,7 @@ pub fn run() {
             notes::setup(&handle);
             // JARVIS: the island's clipboard history (in memory only).
             clipboard_history::setup(&handle);
+            presence::setup(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // Where Tauri takes the drop itself (Linux), its paths are the

@@ -102,8 +102,8 @@ test("the island's Mochi dances by the Mac's rules", () => {
   assert.ok(!islandDances({ ...base, music: false }));
   // JARVIS: he dances on the closed pill too (the notch prototype's dance112).
   assert.ok(islandDances({ ...base, mode: "hidden" }));
-  // Expanded: only on the overview, with the music pill in front.
-  assert.ok(!islandDances({ ...base, mode: "expanded" }));
+  // JARVIS: expanded, on all of Home while music plays, whoever is in front; not on other tabs.
+  assert.ok(islandDances({ ...base, mode: "expanded" }));
   assert.ok(islandDances({ ...base, mode: "expanded", focusId: SPOTIFY_ID }));
   assert.ok(!islandDances({ ...base, mode: "expanded", focusId: SPOTIFY_ID, view: "prompt" }));
 });
@@ -130,10 +130,11 @@ test("112 BPM: still on the beat, highest half a beat later, nothing at level 0"
   assert.equal(onBeat.dx, 0);
   assert.equal(onBeat.dy, -0);
   assert.equal(onBeat.rotate, 0);
-  assert.ok(Math.abs(onBeat.sx - 1.045) < 1e-9 && Math.abs(onBeat.sy - 0.94) < 1e-9, "squashed on landing");
+  assert.ok(Math.abs(onBeat.sx - 1.06) < 1e-9 && Math.abs(onBeat.sy - 0.92) < 1e-9, "squashed on landing");
+  // JARVIS: livelier than Mochi: a 0.26 R hop, a wider sway and tilt, and a slow side-step per bar.
   const top = danceTransform(0.5 * 60 / 112, 1, R);
-  assert.ok(Math.abs(top.dy + 2) < 1e-9, "hops 0.2 R");
-  assert.ok(Math.abs(top.dx - 0.8) < 1e-9 && Math.abs(top.rotate - 0.1) < 1e-9);
+  assert.ok(Math.abs(top.dy + 2.6) < 1e-9, "hops 0.26 R");
+  assert.ok(Math.abs(top.dx - (1.3 + Math.sin(Math.PI / 8))) < 1e-9 && Math.abs(top.rotate - 0.15) < 1e-9);
   assert.ok(Math.abs(top.sx - 1) < 1e-9 && Math.abs(top.sy - 1) < 1e-9);
   const off = danceTransform(0.3, 0, R);
   assert.deepEqual([off.dx, off.dy, off.rotate, off.sx, off.sy].map((v) => Math.abs(v)), [0, 0, 0, 1, 1]);
