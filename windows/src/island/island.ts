@@ -148,6 +148,8 @@ export class Island {
   private botHoverStart = { x: 0, y: 0 };
   // JARVIS (step 9): his reactions, one at a time, and what he notices.
   private reactFreeAt = 0;
+  /** The diameter Home's card last let him have (homeFitDiameter). */
+  private homeFitSeen = 0;
   private lastClickAt = 0;
   private stroke = { x: 0, dir: 0, turns: [] as number[] };
   private near = false;
@@ -1574,6 +1576,10 @@ export class Island {
     if (State.mode === "hidden" && closedIsland(State.settings.closedIsland) === "mochi") {
       p = { cx: end.w / 2, cy: end.h / 2, diameter: CLOSED_BOT_D, opacity: 1 };
     }
+    // JARVIS on Home: no bigger than his card lets his ring and badge fit inside it.
+    if (State.mode === "expanded" && State.view === "overview") {
+      p = { ...p, diameter: Math.min(p.diameter, this.homeFitDiameter(p.cx, p.cy)) };
+    }
     const size = p.diameter / 0.6;
     const now = performance.now();
     // The drop's progress moves him continuously: he follows it directly.
@@ -1613,7 +1619,58 @@ export class Island {
     }
   }
 
+  /** Home's left card, where the big JARVIS lives, relative to the island (null when not shown). */
+  private homeCard(): { left: number; top: number; right: number; bottom: number } | null {
+    const card = this.islandEl.querySelector<HTMLElement>(".overview .left > .card, .overview .left .card");
+    if (!card) return null;
+    const c = card.getBoundingClientRect(), isl = this.islandEl.getBoundingClientRect();
+    if (c.width === 0) return null;
+    return { left: c.left - isl.left, top: c.top - isl.top, right: c.right - isl.left, bottom: c.bottom - isl.top };
+  }
+
+  /**
+   * The biggest he can be on Home with his ring (1.29 R out, 1.02 R up) and his badge (1.08 R
+   * left, 0.9 R up) inside his card, 4 px to spare, and short of the text 140 px in. R is half
+   * the diameter.
+   */
+  private homeFitDiameter(cx: number, cy: number): number {
+    const card = this.homeCard();
+    if (!card) return Infinity;
+    const keep = 4;
+    const R = Math.min(
+      (cy - card.top - keep) / 1.02,
+      (cx - card.left - keep) / 1.29,
+      (card.left + 140 - cx - keep) / 1.29,
+    );
+    return Math.max(40, 2 * R);
+  }
+
+  /**
+   * Whatever he does on Home (tilt, hop, dance, glow), he's drawn only inside his card: his canvas
+   * is clipped to the card's rounded rectangle. Elsewhere nothing is clipped.
+   */
+  private clipBotToCard() {
+    const card = State.mode === "expanded" && State.view === "overview" ? this.homeCard() : null;
+    if (!card) {
+      if (this.botCanvas.style.clipPath) this.botCanvas.style.clipPath = "";
+      return;
+    }
+    // The card is laid out after he was first aimed: once it is, he's sized to it.
+    const L = VIEW_LAYOUTS.overview;
+    const fit = this.homeFitDiameter(L.botX, L.botY ?? 102);
+    if (Math.abs(fit - this.homeFitSeen) > 0.5) {
+      this.homeFitSeen = fit;
+      this.updateBotTargets();
+    }
+    const b = this.botCanvas.getBoundingClientRect(), isl = this.islandEl.getBoundingClientRect();
+    const left = b.left - isl.left, top = b.top - isl.top;
+    const inset = [card.top - top, left + b.width - card.right, top + b.height - card.bottom, card.left - left]
+      .map((v) => `${Math.max(0, v).toFixed(1)}px`);
+    this.botCanvas.style.clipPath = `inset(${inset.join(" ")} round 22px)`;
+  }
+
   private drawBot(dt: number) {
+    this.clipBotToCard();
     const size = this.botSize.value;
     const w = Math.max(1, Math.round(size));
     const hCss = w + BOT_OVERHANG;
