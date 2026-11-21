@@ -14,7 +14,9 @@ import type { Outfit } from "./wardrobe";
 
 export type EyeShape =
   | "pill" | "wide" | "dot" | "line" | "flat" | "happy" | "closed"
-  | "spiral" | "heart" | "star" | "tired" | "wink" | "cup";
+  | "spiral" | "heart" | "star" | "tired" | "wink" | "cup"
+  // JARVIS: listening to music, his eye becomes a moving waveform.
+  | "wave";
 
 export type BadgeKind = "dots" | "bang" | "question" | "dot" | "arrow";
 
@@ -210,6 +212,16 @@ export function danceTransform(seconds: number, level: number, R: number) {
     sx: 1 + 0.06 * land * level,
     sy: 1 - 0.08 * land * level,
   };
+}
+
+/**
+ * JARVIS: how much of the dance fits the room he has (px: sideways, upward), for a body of
+ * radius R. At full size his widest reach is 0.44 R sideways (sway, side-step and tilt) and
+ * 0.41 R upward (hop and tilt); the dance shrinks just enough to stay inside, never grows.
+ */
+export function danceFit(room: { x: number; up: number } | null, R: number): number {
+  if (!room || R <= 0) return 1;
+  return Math.max(0, Math.min(1, room.x / (0.44 * R), room.up / (0.41 * R)));
 }
 
 // ── Engine ────────────────────────────────────────────────────────────────────
@@ -864,12 +876,16 @@ export class BotEngine {
    * Applies the dance bounce and sway around the bottom of the body. Call it on
    * a saved context, before draw(), with the same size (BotEngine.applyDance).
    */
+  /** JARVIS: the room he has to dance in, px sideways and upward (the island measures it). */
+  danceRoom: { x: number; up: number } | null = null;
+
   applyDance(x: CanvasRenderingContext2D, W: number, H: number) {
     if (this.dancingLevel <= 0.001) return;
     const R = W * 0.3;
     const px = W / 2 + this.ox * R;
     const py = H / 2 + this.particleOverhang / 2 + this.oy * R + R * 0.06 + R * 0.88;
-    const d = danceTransform(now(), this.dancingLevel, R);
+    // JARVIS: never outside the notch or over its designs: the dance fits the room he has.
+    const d = danceTransform(now(), this.dancingLevel * danceFit(this.danceRoom, R), R);
     x.translate(px + d.dx, py + d.dy);
     x.rotate(d.rotate);
     x.scale(d.sx, d.sy);
@@ -1040,9 +1056,9 @@ export class BotEngine {
     let shape: EyeShape = this.eyeOverride ?? this.cfg.eye;
     // JARVIS: drowsy, the eye sits half-lidded (an emote or a state still wins).
     if (this.drowsy && !this.eyeOverride && this.state === "idle" && !this.isMini) shape = "tired";
-    // Dancing: happy eyes in the calm states.
+    // Dancing: JARVIS listens to the music, his eye a waveform, in the calm states.
     if (this.isDancing && this.dancingLevel > 0.15 && !this.isMini && (this.state === "idle" || this.state === "finished")) {
-      shape = "happy";
+      shape = "wave";
     }
     if (this.morph > 0.5) {
       if (this.isChewing) shape = "happy";
@@ -1177,6 +1193,28 @@ export class BotEngine {
         x.quadraticCurveTo(0, h * 2.6, w * 0.42, -h * 0.4);
         x.stroke();
         break;
+      case "wave": {
+        // Music: a sound wave runs along the slot, swelling on each beat (112 BPM, as he dances),
+        // tapered at both ends so it stays inside the slot.
+        const t = now();
+        const beat = (t * 112) / 60;
+        const pulse = 0.55 + 0.45 * Math.abs(Math.sin(Math.PI * beat));
+        const amp = h * 1.05 * pulse * Math.min(1, this.dancingLevel * 1.4);
+        const steps = 28;
+        x.lineWidth = h * 0.75;
+        x.lineCap = "round";
+        x.lineJoin = "round";
+        x.beginPath();
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;
+          const px = (u - 0.5) * w * 0.9;
+          const env = Math.sin(Math.PI * u);
+          const y = amp * env * (Math.sin(u * 14 - t * 9) * 0.7 + Math.sin(u * 23 + t * 6.5) * 0.3);
+          if (i === 0) x.moveTo(px, y); else x.lineTo(px, y);
+        }
+        x.stroke();
+        break;
+      }
       default:
         // spiral, heart, star: drawn as a single symbol in the middle of the visor.
         this.drawEyeShape(x, shape, R * EYE_W * 1.1, R * EYE_H * 1.1, 1, ink);
