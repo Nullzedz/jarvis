@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS notch prototype</title>
+<style>
+  :root {
+    --s1: #1c1c1e; --s2: #2c2c2e; --t2: #8e8e93; --t3: #636366;
+    --blue: #0a84ff; --green: #30d158; --orange: #ff9f0a; --purple: #bf5af2; --pink: #ff375f;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: radial-gradient(120% 90% at 50% 0%, #34404f 0%, #1a1f27 55%, #0f1216 100%); color: #f5f5f7; font: 13px/1.4 var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button, input { font: inherit; color: inherit; border: 0; background: none; }
+  button { cursor: pointer; padding: 0; }
+  p { margin: 0; }
+  .hint { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,.45); }
+
+  /* The island: pure black, hanging from the top edge. Closed it's the small pill; open, it grows. */
+  #notch { position: fixed; top: 0; left: 50%; transform: translateX(-50%); background: #000; border-radius: 0 0 26px 26px; overflow: hidden;
+    width: 132px; height: 32px; transition: width .42s cubic-bezier(.32,.72,0,1), height .42s cubic-bezier(.32,.72,0,1), border-radius .42s; box-shadow: 0 14px 40px rgba(0,0,0,.5); }
+  #notch.open { width: 700px; border-radius: 0 0 30px 30px; }
+  #notch.focus { width: 700px; }
+  .closed { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: #aeaeb2; transition: opacity .2s; }
+  #notch.open .closed { opacity: 0; pointer-events: none; }
+  .inner { width: 700px; padding: 12px 16px 16px; opacity: 0; transition: opacity .2s; }
+  #notch.open .inner { opacity: 1; transition: opacity .25s .12s; }
+  #notch.focus .inner { width: 700px; }
+  .vis { width: 22px; height: 15px; border-radius: 5px; background: #f2f3f5; display: grid; place-items: center; flex: none; }
+  .vis b { width: 12px; height: 3px; border-radius: 2px; background: var(--blue); display: block; }
+
+  .tabs { display: flex; align-items: center; gap: 4px; margin: 0 0 12px; }
+  .tab { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--t2); transition: background .15s, color .15s; }
+  .tab:hover { color: #f5f5f7; }
+  .tab.on { background: var(--s2); color: #f5f5f7; }
+  .tab svg, .ic svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  .sp { flex: 1; }
+  .pill { font-size: 12px; color: #aeaeb2; background: var(--s1); border-radius: 999px; padding: 5px 11px; }
+  .pane { display: none; } .pane.on { display: block; animation: in .28s ease; }
+  @keyframes in { from { opacity: 0; transform: translateY(4px); } }
+
+  .w { background: var(--s1); border-radius: 14px; padding: 10px 12px; min-width: 0; text-align: left; transition: background .15s; }
+  button.w:hover { background: #242426; }
+  .cap { font-size: 11px; color: var(--t2); margin: 0 0 5px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+  .days { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 5px; margin: 0 0 10px; }
+  .day { text-align: center; border-radius: 12px; padding: 5px 0; font-size: 11px; color: var(--t2); }
+  .day b { display: block; font-size: 15px; color: #f5f5f7; font-weight: 600; }
+  .day.on { background: var(--blue); color: #fff; } .day.on b { color: #fff; }
+  .qa { display: flex; align-items: center; gap: 8px; background: var(--s1); border-radius: 12px; padding: 8px 11px; margin: 0 0 8px; }
+  .qa input { flex: 1; outline: none; font-size: 13px; }
+  .qa input::placeholder { color: var(--t3); }
+  .qa em { font-style: normal; font-size: 11px; color: #fff; background: var(--purple); border-radius: 999px; padding: 2px 9px; opacity: 0; transition: opacity .15s; }
+  .qa em.on { opacity: 1; }
+  .ev { display: flex; align-items: center; gap: 9px; background: var(--s1); border-radius: 12px; padding: 8px 11px; margin: 0 0 6px; font-size: 13px; }
+  .ev i { width: 7px; height: 7px; border-radius: 50%; flex: none; } .ev span { margin-left: auto; color: var(--t2); font-size: 12px; }
+  .chk { display: flex; align-items: center; gap: 9px; font-size: 13px; padding: 6px 2px; width: 100%; text-align: left; }
+  .chk i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--t3); flex: none; transition: .2s; }
+  .chk.done { color: var(--t3); text-decoration: line-through; } .chk.done i { background: var(--green); border-color: var(--green); }
+  .clip { display: flex; align-items: center; gap: 10px; padding: 8px 11px; background: var(--s1); border-radius: 12px; margin: 0 0 6px; font-size: 12.5px; }
+  .clip .t { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .clip .k { font-size: 10.5px; color: var(--t2); background: var(--s2); border-radius: 999px; padding: 1px 7px; }
+  .pin { color: var(--t3); font-size: 14px; } .pin.on { color: var(--orange); }
+  .np { display: flex; align-items: center; gap: 10px; background: var(--s1); border-radius: 14px; padding: 9px; }
+  .art { width: 44px; height: 44px; border-radius: 9px; flex: none; background: linear-gradient(135deg, #fa2d48, #bf5af2); transition: background .3s; }
+  .src { display: inline-flex; background: var(--s2); border-radius: 999px; padding: 2px; font-size: 11px; }
+  .src button { padding: 2px 9px; border-radius: 999px; color: var(--t2); } .src button.on { background: #48484a; color: #fff; }
+  .ctl { display: flex; justify-content: center; gap: 22px; font-size: 16px; padding: 6px 0 2px; }
+  .ctl button:hover { color: var(--blue); }
+  .timer { font-size: 54px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; border-radius: 999px; padding: 7px 16px; }
+  .bp { background: var(--blue); color: #fff; } .bo { background: var(--orange); color: #000; } .bs { background: var(--s2); }
+  .ag { display: flex; align-items: center; gap: 10px; padding: 8px 11px; background: var(--s1); border-radius: 12px; margin: 0 0 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .note { width: 100%; min-height: 120px; background: var(--s1); border-radius: 12px; padding: 10px 12px; outline: none; font-size: 13px; line-height: 1.55; color: #e5e5ea; }
+  .toast { position: fixed; top: 0; left: 50%; transform: translate(-50%, -40px); background: var(--s2); border-radius: 999px; padding: 7px 14px; font-size: 12.5px; opacity: 0; transition: .3s; z-index: 5; }
+  .toast.on { transform: translate(-50%, 0); opacity: 1; }
+  .focusbar { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .hbtn { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: #aeaeb2; }
+  .hbtn:hover { color: #fff; background: var(--s1); }
+  .hbtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .plan { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #e5e5ea; background: var(--s1); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 4px 11px; }
+  .base { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; }
+  .card { background: #1a1b1e; border-radius: 22px; padding: 14px; position: relative; }
+  .bigvis { width: 108px; height: 76px; border-radius: 22px; background: #f2f3f5; display: grid; place-items: center; flex: none; }
+  .bigvis b { width: 52px; height: 7px; border-radius: 4px; background: var(--blue); display: block; }
+  .lnk { font-weight: 600; font-size: 13px; margin-right: 14px; }
+  .lnk:hover { color: var(--blue); }
+  .pillb { display: flex; align-items: center; gap: 10px; background: #0e0f11; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; padding: 6px 14px 6px 6px; font-size: 13px; color: #e5e5ea; }
+  .pillb:hover { border-color: rgba(255,255,255,.2); }
+  .pillb i { width: 36px; height: 26px; border-radius: 9px; display: grid; place-items: center; flex: none; }
+  .pillb i::after { content: ""; width: 18px; height: 3.5px; border-radius: 2px; background: rgba(0,0,0,.55); }
+  .pillb span { flex: 1; text-align: center; }
+  .bubble { max-width: 78%; border-radius: 16px; padding: 8px 12px; margin: 0 0 6px; font-size: 13px; }
+  .bubble.me { background: var(--blue); color: #fff; margin-left: auto; border-bottom-right-radius: 5px; }
+  .bubble.him { background: var(--s1); color: #e5e5ea; border-bottom-left-radius: 5px; }
+  .drop { border: 1.5px dashed rgba(255,255,255,.22); border-radius: 18px; height: 150px; display: grid; place-items: center; text-align: center; color: var(--t2); transition: .2s; }
+  .drop.over { border-color: var(--blue); background: rgba(10,132,255,.08); color: #fff; }
+  .proj { font-size: 12.5px; padding: 5px 12px; border-radius: 999px; background: var(--s1); color: #aeaeb2; }
+  .proj.on { background: #f5f5f7; color: #000; font-weight: 500; }
+  .wk { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 5px; }
+  .wk div { background: var(--s1); border-radius: 10px; padding: 6px; min-height: 92px; font-size: 11px; color: var(--t2); }
+  .wk div.today { box-shadow: inset 0 0 0 1.5px var(--blue); }
+  .wk p.e { margin-top: 4px; font-size: 10.5px; color: #fff; border-radius: 6px; padding: 2px 5px; }
+  .ring { position: relative; width: 104px; height: 104px; flex: none; }
+
+  /* ── JARVIS design A: the object with a real eye slot (character sheet) ── */
+  .vis, .bigvis { position: relative; background: linear-gradient(180deg, #f6f7f9 0%, #eceef1 70%, #dcdfe4 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 2px rgba(0,0,0,.28) !important; overflow: hidden; }
+  .vis::before, .bigvis::before { content: ""; position: absolute; left: 18.5%; right: 18.5%; top: 40%; height: 20%; border-radius: 999px;
+    background: linear-gradient(180deg, #0b0f17, #1b2433); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 0 0 1px rgba(201,205,212,.9); }
+  .vis b, .bigvis b { position: relative; z-index: 1; width: 46% !important; height: 10% !important; min-height: 2px; border-radius: 999px !important;
+    background: var(--eye, var(--blue)) !important; animation: visLook 7s cubic-bezier(.4,0,.2,1) infinite, visBlink 5s ease-in-out infinite; }
+  @keyframes visLook { 0%,18% { translate: 0 } 24%,40% { translate: -16% 0 } 46%,62% { translate: 16% 0 } 68%,100% { translate: 0 } }
+  @keyframes visBlink { 0%,86%,92%,100% { scale: 1 1 } 89% { scale: 1 .1 } }
+  @media (prefers-reduced-motion: reduce) { .vis b, .bigvis b { animation: none; } }
+
+  /* ── Agreed island behaviour: he dances to music while folded, rides the fold, mini visors ── */
+  @keyframes dance112 { 0%,100% { transform: translateY(0) scale(1.03,.96) rotate(-3deg) } 50% { transform: translateY(-3px) scale(.98,1.03) rotate(3deg) } }
+  #notch:not(.open) .closed .vis.dancing { animation: dance112 .535s ease-in-out infinite; }
+  .rider { position: fixed; z-index: 20; pointer-events: none; transition: left .42s cubic-bezier(.32,.72,0,1), top .42s cubic-bezier(.32,.72,0,1), width .42s cubic-bezier(.32,.72,0,1), height .42s cubic-bezier(.32,.72,0,1), border-radius .42s; }
+  .ag .vis { width: 30px; height: 21px; border-radius: 7px; }
+  #dropStage { position: absolute; inset: 0; display: none; }
+  .drop { position: relative; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="notch">
+  <div class="closed"><span class="vis"><b></b></span><span id="closedText" style="display:none"></span></div>
+  <div class="inner">
+    <!-- Normal mode: design A's tabs; Overview is design C -->
+    <div id="normal">
+      <div class="tabs" id="tabs"></div>
+      <div class="pane" data-pane="home">
+        <div class="base">
+          <div class="card" style="display:flex;align-items:center;gap:18px">
+            <span class="bigvis"><b></b></span>
+            <div>
+              <p style="font-size:15px;font-weight:600"><span class="dot" style="background:#f5f5f7;display:inline-block;margin-right:7px"></span>Claude Code <span style="font-weight:400;color:#aeaeb2;font-size:13px">Integration</span></p>
+              <p style="color:#aeaeb2;margin:6px 0 10px"><span class="dot" style="background:var(--green);display:inline-block;margin-right:7px"></span>Hooks installed</p>
+              <button class="lnk" data-toast="Opening Visual Studio Code">Open Visual Studio Code</button><button class="lnk" data-toast="Refreshed">Refresh</button>
+            </div>
+            <span style="position:absolute;top:12px;right:14px;width:22px;height:22px;border-radius:50%;background:var(--s2);display:grid;place-items:center;font-size:11px;color:var(--t2)">↗</span>
+          </div>
+          <div class="card" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:center">
+            <button class="pillb" data-toast="Resend"><i style="background:#30d158"></i><span>Resend</span></button>
+            <button class="pillb" data-toast="n8n"><i style="background:#ffb340"></i><span>n8n</span></button>
+            <button class="pillb" data-toast="Vercel"><i style="background:#7d5cff"></i><span>Vercel</span></button>
+            <button class="pillb" data-toast="GitHub"><i style="background:#ff4f6d"></i><span>GitHub</span></button>
+          </div>
+        </div>
+      </div>
+      <div class="pane" data-pane="ask">
+        <div style="display:flex;justify-content:center;margin:0 0 10px"><button class="src" data-toast="Model picker"><span style="padding:2px 10px;color:#e5e5ea">Claude Haiku 4.5 ▾</span></button></div>
+        <div id="chat" style="max-height:170px;overflow:auto;padding:2px 2px 4px"><div class="bubble him">Good evening, sir. What can I do for you?</div></div>
+        <div class="qa" style="margin:6px 0 0"><input id="chatIn" placeholder="Ask JARVIS anything"><span style="width:28px;height:28px;border-radius:50%;background:var(--blue);display:grid;place-items:center;color:#fff;font-size:12px">↑</span></div>
+      </div>
+      <div class="pane" data-pane="drop">
+        <div class="drop" id="dropZone"><svg id="dropStage" viewBox="0 0 400 160" preserveAspectRatio="xMidYMid meet"></svg><div id="dropHint"><p style="font-size:26px;margin-bottom:6px">⇣</p><p style="font-size:14px;color:#e5e5ea">Drop a file for JARVIS</p><p class="cap" style="margin:3px 0 0">or click to choose one</p></div></div>
+      </div>
+      <div class="pane" data-pane="launch">
+        <p class="cap">New Claude Code session in</p>
+        <div style="display:flex;gap:6px;margin:0 0 10px" id="projects"><button class="proj on">jarvis-ui</button><button class="proj">korus</button><button class="proj">api-server</button><button class="proj">docs-site</button></div>
+        <div class="qa"><input id="launchIn" placeholder="What should Claude do?"></div>
+        <div style="display:flex;justify-content:flex-end"><button class="btn bp" id="launchGo">Start session</button></div>
+      </div>
+      <div class="pane" data-pane="overview">
+        <div class="grid3">
+          <button class="w" data-open="today"><p class="cap">Today</p><p style="font-size:13px;font-weight:600">Design review</p><p style="font-size:11.5px;color:var(--blue);margin-top:2px">21:00 · in 40 min</p></button>
+          <button class="w" data-open="reminders"><p class="cap">Reminders</p><p id="ovRem" style="font-size:12.5px;line-height:1.6"></p></button>
+          <button class="w" data-open="focus"><p class="cap">Focus</p><p style="font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">25:00</p><p style="font-size:11.5px;color:var(--orange)">Start</p></button>
+          <button class="w" data-open="clipboard"><p class="cap">Clipboard</p><p style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">github.com/Nullzedz/jarvis/pull/17</p><p style="font-size:11px;color:var(--t2);margin-top:3px">+ 23 more</p></button>
+          <button class="w" data-open="notes"><p class="cap">Notes</p><p style="font-size:12px;color:#e5e5ea">Ideas for the home page…</p></button>
+          <button class="w" data-open="agents" style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--blue)"></span><div><p class="cap" style="margin:0">Agents</p><p style="font-size:12px">api-server needs you</p></div></button>
+        </div>
+        <div class="np" style="margin-top:8px"><span class="art music-art"></span><div style="flex:1;min-width:0"><p style="font-weight:600">Weightless</p><p style="font-size:11.5px;color:var(--t2)">Marconi Union</p></div><span class="src music-src"></span><div class="ctl" style="padding:0 6px;gap:16px"><button data-m="prev">⏮</button><button data-m="play" class="playbtn">⏸</button><button data-m="next">⏭</button></div></div>
+      </div>
+      <div class="pane" data-pane="today">
+        <div style="display:flex;justify-content:flex-end;margin:-4px 0 8px"><span class="src"><button class="on" data-cal="day">Today</button><button data-cal="week">Week</button></span></div>
+        <div id="weekView" class="wk" style="display:none"></div>
+        <div id="dayView">
+        <div class="days" id="days"></div>
+        <div class="qa"><span style="color:var(--purple)">✦</span><input id="qa" placeholder="Type like you talk: lunch with Maya tomorrow 1pm"><em id="qaKind">Calendar</em></div>
+        <div id="events"></div>
+        </div>
+      </div>
+      <div class="pane" data-pane="reminders">
+        <div class="qa"><span style="color:var(--purple)">✦</span><input id="remAdd" placeholder="Add a reminder, press Enter"></div>
+        <div id="remList"></div>
+      </div>
+      <div class="pane" data-pane="notes">
+        <div style="display:grid;grid-template-columns:150px 1fr;gap:10px">
+          <div><button class="w" style="width:100%;margin-bottom:6px;background:#242426"><p style="font-size:12.5px;font-weight:600">Home page ideas</p><p class="cap" style="margin:2px 0 0">Today</p></button><button class="w" style="width:100%"><p style="font-size:12.5px;font-weight:600">Groceries</p><p class="cap" style="margin:2px 0 0">Tuesday</p></button></div>
+          <div class="note" contenteditable="true">Greeting in big type, ask bar in the middle.<br>Dock of coloured squares.<br>☐ Agents orbit<br>☑ Pick Apple colours</div>
+        </div>
+      </div>
+      <div class="pane" data-pane="clipboard">
+        <div class="qa"><span style="color:var(--t2)">⌕</span><input id="clipSearch" placeholder="Search what you copied"></div>
+        <div id="clips"></div>
+      </div>
+      <div class="pane" data-pane="focus">
+        <div style="display:flex;align-items:center;gap:20px;padding:4px 4px 6px">
+          <div class="timer" id="focusPick">25:00</div>
+          <div style="display:flex;flex-direction:column;gap:8px;flex:1">
+            <div class="src" style="align-self:flex-start"><button class="on" data-len="25">25 min</button><button data-len="50">50 min</button><button data-len="15">15 min</button></div>
+            <p class="cap" style="margin:0">Hides everything but what's next, your music and a few reminders.</p>
+          </div>
+          <button class="btn bo" id="startFocus">Start focus</button>
+        </div>
+      </div>
+      <div class="pane" data-pane="agents">
+        <div class="ag"><span class="vis" style="--eye:#30d158"><b></b></span><div style="flex:1"><p style="font-weight:500">korus</p><p class="cap" style="margin:0">Claude Code · editing invoice.ts</p></div><span class="cap" style="margin:0">4 min</span></div>
+        <div class="ag" id="agApi"><span class="vis" style="--eye:#ff9f0a"><b></b></span><div style="flex:1"><p style="font-weight:500">api-server</p><p class="cap" style="margin:0;color:var(--blue)">Codex wants to run npm test</p></div><button class="btn bs" data-ans="Denied">Deny</button><button class="btn bp" data-ans="Allowed">Allow</button></div>
+        <div class="ag"><span class="vis" style="--eye:#636366"><b></b></span><div style="flex:1"><p style="font-weight:500;color:var(--t2)">docs-site</p><p class="cap" style="margin:0">Cursor · done 12 min ago</p></div></div>
+      </div>
+    </div>
+
+    <!-- Focus mode: design B's two columns -->
+    <div id="focusMode" style="display:none">
+      <div class="focusbar"><span class="dot" style="background:var(--orange)"></span><span style="font-weight:600">Focus</span><span class="cap" style="margin:0">until <span id="until"></span></span><span class="sp"></span><button class="btn bs" id="endFocus" style="padding:5px 13px;font-size:12px">End</button></div>
+      <div style="display:grid;grid-template-columns:1.05fr 1fr;gap:12px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div class="ring"><svg width="104" height="104" viewBox="0 0 104 104"><circle cx="52" cy="52" r="44" fill="none" stroke="#3a2606" stroke-width="9"/><circle id="arc" cx="52" cy="52" r="44" fill="none" stroke="#ff9f0a" stroke-width="9" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0" transform="rotate(-90 52 52)"/></svg>
+            <div style="position:absolute;inset:0;display:grid;place-items:center;font-size:21px;font-weight:600;font-variant-numeric:tabular-nums" id="left">25:00</div></div>
+          <div><p class="cap">Next</p><p style="font-weight:600">Design review</p><p style="font-size:12px;color:var(--blue)">21:00</p></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="np"><span class="art music-art"></span><div style="flex:1;min-width:0"><p style="font-weight:600">Weightless</p><p style="font-size:11.5px;color:var(--t2)">Marconi Union</p></div><span class="src music-src"></span></div>
+          <div class="ctl"><button data-m="prev">⏮</button><button data-m="play" class="playbtn">⏸</button><button data-m="next">⏭</button></div>
+          <div class="w" id="focusRem"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<p class="hint" id="hint">Hover the notch to open it · it folds back to his visor after 3 s without you</p>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const notch = $("#notch");
+const icon = (d) => `<svg viewBox="0 0 24 24">${d}</svg>`;
+const TABS = [
+  ["home", "Home", '<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'],
+  ["ask", "Ask", '<path d="M4 5h16v11H9l-5 4z"/>'],
+  ["drop", "Drop", '<path d="M12 5v14M5 12h14"/>'],
+  ["launch", "New Claude Code session", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 10l3 2-3 2M12 15h4"/>'],
+  ["today", "Calendar", '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'],
+  ["overview", "Overview", '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>'],
+  ["reminders", "Reminders", '<circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/>'],
+  ["notes", "Notes", '<path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/>'],
+  ["clipboard", "Clipboard", '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9z"/>'],
+  ["focus", "Focus", '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>'],
+  ["agents", "Agents", '<circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/>'],
+];
+$("#tabs").innerHTML = TABS.map(([id, name, d]) => `<button class="tab" data-tab="${id}" title="${name}" aria-label="${name}">${icon(d)}</button>`).join("") + `<span class="sp"></span><span class="plan"><span class="dot" style="background:#ffd60a"></span>Claude 72%</span>`
+  + `<button class="hbtn" data-toast="Settings" title="Settings">${icon('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>')}</button>`
+  + `<button class="hbtn" id="sound" title="Mute">${icon('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>')}</button>`
+  + `<button class="hbtn" id="closeBtn" title="Close">${icon('<path d="M6 6l12 12M18 6L6 18"/>')}</button>`;
+
+let open = false, tab = "home", focusing = false, idle = 0;
+const toast = (m) => { const t = $("#toast"); t.textContent = m; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1500); };
+
+// The notch's height follows what's inside it.
+function fit() {
+  if (!open) { notch.style.height = "34px"; return; }
+  notch.style.height = `${$(".inner").offsetHeight}px`;
+}
+function setOpen(v) { open = v; notch.classList.toggle("open", v); $("#hint").style.opacity = v ? 0 : 1; fit(); }
+function show(id) {
+  tab = id;
+  $$(".tab").forEach((b) => b.classList.toggle("on", b.dataset.tab === id));
+  $$(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === id));
+  fit();
+}
+notch.addEventListener("mouseenter", () => { clearTimeout(idle); if (!open) setOpen(true); });
+// No interaction for a few seconds: it folds back to the mini notch, just his visor (not while you type or focus).
+const IDLE_MS = 3000;
+notch.addEventListener("mouseleave", () => {
+  clearTimeout(idle);
+  idle = setTimeout(() => { if (!focusing && !notch.contains(document.activeElement)) setOpen(false); }, IDLE_MS);
+});
+document.addEventListener("mousedown", (e) => { if (open && !notch.contains(e.target)) setOpen(false); });
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tab]"); if (t) show(t.dataset.tab);
+  const o = e.target.closest("[data-open]"); if (o) show(o.dataset.open);
+});
+
+// Today: the week strip, events, and quick add that understands plain words.
+const DAYS = [["Fri", 20], ["Sat", 21], ["Sun", 22], ["Mon", 23], ["Tue", 24], ["Wed", 25], ["Thu", 26]];
+let day = 0;
+const EVENTS = { 0: [["Standup", "9:30", "#30d158"], ["Lunch with Priya", "13:00", "#ff9f0a"], ["Design review", "21:00", "#0a84ff"]], 1: [["Gym", "7:00", "#ff375f"]], 2: [], 3: [], 4: [["Sprint planning", "10:00", "#bf5af2"]], 5: [], 6: [] };
+function drawDays() {
+  $("#days").innerHTML = DAYS.map(([d, n], i) => `<button class="day${i === day ? " on" : ""}" data-day="${i}">${d}<b>${n}</b></button>`).join("");
+  const evs = EVENTS[day];
+  $("#events").innerHTML = evs.length ? evs.map(([t, h, c]) => `<div class="ev"><i style="background:${c}"></i>${t}<span>${h}</span></div>`).join("") : `<p class="cap" style="padding:6px 4px">Nothing planned.</p>`;
+  fit();
+}
+$("#days").addEventListener("click", (e) => { const b = e.target.closest("[data-day]"); if (b) { day = +b.dataset.day; drawDays(); } });
+const qa = $("#qa");
+qa.addEventListener("input", () => {
+  const v = qa.value.toLowerCase();
+  $("#qaKind").textContent = /remind|buy|call|send/.test(v) ? "Reminder" : "Calendar";
+  $("#qaKind").classList.toggle("on", v.length > 3);
+});
+qa.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !qa.value.trim()) return;
+  const v = qa.value.trim(), lower = v.toLowerCase();
+  const target = lower.includes("tomorrow") ? 1 : DAYS.findIndex(([d]) => lower.includes(d.toLowerCase())) >= 0 ? DAYS.findIndex(([d]) => lower.includes(d.toLowerCase())) : 0;
+  const m = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  let time = "—";
+  if (m) { let h = +m[1]; if (m[3] === "pm" && h < 12) h += 12; time = `${h}:${m[2] ?? "00"}`; }
+  const title = v.replace(/\b(tomorrow|today|at)\b/gi, "").replace(/(\d{1,2})(:\d{2})?\s*(am|pm)?/i, "").replace(/\s+/g, " ").trim();
+  if ($("#qaKind").textContent === "Reminder") { REM.unshift([title, false]); drawRem(); toast(`Reminder added: ${title}`); }
+  else { EVENTS[target].push([title.charAt(0).toUpperCase() + title.slice(1), time, "#64d2ff"]); day = target; drawDays(); toast(`Added to ${DAYS[target][0]} ${DAYS[target][1]} at ${time}`); }
+  qa.value = ""; $("#qaKind").classList.remove("on");
+});
+
+// Reminders
+const REM = [["Call Maya", false], ["Send the proposal", true], ["Buy coffee", false], ["Review PR #17", false]];
+function drawRem() {
+  const row = (r, i) => `<button class="chk${r[1] ? " done" : ""}" data-rem="${i}"><i></i>${r[0]}</button>`;
+  $("#remList").innerHTML = REM.map(row).join("");
+  $("#focusRem").innerHTML = `<p class="cap">Reminders</p>` + REM.map((r, i) => [r, i]).filter(([r]) => !r[1]).slice(0, 3).map(([r, i]) => row(r, i)).join("");
+  $("#ovRem").innerHTML = REM.filter((r) => !r[1]).slice(0, 2).map((r) => `○ ${r[0]}`).join("<br>");
+  fit();
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-rem]"); if (b) { const r = REM[+b.dataset.rem]; r[1] = !r[1]; drawRem(); } });
+$("#remAdd").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.value.trim()) { REM.unshift([e.target.value.trim(), false]); e.target.value = ""; drawRem(); } });
+
+// Clipboard
+const CLIPS = [["github.com/Nullzedz/jarvis/pull/17", "Link", true], ["const TVA = 0.2", "Code", false], ["Design review moved to 21:00", "Text", false], ["screenshot 2026-11-20.png", "Image", false], ["hello@example.com", "Email", false], ["npm run tauri dev", "Code", true]];
+function drawClips() {
+  const q = $("#clipSearch").value.toLowerCase();
+  const list = CLIPS.map((c, i) => [c, i]).filter(([c]) => c[0].toLowerCase().includes(q)).sort((a, b) => b[0][2] - a[0][2]);
+  $("#clips").innerHTML = list.map(([c, i]) => `<div class="clip"><span class="k">${c[1]}</span><span class="t">${c[0]}</span><button class="pin${c[2] ? " on" : ""}" data-pin="${i}" title="Pin">★</button><button data-copy="${i}" style="color:var(--blue);font-size:12px">Copy</button></div>`).join("");
+  fit();
+}
+$("#clipSearch").addEventListener("input", drawClips);
+document.addEventListener("click", (e) => {
+  const p = e.target.closest("[data-pin]"); if (p) { CLIPS[+p.dataset.pin][2] = !CLIPS[+p.dataset.pin][2]; drawClips(); }
+  const c = e.target.closest("[data-copy]"); if (c) toast("Copied");
+});
+
+// Music: Apple Music or Spotify, the same controls.
+let src = "Apple Music", playing = true;
+function drawMusic() {
+  $$(".music-src").forEach((s) => (s.innerHTML = ["Apple Music", "Spotify"].map((n) => `<button class="${n === src ? "on" : ""}" data-src="${n}">${n}</button>`).join("")));
+  $$(".music-art").forEach((a) => (a.style.background = src === "Spotify" ? "linear-gradient(135deg,#1db954,#0a84ff)" : "linear-gradient(135deg,#fa2d48,#bf5af2)"));
+  $$(".playbtn").forEach((b) => (b.textContent = playing ? "⏸" : "▶"));
+}
+document.addEventListener("click", (e) => {
+  const s = e.target.closest("[data-src]"); if (s) { src = s.dataset.src; drawMusic(); }
+  const m = e.target.closest("[data-m]"); if (m) { if (m.dataset.m === "play") playing = !playing; else toast(m.dataset.m === "next" ? "Next track" : "Previous track"); drawMusic(); }
+});
+
+// Agents
+document.addEventListener("click", (e) => { const a = e.target.closest("[data-ans]"); if (a) { $("#agApi").innerHTML = `<span class="dot" style="background:${a.dataset.ans === "Allowed" ? "var(--green)" : "var(--t3)"}"></span><div style="flex:1"><p style="font-weight:500">api-server</p><p class="cap" style="margin:0">${a.dataset.ans === "Allowed" ? "running npm test" : "stopped"}</p></div>`; toast(`${a.dataset.ans}: npm test`); } });
+
+// Focus mode: design B, with a countdown (sped up 60× so you can see it move).
+let len = 25, end = 0, tick = 0;
+document.addEventListener("click", (e) => { const l = e.target.closest("[data-len]"); if (l) { len = +l.dataset.len; $$("[data-len]").forEach((b) => b.classList.toggle("on", b === l)); $("#focusPick").textContent = `${len}:00`; } });
+$("#startFocus").addEventListener("click", () => {
+  focusing = true; notch.classList.add("focus");
+  $("#normal").style.display = "none"; $("#focusMode").style.display = "";
+  const t = new Date(Date.now() + len * 60000); $("#until").textContent = t.toTimeString().slice(0, 5);
+  end = performance.now() + len * 1000; // 1 second per minute, for the demo
+  clearInterval(tick); tick = setInterval(step, 100); step(); drawRem(); fit();
+  $("#closedText").textContent = "Focus";
+});
+function step() {
+  const left = Math.max(0, end - performance.now()) / 1000 * 60; // seconds left, shown as if real time
+  const m = Math.floor(left / 60), s = Math.floor(left % 60);
+  $("#left").textContent = `${m}:${String(s).padStart(2, "0")}`;
+  $("#arc").setAttribute("stroke-dashoffset", (276.5 * (1 - left / (len * 60))).toFixed(1));
+  if (left <= 0) stopFocus("Focus done. Nicely done, sir.");
+}
+function stopFocus(msg) {
+  focusing = false; clearInterval(tick); notch.classList.remove("focus");
+  $("#normal").style.display = ""; $("#focusMode").style.display = "none"; $("#closedText").textContent = "9:31 · Standup";
+  show("overview"); if (msg) toast(msg);
+}
+$("#endFocus").addEventListener("click", () => stopFocus("Focus ended"));
+
+// Header buttons and small toasts.
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-toast]"); if (t) toast(t.dataset.toast); });
+$("#closeBtn").addEventListener("click", () => setOpen(false));
+let muted = false;
+$("#sound").addEventListener("click", () => { muted = !muted; $("#sound").style.color = muted ? "var(--t3)" : ""; toast(muted ? "Sounds off" : "Sounds on"); });
+
+// Ask: the island's chat.
+$("#chatIn").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !e.target.value.trim()) return;
+  const chat = $("#chat"), q = e.target.value.trim(); e.target.value = "";
+  chat.insertAdjacentHTML("beforeend", `<div class="bubble me"></div>`); chat.lastElementChild.textContent = q;
+  setTimeout(() => { chat.insertAdjacentHTML("beforeend", `<div class="bubble him">Certainly, sir. (A real answer comes from Claude.)</div>`); chat.scrollTop = 9e9; fit(); }, 600);
+  chat.scrollTop = 9e9; fit();
+});
+
+// Drop: a file for JARVIS.
+const dz = $("#dropZone");
+["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, () => dz.classList.remove("over")));
+dz.addEventListener("drop", (e) => e.preventDefault());
+
+
+// New Claude Code session.
+document.addEventListener("click", (e) => { const p = e.target.closest(".proj"); if (p) { $$(".proj").forEach((x) => x.classList.toggle("on", x === p)); } });
+$("#launchGo").addEventListener("click", () => { const p = $(".proj.on").textContent; toast(`Claude Code starting in ${p}`); $("#launchIn").value = ""; });
+
+// Calendar: Today / Week, like the island's calendar.
+const WEEK = { 0: EVENTS[0], 1: EVENTS[1], 4: EVENTS[4] };
+function drawWeek() {
+  $("#weekView").innerHTML = DAYS.map(([d, n], i) => `<div class="${i === 0 ? "today" : ""}"><b style="color:#f5f5f7">${d} ${n}</b>${(EVENTS[i] || []).map(([t, h, c]) => `<p class="e" style="background:${c}">${h} ${t}</p>`).join("")}</div>`).join("");
+}
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-cal]"); if (!c) return;
+  $$("[data-cal]").forEach((b) => b.classList.toggle("on", b === c));
+  const week = c.dataset.cal === "week"; drawWeek();
+  $("#weekView").style.display = week ? "" : "none"; $("#dayView").style.display = week ? "none" : ""; fit();
+});
+
+drawDays(); drawRem(); drawClips(); drawMusic(); show("home");
+
+// ── His visor rides the fold: from where he is in the open island into his spot in the mini notch ──
+function ride(fromEl, toEl) {
+  if (!fromEl || !toEl) return;
+  const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+  if (!a.width || !b.width) return;
+  const r = document.createElement("span"); r.className = "vis rider"; r.innerHTML = "<b></b>";
+  Object.assign(r.style, { left: `${a.left}px`, top: `${a.top}px`, width: `${a.width}px`, height: `${a.height}px`, borderRadius: fromEl.radius || "22px" });
+  document.body.append(r); toEl.style.visibility = "hidden";
+  requestAnimationFrame(() => requestAnimationFrame(() => Object.assign(r.style, { left: `${b.left}px`, top: `${b.top}px`, width: `${b.width}px`, height: `${b.height}px`, borderRadius: getComputedStyle(toEl).borderRadius })));
+  setTimeout(() => { r.remove(); toEl.style.visibility = ""; }, 460);
+}
+const _setOpen = setOpen;
+// Remember where the big visor is while the island is open (it's hidden once folded).
+setInterval(() => { const big = document.querySelector('.pane.on .bigvis'); if (big && open) { big._r = big.getBoundingClientRect(); big._rad = getComputedStyle(big).borderRadius; } }, 200);
+const rideFrom = () => { const big = document.querySelector('.pane.on .bigvis'); return big && big._r ? { getBoundingClientRect: () => big._r, radius: big._rad } : null; };
+setOpen = function (v) {
+  const wasOpen = open, from = rideFrom();
+  _setOpen(v);
+  if (!v && wasOpen && from) ride(from, document.querySelector(".closed .vis"));
+};
+
+// ── He dances while music plays and the island is folded ──
+function syncDance() { document.querySelector(".closed .vis").classList.toggle("dancing", playing); }
+document.addEventListener("click", () => setTimeout(syncDance, 0));
+syncDance();
+
+// ── The folder drop, like an AirPods case: the lid lifts back, the file falls in, he chews ──
+const tw = (ms, fn, ease = (k) => 1 - Math.pow(1 - k, 3)) => new Promise((done) => { const t0 = performance.now(); const step = (n) => { const k = Math.max(0, Math.min(1, (n - t0) / ms)); fn(ease(k)); k < 1 ? requestAnimationFrame(step) : done(); }; requestAnimationFrame(step); });
+let dropping = false;
+async function dropFile(name) {
+  if (dropping) return; dropping = true;
+  const st = $("#dropStage"), hint = $("#dropHint");
+  const X = 150, Y = 40, W = 100, H = 70, R = 24, SPLIT = 60, BOT = Y + H;
+  st.innerHTML = `<defs><linearGradient id="nB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef0f3"/><stop offset="1" stop-color="#d9dce2"/></linearGradient><linearGradient id="nL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f8fa"/><stop offset="1" stop-color="#eceef1"/></linearGradient><clipPath id="nAbove"><rect x="0" y="0" width="400" height="${SPLIT + 1}"/></clipPath><clipPath id="nEye"><rect x="168" y="68" width="64" height="14" rx="7"/></clipPath></defs>
+    <g id="nLid"><rect id="nUnder" x="${X + 3}" y="${SPLIT - 2}" width="${W - 6}" height="2" rx="1" fill="#c9cdd4"/><g id="nFace"><path d="M${X} ${SPLIT} V${Y + R} Q${X} ${Y} ${X + R} ${Y} H${X + W - R} Q${X + W} ${Y} ${X + W} ${Y + R} V${SPLIT} Z" fill="url(#nL)"/></g></g>
+    <rect id="nHole" x="${X + 8}" y="${SPLIT - 4}" width="${W - 16}" height="6" rx="3" fill="#07090d" opacity="0"/>
+    <g clip-path="url(#nAbove)"><g id="nFile"><rect x="-16" y="-20" width="32" height="40" rx="5" fill="#2c2c2e" stroke="#48484a"/><rect x="-10" y="-6" width="16" height="2.5" rx="1" fill="#8e8e93"/><rect x="-10" y="0" width="20" height="2.5" rx="1" fill="#8e8e93"/></g></g>
+    <g id="nBody"><path d="M${X} ${SPLIT} H${X + W} V${BOT - R} Q${X + W} ${BOT} ${X + W - R} ${BOT} H${X + R} Q${X} ${BOT} ${X} ${BOT - R} Z" fill="url(#nB)"/>
+    <rect x="168" y="68" width="64" height="14" rx="7" fill="#0b0f17" stroke="#c9cdd4" stroke-width=".8"/><g clip-path="url(#nEye)"><rect id="nEyeBar" x="177" y="72" width="46" height="6" rx="3" fill="#0a84ff"/></g>
+    <path id="nSmile" d="M180 79 Q200 70 220 79" fill="none" stroke="#0a84ff" stroke-width="5" stroke-linecap="round" opacity="0"/>
+    <path id="nSeam" d="M${X} ${SPLIT} H${X + W}" stroke="#c4c8cf"/></g>
+    <rect x="160" y="128" width="80" height="4" rx="2" fill="#2c2c2e"/><rect id="nBar" x="160" y="128" width="0" height="4" rx="2" fill="#0a84ff"/>`;
+  hint.style.display = "none"; st.style.display = "block";
+  const face = $("#nFace"), under = $("#nUnder"), hole = $("#nHole"), file = $("#nFile"), body = $("#nBody"), lidG = $("#nLid"), eye = $("#nEyeBar");
+  const lid = (k) => { const sq = 1 - 0.62 * Math.min(k, 1.05), uh = Math.max(2, 14 * k), gap = 5 * Math.max(0, Math.min(k, 1.05)), top = SPLIT - gap - uh + 2;
+    under.setAttribute("y", top); under.setAttribute("height", uh); face.setAttribute("transform", `translate(0 ${top}) scale(1 ${sq}) translate(0 ${-SPLIT})`);
+    hole.setAttribute("y", SPLIT - gap - 1); hole.setAttribute("height", gap + 3); hole.setAttribute("opacity", Math.min(1, k * 1.4)); $("#nSeam").setAttribute("opacity", 1 - Math.min(1, k * 3)); };
+  const at = (y, sc) => file.setAttribute("transform", `translate(200 ${y}) scale(${sc})`);
+  const squash = (sx, sy) => { const t = `translate(200 ${BOT}) scale(${sx} ${sy}) translate(-200 ${-BOT})`; body.setAttribute("transform", t); lidG.setAttribute("transform", t); };
+  const back = (k) => { const c = 1.6; return 1 + (c + 1) * Math.pow(k - 1, 3) + c * Math.pow(k - 1, 2); };
+  lid(0); at(-10, 1);
+  await tw(220, (k) => eye.setAttribute("transform", `translate(0 ${-2 * k})`));
+  await tw(380, (k) => lid(back(k)));
+  await tw(440, (k) => at(-10 + k * 100, 1 - k * 0.35), (k) => k * k * k);
+  await tw(140, (k) => lid(1 - k), (k) => k * k * k);
+  await tw(200, (k) => { const q = Math.sin(k * Math.PI); squash(1 + q * 0.05, 1 - q * 0.07); });
+  eye.setAttribute("transform", "");
+  for (let i = 0; i < 2; i++) await tw(160, (k) => { const q = Math.sin(k * Math.PI); squash(1 + q * 0.03, 1 - q * 0.045); eye.setAttribute("transform", `translate(0 75) scale(1 ${1 - q * 0.6}) translate(0 -75)`); });
+  eye.setAttribute("transform", "");
+  await tw(800, (k) => $("#nBar").setAttribute("width", k * 80), (k) => k);
+  await tw(180, (k) => { eye.setAttribute("opacity", 1 - k); $("#nSmile").setAttribute("opacity", k); });
+  toast(`JARVIS has ${name}`);
+  setTimeout(() => { st.style.display = "none"; hint.style.display = ""; dropping = false; }, 900);
+}
+dz.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) dropFile(f.name); }, true);
+dz.addEventListener("click", (e) => { e.stopImmediatePropagation(); dropFile("report.pdf"); }, true);
+
+
+// ── Opened at a view by its address (the design board uses this) ──
+addEventListener("load", () => setTimeout(() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (q.get("nohint")) document.querySelector(".hint").style.display = "none";
+  if (q.get("open")) { setOpen(true); show(q.get("tab") || "home"); }
+  // Focus held mid-session (the demo timer runs 60x fast, so it would end on its own).
+  if (q.get("focus")) { show("focus"); document.getElementById("startFocus").click(); clearInterval(tick); $("#left").textContent = "18:40"; $("#arc").setAttribute("stroke-dashoffset", (276.5 * 0.25).toFixed(1)); }
+}, 300));
+</script>
+</body>
+</html>

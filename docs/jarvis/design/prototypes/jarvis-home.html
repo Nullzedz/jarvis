@@ -1,0 +1,1451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JARVIS prototype</title>
+<style>
+  :root {
+    --bg: #000; --s1: #1c1c1e; --s2: #2c2c2e; --s0: #0e0f11;
+    --t1: #f5f5f7; --t2: #8e8e93; --t3: #636366;
+    --blue: #0a84ff; --green: #30d158; --orange: #ff9f0a; --red: #ff453a; --purple: #bf5af2; --teal: #64d2ff; --pink: #ff375f;
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --mono: "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--t1); font: 14px/1.4 var(--font); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
+  .view { display: none; }
+  .view.on { display: block; }
+  p { margin: 0; }
+
+  /* ── Shared bits ── */
+  .vis { border-radius: 28%; background: #f2f3f5; display: grid; place-items: center; flex: none; }
+  .vis b { border-radius: 3px; background: var(--blue); display: block; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #aeaeb2; background: var(--s1); border-radius: 999px; padding: 5px 11px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .ib { width: 32px; height: 32px; border-radius: 50%; background: var(--s1); display: grid; place-items: center; color: var(--t2); }
+  .ib:hover { color: var(--t1); }
+  .ib svg, .sq svg, .mic svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .sq { display: grid; place-items: center; color: #fff; border-radius: 26%; }
+  .mic { border-radius: 50%; background: var(--blue); display: grid; place-items: center; color: #fff; flex: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; border-radius: 999px; padding: 6px 15px; transition: transform .12s ease, filter .12s ease; }
+  .btn:active { transform: scale(.96); }
+  .bp { background: var(--blue); color: #fff; } .bs { background: var(--s2); color: #e5e5ea; }
+  .cap { font-size: 12px; color: var(--t2); }
+  .ct { font-size: 14px; font-weight: 500; } .cs { font-size: 12px; color: var(--t2); margin-top: 2px; }
+  .tile { background: var(--s1); border-radius: 18px; padding: 16px; }
+  .big { font-size: 30px; font-weight: 600; line-height: 1.1; }
+  .code { background: var(--s0); border-radius: 12px; padding: 11px 13px; font: 12px/1.7 var(--mono); color: #aeaeb2; }
+  .code .n { color: #48484a; display: inline-block; width: 24px; }
+  .code .del { background: rgba(255,69,58,.12); color: #ff8d85; display: block; border-radius: 4px; }
+  .code .add { background: rgba(48,209,88,.12); color: #7ee2a0; display: block; border-radius: 4px; }
+  .bar { height: 4px; border-radius: 2px; background: var(--s2); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 2px; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 32px; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; background: var(--s2); border-radius: 999px; padding: 8px 16px; font-size: 13px; transition: .25s ease; pointer-events: none; z-index: 50; }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ── Front page ── */
+  .hero { height: 100vh; min-height: 560px; display: flex; flex-direction: column; padding: 18px 0 26px; }
+  .top { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+  .center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .h1 { font-size: 44px; font-weight: 600; letter-spacing: -.015em; line-height: 1.08; }
+  .h1 span { color: var(--t3); }
+  .sub { font-size: 15px; color: var(--t2); margin-top: 10px; }
+  .ask { display: flex; align-items: center; gap: 12px; background: var(--s1); border-radius: 999px; padding: 10px 10px 10px 20px; font-size: 15px; color: var(--t2); width: min(560px, 90%); margin-top: 30px; }
+  .ask .q { flex: 1; }
+  .kc { font-size: 11.5px; color: var(--t2); border: 1px solid #48484a; border-radius: 6px; padding: 1px 7px; }
+  .dock { display: flex; justify-content: center; gap: 30px; }
+  .app { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: #aeaeb2; }
+  .app .slot { width: 54px; height: 54px; }
+  .chev { text-align: center; color: #48484a; margin-top: 14px; animation: bob 2.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(4px); } }
+
+  /* The six squares live in one fixed layer: they glide from the dock into the pinned bar as you scroll. */
+  #flyers { position: fixed; inset: 0; pointer-events: none; z-index: 21; }
+  #flyers .sq { position: absolute; left: 0; top: 0; pointer-events: auto; will-change: transform; }
+  #pinbar { position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 20; background: rgba(0,0,0,.82); backdrop-filter: blur(18px); border-bottom: 1px solid #1c1c1e; opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  #pinbar.on { opacity: 1; pointer-events: auto; }
+  #pinbar .in { max-width: 980px; margin: 0 auto; padding: 0 32px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+  .askmini { display: flex; align-items: center; gap: 8px; background: var(--s1); border-radius: 999px; padding: 4px 4px 4px 14px; font-size: 13px; color: var(--t2); }
+
+  /* ── At a glance: one Apple-style widget per section; press one to open its tab ── */
+  .glance-h { margin: 70px 0 22px; } .glance-h .t { font-size: 30px; font-weight: 600; letter-spacing: -.01em; } .glance-h .t span { color: var(--t3); }
+  .glance-h .s { font-size: 14px; color: var(--t2); margin-top: 6px; }
+  .bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 190px; gap: 16px; padding: 0 0 140px; }
+  .w { background: var(--s1); border-radius: 26px; padding: 20px 22px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; position: relative;
+    transition: transform .35s cubic-bezier(.32,.72,0,1), background .2s ease; }
+  .w[data-open] { cursor: pointer; } .w[data-open]:hover { background: #232325; transform: translateY(-2px); } .w[data-open]:active { transform: scale(.985); }
+  .w.span2 { grid-column: span 2; } .w.tall { grid-row: span 2; }
+  .wh { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--t2); flex: none; }
+  .wh .ic { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; color: #fff; flex: none; }
+  .wh .ic svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .wh .go { margin-left: auto; color: var(--t3); font-size: 18px; line-height: 1; transition: transform .2s ease, color .2s ease; }
+  .w[data-open]:hover .wh .go { color: var(--t2); transform: translateX(2px); }
+  .wbig { font-size: 38px; font-weight: 600; letter-spacing: -.02em; line-height: 1; }
+  .wbig small { font-size: 15px; font-weight: 400; color: var(--t2); letter-spacing: 0; margin-left: 6px; }
+  .wsub { font-size: 13px; color: var(--t2); margin-top: 7px; }
+  .agrow { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #2c2c2e; }
+  .agrow:last-child { border: 0; }
+  .agrow .vis { width: 34px; height: 24px; }
+  .wapprove { display: flex; align-items: center; gap: 10px; background: #2c2c2e; border-radius: 999px; padding: 7px 7px 7px 16px; font-size: 13px; margin-top: auto; flex: none; transition: opacity .3s ease, transform .3s ease; }
+  .wapprove.gone { opacity: 0; transform: translateY(8px); pointer-events: none; }
+  .spin { animation: spin 60s linear infinite; } .spin.r2 { animation-duration: 80s; animation-direction: reverse; } .spin.r3 { animation-duration: 140s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .mcal { display: grid; grid-template-columns: repeat(7, 15px); gap: 3px; flex: none; }
+  .mcal i { width: 15px; height: 13px; border-radius: 4px; font-style: normal; font-size: 9px; display: grid; place-items: center; color: #8e8e93; }
+  .hometile { width: 64px; height: 64px; border-radius: 16px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; font-size: 10.5px; line-height: 1.2; flex: none; }
+
+  /* ── Dictation: Dictionary / Snippets / Styles each open a word wall (design B) ── */
+  .dcol { cursor: pointer; transition: background .2s ease, transform .3s cubic-bezier(.32,.72,0,1); } .dcol:hover { background: #151517 !important; transform: translateY(-2px); }
+  .wall-top { display: flex; align-items: center; gap: 14px; margin: 6px 0 26px; }
+  .wall-search { flex: 1; max-width: 360px; margin: 0 auto; display: flex; align-items: center; gap: 8px; background: var(--s1); border-radius: 999px; padding: 8px 8px 8px 16px; }
+  .wall-search input { flex: 1; background: none; border: 0; outline: 0; color: var(--t1); font: inherit; font-size: 14px; }
+  .wall-add { width: 30px; height: 30px; border-radius: 50%; background: var(--orange); color: #fff; font-size: 18px; display: grid; place-items: center; }
+  .wall { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 12px 12px; padding: 26px 30px 34px; min-height: 300px; align-content: center; }
+  .wchip { background: var(--s1); border-radius: 999px; padding: .38em .95em; color: #e5e5ea; line-height: 1.15; transition: transform .25s cubic-bezier(.32,.72,0,1), background .2s ease, color .2s ease; }
+  .wchip:hover { background: var(--s2); transform: scale(1.04); }
+  .wchip.on { background: var(--orange); color: #fff; }
+  .wchip .sub { color: var(--t2); font-size: .62em; margin-left: .4em; } .wchip.on .sub { color: rgba(255,255,255,.8); }
+  .wchip.new { animation: pop .45s cubic-bezier(.32,.72,0,1); } @keyframes pop { from { transform: scale(.4); opacity: 0; } }
+  .wdetail { background: var(--s1); border-radius: 22px; padding: 18px 22px; display: flex; align-items: center; gap: 18px; margin-bottom: 70px; }
+  /* ── Notetaker transcript: lyrics style (design B). The spoken line big and bright, the rest dimmed ── */
+  .lyr { position: relative; height: 470px; overflow: hidden; margin: 10px 0 18px;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 78%, transparent 100%); mask-image: linear-gradient(180deg, transparent 0, #000 18%, #000 78%, transparent 100%); }
+  #lyrIn { transition: transform .7s cubic-bezier(.32,.72,0,1); padding: 0 60px 0 4px; }
+  .ly { display: block; width: 100%; text-align: left; padding: 12px 0; font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-size: 30px; line-height: 1.28;
+    color: #3a3a3c; transition: color .5s ease, transform .5s cubic-bezier(.32,.72,0,1), filter .5s ease; transform-origin: left center; transform: scale(.94); filter: blur(.6px); }
+  .ly:hover { color: #8e8e93; }
+  .ly .who { display: block; font-family: var(--sans, inherit); font-size: 12px; letter-spacing: .02em; margin-bottom: 4px; opacity: 0; transition: opacity .4s ease; }
+  .ly.near { color: #636366; filter: none; }
+  .ly.on { color: #f5f5f7; transform: none; filter: none; }
+  .ly.on .who { opacity: 1; }
+  .ly .tag { font-family: inherit; font-size: 12px; color: var(--orange); background: rgba(255,159,10,.14); border-radius: 999px; padding: 2px 8px; margin-left: 10px; vertical-align: middle; white-space: nowrap; }
+  .txbar { display: flex; align-items: center; gap: 14px; background: var(--s1); border-radius: 999px; padding: 8px 12px 8px 8px; margin-bottom: 60px; }
+  .txplay { width: 38px; height: 38px; border-radius: 50%; background: #f5f5f7; flex: none; position: relative; }
+  .txplay::before { content: ""; position: absolute; left: 14px; top: 11px; border-left: 13px solid #000; border-top: 8px solid transparent; border-bottom: 8px solid transparent; }
+  .txplay.on::before { left: 13px; top: 12px; width: 4px; height: 14px; border: 0; background: #000; box-shadow: 8px 0 0 #000; }
+  .txscrub { flex: 1; height: 6px; border-radius: 3px; background: var(--s2); position: relative; cursor: pointer; }
+  .txscrub i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: #f5f5f7; transition: width .4s linear; }
+  .txscrub b { position: absolute; top: -3px; width: 4px; height: 12px; border-radius: 2px; background: var(--orange); }
+  /* ── Agents ── */
+  .ahero { height: 100vh; min-height: 560px; display: flex; flex-direction: column; padding: 18px 0 22px; position: relative; }
+  .title { font-size: 24px; font-weight: 600; } .title span { color: var(--t3); font-weight: 400; font-size: 16px; margin-left: 8px; }
+  .back { display: inline-flex; align-items: center; gap: 4px; color: var(--blue); font-size: 14px; }
+  #orbit { flex: 1; width: 100%; min-height: 0; }
+  .planet { cursor: grab; touch-action: none; }
+  .approve { display: flex; align-items: center; gap: 10px; background: var(--s1); border-radius: 999px; padding: 8px 8px 8px 18px; transition: opacity .3s ease, transform .3s ease; }
+  .approve.gone { opacity: 0; transform: translateY(10px); pointer-events: none; }
+  .stack { position: relative; padding: 40px 0 80px; }
+  .card { position: absolute; left: 0; right: 0; border-radius: 18px; transition: transform .45s cubic-bezier(.2,.8,.2,1), background .3s ease, opacity .3s ease; cursor: pointer; }
+  .card .body { opacity: 0; transition: opacity .25s ease; }
+  .card.front { cursor: default; } .card.front .body { opacity: 1; transition-delay: .15s; }
+  .peekline { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; font-size: 13px; color: var(--t2); }
+  .card.front .peekline { display: none; }
+
+  /* ── The sidebar: A (icons) at rest, C (coloured squares and names) on hover ── */
+  #rail { position: fixed; left: 12px; top: 12px; bottom: 12px; width: 68px; z-index: 30; background: #0e0f11; border-radius: 26px;
+    display: flex; flex-direction: column; padding: 16px 12px; gap: 10px; overflow: hidden;
+    transition: width .32s cubic-bezier(.32,.72,0,1), box-shadow .32s ease, transform .45s cubic-bezier(.32,.72,0,1), opacity .3s ease; }
+  body.at-home #rail { transform: translateX(-110px); opacity: 0; pointer-events: none; }
+  #rail:hover { width: 208px; box-shadow: 12px 0 40px rgba(0,0,0,.6); }
+  .ri { display: flex; align-items: center; gap: 12px; height: 44px; border-radius: 14px; padding: 0 4px; color: #8e8e93; white-space: nowrap; flex: none; width: 100%; text-align: left; }
+  .ri:hover { background: #1c1c1e; color: #f5f5f7; }
+  .ri.on { background: #2c2c2e; color: #f5f5f7; }
+  .ri .g { width: 36px; height: 36px; flex: none; border-radius: 10px; display: grid; place-items: center; transition: background .25s ease, color .25s ease; }
+  .ri .g svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #rail:hover .ri .g { background: var(--c); color: #fff; }
+  .ri .n { font-size: 14px; opacity: 0; transform: translateX(-6px); transition: opacity .2s ease, transform .2s ease; }
+  #rail:hover .ri .n { opacity: 1; transform: none; transition-delay: .08s; }
+  .rlogo { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 4px; margin-bottom: 8px; white-space: nowrap; font-weight: 600; font-size: 14px; }
+  .rlogo .vis { width: 36px; height: 25px; }
+  .rlogo .n { opacity: 0; transition: opacity .2s ease; } #rail:hover .rlogo .n { opacity: 1; }
+  .rav { width: 36px; height: 36px; border-radius: 50%; background: #3a3a3c; display: grid; place-items: center; font-size: 13px; font-weight: 600; color: #e5e5ea; flex: none; }
+  .view:not(#home) .wrap { padding-left: 112px; }
+
+  /* ── The other sections ── */
+  .sec-top { display: flex; align-items: center; justify-content: space-between; padding: 26px 0 18px; }
+  .title { font-size: 26px; font-weight: 600; } .title span { color: var(--t3); font-weight: 400; font-size: 16px; margin-left: 8px; }
+  .tabs2 { display: inline-flex; gap: 6px; } .tabs2 button { font-size: 13px; padding: 6px 15px; border-radius: 999px; background: var(--s2); color: #e5e5ea; }
+  .tabs2 button.on { background: #f5f5f7; color: #000; font-weight: 500; }
+  .bub { max-width: 70%; border-radius: 20px; padding: 10px 15px; font-size: 14px; margin: 0 0 10px; }
+  .you { background: var(--blue); color: #fff; margin-left: auto; border-bottom-right-radius: 6px; } .him { background: var(--s1); color: #e5e5ea; border-bottom-left-radius: 6px; }
+  .glow { border-radius: 26px; background: #08080a; padding: 22px; display: flex; flex-direction: column; align-items: center; box-shadow: inset 0 0 0 2px rgba(191,90,242,.85), inset 0 0 34px 8px rgba(10,132,255,.35), inset 0 0 70px 12px rgba(255,55,95,.1); animation: glow 4s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow: inset 0 0 0 2px rgba(10,132,255,.85), inset 0 0 40px 10px rgba(191,90,242,.35), inset 0 0 70px 12px rgba(255,55,95,.12); } }
+  .wv { display: flex; align-items: center; gap: 5px; height: 70px; } .wv i { width: 5px; border-radius: 3px; background: var(--purple); display: block; transition: height .12s ease; }
+  .wv.red i { background: var(--red); width: 7px; }
+  .serif { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; }
+  .chk { display: flex; align-items: center; gap: 10px; font-size: 14px; padding: 6px 0; width: 100%; text-align: left; } .chk i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--t3); flex: none; }
+  .chk.ok { color: var(--t3); text-decoration: line-through; } .chk.ok i { background: var(--green); border-color: var(--green); }
+  .lined { position: relative; min-height: 560px; background: repeating-linear-gradient(#000 0 39px, #151517 39px 40px); background-position: 0 22px; border-radius: 16px; padding: 30px 40px 40px 110px; }
+  .lined .margin { position: absolute; left: 88px; top: 0; bottom: 0; width: 1px; background: rgba(255,69,58,.55); }
+  .recdot { width: 40px; height: 40px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px #000, 0 0 0 5px #3a3a3c; }
+  .caret { display: inline-block; width: 3px; height: 30px; background: var(--blue); vertical-align: -5px; margin-left: 5px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .live { display: inline-flex; align-items: center; gap: 7px; color: var(--red); font-weight: 500; } .live .dot { background: var(--red); animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .ht { border-radius: 20px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; min-height: 128px; background: #f2f2f7; color: #1c1c1e; text-align: left; transition: transform .12s ease; }
+  .ht.off { background: var(--s1); color: #f5f5f7; }
+  .ht:active { transform: scale(.97); }
+  .ht .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 16px; }
+  .ht .v { font-size: 13px; color: #6e6e73; } .ht.off .v { color: var(--t2); }
+  .room { font-size: 13px; padding: 6px 15px; border-radius: 999px; background: var(--s1); color: #aeaeb2; } .room.on { background: #f5f5f7; color: #000; font-weight: 500; }
+
+  /* ── Settings (reference 12): grouped sub-navigation; rows of label + description | control ── */
+  .set { display: grid; grid-template-columns: 196px 1fr; gap: 40px; padding: 26px 0 120px; }
+  .snav { position: sticky; top: 24px; align-self: start; display: flex; flex-direction: column; gap: 2px; }
+  .snav .search { display: flex; align-items: center; gap: 8px; background: var(--s1); border-radius: 10px; padding: 8px 10px; margin-bottom: 16px; color: var(--t2); font-size: 13px; }
+  .snav .search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #f5f5f7; font: inherit; }
+  .snav .search kbd { font: 11px var(--mono); color: var(--t2); border: 1px solid #3a3a3c; border-radius: 5px; padding: 0 5px; }
+  .snav a { display: flex; align-items: center; gap: 10px; color: #aeaeb2; text-decoration: none; font-size: 13.5px; padding: 7px 10px; border-radius: 9px; }
+  .snav a:hover { background: var(--s1); color: #fff; }
+  .snav a.on { background: var(--s2); color: #fff; }
+  .snav a svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .sgroup { scroll-margin-top: 24px; padding-bottom: 14px; }
+  .sgroup + .sgroup { border-top: 1px solid var(--s1); padding-top: 30px; }
+  .sgroup h3 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  .sgroup > p { font-size: 13px; color: var(--t2); margin: 0 0 18px; }
+  .srow { display: grid; grid-template-columns: 1fr 1.25fr; gap: 28px; align-items: start; padding: 16px 0; }
+  .srow + .srow { border-top: 1px solid #141416; }
+  .srow .lbl b { display: block; font-weight: 600; font-size: 14px; }
+  .srow .lbl span { display: block; font-size: 12.5px; color: var(--t2); margin-top: 2px; line-height: 1.45; }
+  .ctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .ctl.left { justify-content: flex-start; }
+  .tog { width: 46px; height: 28px; border-radius: 999px; background: #3a3a3c; position: relative; flex: none; transition: background .2s ease; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.4); transition: transform .22s cubic-bezier(.32,.72,0,1); }
+  .tog.on { background: var(--green); } .tog.on::after { transform: translateX(18px); }
+  .tog:focus-visible, .segc button:focus-visible, .swatch:focus-visible, .field input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .segc { display: inline-flex; background: var(--s1); border-radius: 10px; padding: 3px; }
+  .segc button { font-size: 13px; padding: 6px 14px; border-radius: 8px; color: #aeaeb2; }
+  .segc button.on { background: #3a3a3c; color: #fff; }
+  .field { display: flex; align-items: center; width: 100%; background: var(--s1); border: 1px solid transparent; border-radius: 10px; overflow: hidden; }
+  .field:focus-within { border-color: var(--blue); }
+  .field .pre { display: flex; align-items: center; gap: 8px; padding: 9px 12px; color: var(--t2); font-size: 13px; border-right: 1px solid var(--s2); white-space: nowrap; }
+  .field input, .field select { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: #f5f5f7; font: 13.5px var(--font); padding: 9px 12px; }
+  .field select { appearance: none; cursor: pointer; }
+  .field .ok { width: 18px; height: 18px; border-radius: 50%; background: var(--green); color: #000; display: grid; place-items: center; font-size: 11px; font-weight: 700; margin-right: 10px; flex: none; }
+  .field .chev { color: var(--t2); margin-right: 12px; pointer-events: none; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.15); position: relative; }
+  .swatch.on::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; box-shadow: 0 0 0 2px #f5f5f7; }
+  .sl { -webkit-appearance: none; appearance: none; width: 220px; height: 6px; border-radius: 3px; background: linear-gradient(var(--blue), var(--blue)) 0 / var(--v, 50%) 100% no-repeat, #3a3a3c; outline: none; }
+  .sl::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); cursor: pointer; }
+  .keys { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 10px; background: var(--s1); min-height: 38px; cursor: pointer; }
+  .keys.rec { box-shadow: inset 0 0 0 1.5px var(--blue); color: var(--blue); font-size: 12.5px; }
+  .cap2 { font: 500 12.5px var(--font); color: #f5f5f7; background: #2c2c2e; border-radius: 6px; padding: 3px 9px; box-shadow: inset 0 -2px 0 #000; }
+  .chip2 { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; background: var(--s2); color: #e5e5ea; border-radius: 999px; padding: 4px 6px 4px 11px; }
+  .chip2 button { width: 18px; height: 18px; border-radius: 50%; color: var(--t2); display: grid; place-items: center; font-size: 12px; }
+  .chip2 button:hover { background: #3a3a3c; color: #fff; }
+  .chip2.off { background: transparent; box-shadow: inset 0 0 0 1px #3a3a3c; color: var(--t2); padding-right: 11px; cursor: pointer; }
+  .danger { color: var(--red); background: rgba(255,69,58,.12); border-radius: 10px; padding: 8px 14px; font-size: 13px; font-weight: 500; }
+  .btn2 { background: var(--s1); border-radius: 10px; padding: 8px 14px; font-size: 13px; color: #e5e5ea; }
+  .btn2:hover { background: var(--s2); }
+  body.calm *, body.calm *::before, body.calm *::after { animation-duration: .001s !important; transition-duration: .001s !important; }
+
+  /* ── Light mode extras: JARVIS needs an edge on white, cards a soft lift ── */
+  body.light .vis { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), 0 2px 6px rgba(0,0,0,.08); }
+  body.light .tile, body.light .ht, body.light .card { box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+  body.light #rail { box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  body.light ::selection { background: rgba(0,122,255,.2); }
+  body.light .ht.off { background: #e5e5ea !important; box-shadow: none; }
+
+  /* ── Mail (agreed design A): month calendar left; the day, arrivals, waiting and files right ── */
+  .mail { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; padding: 22px 0; height: 100vh; min-height: 640px; }
+  .mon { background: var(--s0); border-radius: 18px; padding: 14px 16px; display: flex; flex-direction: column; min-height: 0; }
+  .mon .wd { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 10px 0 6px; text-align: center; font-size: 11.5px; color: var(--t2); }
+  .mgrid { display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; gap: 5px; flex: 1; min-height: 0; }
+  .md { border-radius: 10px; background: var(--s1); padding: 6px 7px; font-size: 12.5px; display: flex; flex-direction: column; text-align: left; transition: box-shadow .15s ease; }
+  .md:hover { box-shadow: inset 0 0 0 1px #48484a; }
+  .md.mute { background: transparent; color: #3a3a3c; pointer-events: none; }
+  .md.fut { background: #141416; color: var(--t3); }
+  .md.sel { box-shadow: inset 0 0 0 1.5px var(--blue); }
+  .md .n { width: 20px; height: 20px; display: inline-grid; place-items: center; border-radius: 50%; }
+  .md.today .n { background: var(--red); color: #fff; }
+  .md .dd { display: flex; gap: 3px; margin-top: 4px; } .md .dd i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+  .md .vb { margin-top: auto; height: 4px; border-radius: 2px; background: var(--s2); overflow: hidden; } .md .vb i { display: block; height: 100%; background: var(--blue); border-radius: 2px; }
+  .mright { display: grid; grid-template-rows: 1.35fr .6fr .9fr; gap: 12px; min-height: 0; }
+  .mp { background: var(--s1); border-radius: 18px; padding: 12px 15px; min-height: 0; overflow: hidden; display: flex; flex-direction: column; text-align: left; }
+  button.mp { transition: transform .15s ease; } button.mp:hover { background: #222224; } button.mp:active { transform: scale(.985); }
+  .mrow { display: grid; grid-template-columns: 44px 1fr; align-items: start; border-top: 1px solid var(--s2); padding: 7px 0; flex: 1; }
+  .mrow p { margin: 0 0 4px; font-size: 12px; color: #aeaeb2; }
+  .capsule { border: 1.5px dashed #3a3a3c; border-radius: 999px; padding: 3px 4px 3px 9px; display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .gpill { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 5px; font-size: 12px; font-weight: 500; color: #000; }
+  .gpill .c { background: rgba(0,0,0,.18); border-radius: 999px; padding: 0 7px; font-size: 11.5px; }
+  .gav { width: 16px; height: 16px; border-radius: 50%; display: inline-block; border: 2px solid #000; margin-left: -6px; } .gav:first-child { margin-left: 0; }
+  .pair2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; min-height: 0; }
+  .rb { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex: none; }
+  .ftile { background: var(--s2); border-radius: 10px; padding: 6px 8px; font-size: 11.5px; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ftile b { font-size: 10px; color: #fff; border-radius: 4px; padding: 0 5px; align-self: flex-start; font-weight: 600; }
+  .mfull { padding: 22px 0 40px; min-height: 100vh; display: flex; flex-direction: column; gap: 12px; }
+  .sug { font-size: 13px; color: #e5e5ea; background: #242426; border: 1px solid #3a3a3c; border-radius: 999px; padding: 5px 12px; }
+  .sug:hover { border-color: var(--blue); }
+
+  /* ── JARVIS design A: the object with a real eye slot (character sheet) ── */
+  .vis, .bigvis { position: relative; background: linear-gradient(180deg, #f6f7f9 0%, #eceef1 70%, #dcdfe4 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 1px 2px rgba(0,0,0,.28) !important; overflow: hidden; }
+  .vis::before, .bigvis::before { content: ""; position: absolute; left: 18.5%; right: 18.5%; top: 40%; height: 20%; border-radius: 999px;
+    background: linear-gradient(180deg, #0b0f17, #1b2433); box-shadow: inset 0 1px 1px rgba(0,0,0,.7), 0 0 0 1px rgba(201,205,212,.9); }
+  .vis b, .bigvis b { position: relative; z-index: 1; width: 46% !important; height: 10% !important; min-height: 2px; border-radius: 999px !important;
+    background: var(--eye, var(--blue)) !important; animation: visLook 7s cubic-bezier(.4,0,.2,1) infinite, visBlink 5s ease-in-out infinite; }
+  @keyframes visLook { 0%,18% { translate: 0 } 24%,40% { translate: -16% 0 } 46%,62% { translate: 16% 0 } 68%,100% { translate: 0 } }
+  @keyframes visBlink { 0%,86%,92%,100% { scale: 1 1 } 89% { scale: 1 .1 } }
+  @media (prefers-reduced-motion: reduce) { .vis b, .bigvis b { animation: none; } }
+</style>
+</head>
+<body class="at-home">
+<nav id="rail" aria-label="Sections">
+  <div class="rlogo"><span class="vis"><b style="width:19px;height:4px"></b></span><span class="n">JARVIS</span></div>
+  <button class="ri on" data-nav="home" style="--c:#3a3a3c"><span class="g"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span class="n">Home</span></button>
+  <button class="ri" data-nav="jarvis" style="--c:#bf5af2"><span class="g"><svg viewBox="0 0 24 24"><path d="M3 12h2l2-6 4 12 3-9 2 5h5"/></svg></span><span class="n">JARVIS</span></button>
+  <button class="ri" data-nav="agents" style="--c:#30d158"><span class="g"><svg viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></svg></span><span class="n">Agents</span></button>
+  <button class="ri" data-nav="notes" style="--c:#ff9f0a"><span class="g"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/></svg></span><span class="n">Notes</span></button>
+  <button class="ri" data-nav="mail" style="--c:#0a84ff"><span class="g"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span class="n">Mail</span></button>
+  <button class="ri" data-nav="connections" style="--c:#64d2ff"><span class="g"><svg viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/></svg></span><span class="n">Connections</span></button>
+  <div style="flex:1"></div>
+  <button class="ri" data-nav="settings" style="--c:#3a3a3c"><span class="g"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></span><span class="n">Settings</span></button>
+  <div class="ri" style="cursor:default"><span class="g"><span class="rav">S</span></span><span class="n">Sir</span></div>
+</nav>
+
+<!-- ═════════ Front page ═════════ -->
+<section id="home" class="view on">
+  <div class="wrap">
+    <div class="hero">
+      <div class="top">
+        <span class="brand"><span class="vis" style="width:24px;height:16px"><b style="width:13px;height:3px"></b></span>JARVIS</span>
+        <span class="row"><span class="chip"><span class="dot" style="background:var(--green)"></span>Listening</span><button class="ib" data-todo="Settings" aria-label="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></span>
+      </div>
+      <div class="center">
+        <p class="h1">Good evening, <span>sir.</span></p>
+        <p class="sub">Friday 20 November · 3 agents working · plan at 42%</p>
+        <div class="ask"><span style="color:var(--purple)">✦</span><span class="q">Ask JARVIS anything</span><span class="kc">Ctrl ⇧ Z</span><button class="mic" style="width:36px;height:36px" data-todo="Talking" aria-label="Talk"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg></button></div>
+      </div>
+      <div class="dock" id="dock"></div>
+      <div class="chev">⌄</div>
+    </div>
+
+    <div class="glance-h"><p class="t">At a glance, <span>sir.</span></p><p class="s">Everything in one place. Press a widget to open it.</p></div>
+    <div class="bento">
+      <div class="w span2 tall" data-open="agents" id="gAgents">
+        <div class="wh"><span class="ic" style="background:#30d158"><svg viewBox="0 0 24 24"><path d="M4 17l6-5-6-5M12 19h8"/></svg></span>Agents<span class="go">›</span></div>
+        <div style="flex:1;display:flex;gap:18px;align-items:center;min-height:0">
+          <svg id="gOrbit" viewBox="-120 -120 240 240" width="180" height="180" style="flex:none" aria-hidden="true"></svg>
+          <div id="gAgList" style="flex:1;min-width:0"></div>
+        </div>
+        <div class="wapprove" id="gApprove"><span class="dot" style="background:var(--orange)"></span><span style="flex:1"><b style="font-weight:600">api-server</b> <span style="color:var(--t2)">wants to run npm test</span></span><button class="btn bs" data-gans="Denied">Deny</button><button class="btn bp" data-gans="Allowed">Allow</button></div>
+      </div>
+      <div class="w span2" data-open="jarvis">
+        <div class="wh"><span class="ic" style="background:#bf5af2"><svg viewBox="0 0 24 24"><path d="M3 12h2l2-6 4 12 3-9 2 5h5"/></svg></span>JARVIS<span class="go">›</span></div>
+        <div style="flex:1;display:flex;align-items:center;gap:22px">
+          <span class="vis" style="width:96px;height:66px;flex:none"><b></b></span>
+          <div style="min-width:0"><span class="chip" style="background:#2c2c2e"><span class="dot" style="background:var(--green)"></span>Listening for "Hey JARVIS"</span>
+            <p style="font-size:17px;margin-top:10px;color:#e5e5ea">"Orders link one customer to many products."</p>
+            <p class="wsub">George · British, calm</p></div>
+        </div>
+      </div>
+      <div class="w">
+        <div class="wh"><span class="ic" style="background:#3a3a3c"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 8 8h-8z"/></svg></span>Claude plan</div>
+        <div style="flex:1;display:flex;align-items:center;gap:14px">
+          <svg width="86" height="86" viewBox="0 0 70 70" aria-hidden="true" style="flex:none"><circle cx="35" cy="35" r="29" fill="none" stroke="#3a1420" stroke-width="9"/><circle cx="35" cy="35" r="29" fill="none" stroke="#ff375f" stroke-width="9" stroke-linecap="round" stroke-dasharray="182" stroke-dashoffset="105" transform="rotate(-90 35 35)"/><circle cx="35" cy="35" r="17" fill="none" stroke="#0f3318" stroke-width="9"/><circle cx="35" cy="35" r="17" fill="none" stroke="#30d158" stroke-width="9" stroke-linecap="round" stroke-dasharray="107" stroke-dashoffset="34" transform="rotate(-90 35 35)"/></svg>
+          <div style="font-size:13px"><p><span style="color:var(--pink);font-weight:600">42%</span> session</p><p style="margin-top:4px"><span style="color:var(--green);font-weight:600">68%</span> week</p><p class="wsub">Resets 23:00</p></div>
+        </div>
+      </div>
+      <div class="w" data-open="notes" data-ntab-go="notetaker">
+        <div class="wh"><span class="ic" style="background:#ff453a"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></svg></span>Notetaker<span class="go">›</span></div>
+        <div style="margin-top:auto"><p class="cap" style="display:flex;align-items:center;gap:6px"><span class="dot" style="background:var(--red)"></span>Next call</p>
+          <p class="wbig" style="margin-top:6px">16:30</p>
+          <p style="font-family:Georgia,'Times New Roman',serif;font-size:14px;color:#aeaeb2;margin-top:6px">Design review, with 3 people.</p></div>
+      </div>
+      <div class="w span2" data-open="mail">
+        <div class="wh"><span class="ic" style="background:#0a84ff"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span>Mail · November<span class="go">›</span></div>
+        <div style="flex:1;display:flex;align-items:center;gap:24px;min-height:0">
+          <div class="mcal" id="gCal" style="margin-top:6px"></div>
+          <div style="flex:1;min-width:0">
+            <p class="wbig">32<small>today</small></p>
+            <p class="wsub"><span style="color:var(--orange)">2 waiting on you</span> · 5 files</p>
+            <div id="gArr" style="display:flex;align-items:flex-end;gap:3px;height:34px;margin-top:14px"></div>
+          </div>
+        </div>
+      </div>
+      <div class="w span2" data-open="notes" data-ntab-go="dictation">
+        <div class="wh"><span class="ic" style="background:#ff9f0a"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/></svg></span>Dictation<span class="go">›</span></div>
+        <div style="flex:1;display:flex;align-items:flex-end;gap:24px">
+          <div style="flex:none"><p class="wbig">1,240<small>words</small></p><p class="wsub">21 minutes saved today</p></div>
+          <div style="flex:1;position:relative;height:96px;display:flex;align-items:flex-end;gap:8px" id="gDict"></div>
+        </div>
+      </div>
+      <div class="w span2" data-open="jarvis">
+        <div class="wh"><span class="ic" style="background:#5e5ce6"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg></span>Windows<span class="go">›</span></div>
+        <div style="flex:1;display:flex;align-items:center;gap:16px;min-height:0">
+          <div style="flex:none"><p class="wbig">4<small>drawn</small></p><p class="wsub">Last: relationships</p></div>
+          <div style="flex:1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;min-width:0">
+            <svg viewBox="0 0 90 64" style="background:#0e0f11;border-radius:12px;width:100%"><rect x="8" y="22" width="24" height="20" rx="5" fill="none" stroke="#5e5ce6" stroke-width="1.5"/><rect x="58" y="10" width="24" height="16" rx="5" fill="none" stroke="#8e8e93" stroke-width="1.5"/><rect x="58" y="38" width="24" height="16" rx="5" fill="none" stroke="#8e8e93" stroke-width="1.5"/><path d="M32 30L58 18M32 34L58 46" stroke="#636366" stroke-width="1.5"/></svg>
+            <svg viewBox="0 0 90 64" style="background:#0e0f11;border-radius:12px;width:100%"><circle cx="45" cy="32" r="18" fill="none" stroke="#2c2c2e" stroke-width="8"/><circle cx="45" cy="32" r="18" fill="none" stroke="#5e5ce6" stroke-width="8" stroke-dasharray="70 113" transform="rotate(-90 45 32)"/></svg>
+            <svg viewBox="0 0 90 64" style="background:#0e0f11;border-radius:12px;width:100%"><path d="M10 48L30 34L48 40L80 14" fill="none" stroke="#5e5ce6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 54H80" stroke="#2c2c2e"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="w span2" data-open="connections">
+        <div class="wh"><span class="ic" style="background:#64d2ff"><svg viewBox="0 0 24 24"><path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/></svg></span>Connections<span class="go">›</span></div>
+        <div style="flex:1;display:flex;align-items:center;gap:10px">
+          <div class="hometile" style="background:#f2f2f7;color:#1c1c1e"><span class="dot" style="background:#1c1c1e;width:12px;height:12px"></span><span>GitHub<br><b style="font-weight:600">3 PRs</b></span></div>
+          <div class="hometile" style="background:#f2f2f7;color:#1c1c1e"><span class="dot" style="background:#635bff;width:12px;height:12px"></span><span>Stripe<br><b style="font-weight:600">€412</b></span></div>
+          <div class="hometile" style="background:#f2f2f7;color:#1c1c1e"><span class="dot" style="background:#1db954;width:12px;height:12px"></span><span>Spotify<br><b style="font-weight:600">Playing</b></span></div>
+          <div class="hometile" style="background:#2c2c2e;color:#8e8e93"><span class="dot" style="background:#636366;width:12px;height:12px"></span><span>Vercel<br><b style="font-weight:600;color:#ff9f0a">Off</b></span></div>
+          <div style="margin-left:auto;text-align:right"><p class="wbig">7<small>of 10 live</small></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- The pinned bar (front page) and the flying squares -->
+<div id="pinbar"><div class="in">
+  <span class="brand"><span class="vis" style="width:22px;height:15px"><b style="width:12px;height:3px"></b></span>JARVIS</span>
+  <span id="pinslots" class="row" style="gap:10px"></span>
+  <span class="askmini">Ask<span class="mic" style="width:26px;height:26px"><svg viewBox="0 0 24 24" style="width:55%;height:55%;fill:none;stroke:currentColor;stroke-width:2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg></span></span>
+</div></div>
+<div id="flyers"></div>
+
+<!-- ═════════ Agents ═════════ -->
+<section id="agents" class="view">
+  <div class="wrap">
+    <div class="ahero">
+      <div class="top">
+        <button class="back" data-go="home">‹ Home</button>
+        <span class="chip"><span class="dot" style="background:var(--pink)"></span>Claude plan 42%</span>
+      </div>
+      <p class="title" style="margin-top:10px">Agents<span>4 sessions</span></p>
+      <svg id="orbit" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="approve" id="approve"><span class="dot" style="background:var(--blue)"></span><span style="flex:1">api-server · Codex wants to run <span style="font-family:var(--mono);color:#e5e5ea">npm test</span></span><button class="btn bs" data-answer="Denied">Deny</button><button class="btn bp" data-answer="Allowed">Allow</button></div>
+      <div class="chev">⌄</div>
+    </div>
+    <p class="greet-sm" style="margin:10px 0 0">Sessions</p>
+    <div class="stack" id="stack"></div>
+  </div>
+</section>
+
+
+<!-- ═════════ JARVIS (voice and vision) ═════════ -->
+<section id="jarvis" class="view">
+  <div class="wrap" style="display:grid;grid-template-columns:.9fr 1.1fr;gap:26px;padding-top:22px;padding-bottom:22px;min-height:100vh">
+    <div class="glow">
+      <span class="chip" style="align-self:flex-start"><span class="dot" style="background:var(--green)"></span>Listening for "Hey JARVIS"</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 0">
+        <span class="vis" style="width:84px;height:58px;margin-bottom:22px"><b style="width:46px;height:9px;border-radius:5px"></b></span>
+        <div class="wv" id="jWave"></div>
+        <p style="font-size:15px;margin-top:16px;color:#e5e5ea" id="jHeard">"Hey JARVIS, what's on my calendar…"</p>
+      </div>
+      <div style="width:100%"><p class="cap" style="margin-bottom:8px">His voice</p>
+        <button class="row" id="voiceCard" style="width:100%;background:var(--s1);border-radius:16px;padding:12px 14px;box-shadow:inset 0 0 0 2px var(--blue);text-align:left"><span style="width:28px;height:28px;border-radius:50%;background:var(--s2);display:grid;place-items:center;font-size:10px">▶</span><div style="flex:1"><p style="font-weight:500" id="voiceName">George</p><p class="cap" id="voiceDesc">British, calm</p></div><span class="cap">Change ›</span></button>
+        <button class="row" id="onlyMe" style="width:100%;justify-content:space-between;padding:12px 2px 0;font-size:14px"><span>Answer only my voice</span><span id="onlyMeT" style="width:40px;height:24px;border-radius:999px;background:var(--green);position:relative;transition:.2s"><i style="position:absolute;right:2px;top:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:.2s"></i></span></button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column">
+      <div class="row" style="justify-content:space-between;margin-bottom:20px"><p class="title">JARVIS</p><span class="cap">Today</span></div>
+      <div id="convo" style="flex:1">
+        <div class="bub you">Hey JARVIS, play something calm</div><div class="bub him">Playing "Weightless" on Spotify, sir.</div>
+        <div class="bub you">What is this, simply?</div><div class="bub him" style="max-width:86%">Orders link one customer to many products.<div style="border-radius:12px;background:var(--s0);height:100px;margin-top:8px;display:grid;place-items:center" class="cap">his drawing · relationships</div></div>
+      </div>
+      <div class="ask" style="width:100%;margin-top:14px"><input id="jIn" placeholder="Type to JARVIS" style="flex:1;background:none;border:0;outline:none;color:#f5f5f7;font:inherit"><span class="mic" style="width:32px;height:32px">●</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ Notes: Dictation and Notetaker ═════════ -->
+<section id="notes" class="view">
+  <div class="wrap">
+    <div class="sec-top"><span class="tabs2"><button data-ntab="dictation" class="on">Dictation</button><button data-ntab="notetaker">Notetaker</button></span><span class="row" id="noteRight"><span class="cap">Hold</span><span class="kc" style="color:#e5e5ea">Right Ctrl</span><span class="chip"><span class="dot" style="background:var(--green)"></span>Parakeet ready</span></span></div>
+
+    <div data-npane="dictation">
+    <div id="dMain">
+      <div class="row" style="justify-content:space-between;align-items:flex-end;margin-bottom:16px"><div><p class="cap" style="font-size:13px">This week</p><p style="font-size:44px;font-weight:600;line-height:1.05">8,420 <span style="font-size:18px;font-weight:400;color:var(--t2)">words</span></p><p class="cap" style="margin-top:6px"><span style="color:var(--green)">▲ 18%</span> from last week · 2 h 24 min saved</p></div>
+        <span class="tabs2" id="range"><button>Day</button><button class="on">Week</button><button>Month</button></span></div>
+      <svg viewBox="0 0 900 250" width="100%" id="chart"></svg>
+      <p class="cap" style="margin:20px 0 10px;font-size:13px">Where you dictate</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 36px"><div class="row" style="font-size:13.5px"><span class="sq" style="width:22px;height:22px;border-radius:6px;background:#0a84ff"></span><span style="width:96px">Outlook</span><div class="bar" style="flex:1"><i style="width:72%;background:var(--orange)"></i></div><span class="cap" style="width:44px;text-align:right">3,010</span></div><div class="row" style="font-size:13.5px"><span class="sq" style="width:22px;height:22px;border-radius:6px;background:#30d158"></span><span style="width:96px">VS Code</span><div class="bar" style="flex:1"><i style="width:48%;background:var(--orange)"></i></div><span class="cap" style="width:44px;text-align:right">2,040</span></div><div class="row" style="font-size:13.5px"><span class="sq" style="width:22px;height:22px;border-radius:6px;background:#bf5af2"></span><span style="width:96px">Slack</span><div class="bar" style="flex:1"><i style="width:34%;background:var(--orange)"></i></div><span class="cap" style="width:44px;text-align:right">1,460</span></div><div class="row" style="font-size:13.5px"><span class="sq" style="width:22px;height:22px;border-radius:6px;background:#8e8e93"></span><span style="width:96px">Notion</span><div class="bar" style="flex:1"><i style="width:22%;background:var(--orange)"></i></div><span class="cap" style="width:44px;text-align:right">910</span></div></div>
+      <p class="cap" style="margin:22px 0 10px;font-size:13px">At a glance</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+        <div class="tile"><p class="cap">Today</p><p class="big" style="margin:10px 0 4px">1,240</p><p class="cap">words · 21 min saved</p></div>
+        <div class="tile row" style="gap:16px"><svg width="80" height="80" viewBox="0 0 70 70"><circle cx="35" cy="35" r="28" fill="none" stroke="#3a2606" stroke-width="10"/><circle cx="35" cy="35" r="28" fill="none" stroke="#ff9f0a" stroke-width="10" stroke-linecap="round" stroke-dasharray="176" stroke-dashoffset="50" transform="rotate(-90 35 35)"/></svg><div><p class="cap">Streak</p><p style="font-size:24px;font-weight:600">5 days</p></div></div>
+        <div class="tile"><p class="cap" style="margin-bottom:10px">Style in use</p><div class="tabs2" id="styles" style="flex-wrap:wrap"><button class="on">Natural</button><button>Formal</button><button>Casual</button></div></div>
+      </div>
+      <div class="tile" style="margin-bottom:12px"><div class="row" style="justify-content:space-between"><p class="cap">Your words</p><p class="cap">42 in your Dictionary</p></div>
+        <div style="display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:8px 22px;padding:14px 10px 4px"><span style="font-size:34px;font-weight:600">Claude</span><span style="font-size:17px;color:var(--t2)">Parakeet</span><span style="font-size:27px;color:var(--blue);font-weight:500">JARVIS</span><span style="font-size:16px;color:var(--t2)">Tauri</span><span style="font-size:23px">Nullzedz</span><span style="font-size:30px;color:var(--orange);font-weight:500">korus</span><span style="font-size:17px;color:#e5e5ea">Codex</span><span style="font-size:22px;color:var(--purple)">Haiku</span><span style="font-size:24px">invoice</span></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-bottom:60px">
+        <div class="dcol" data-dfull="dictionary" style="background:var(--s0);border-radius:16px;padding:14px"><p class="row" style="justify-content:space-between;font-weight:600;margin-bottom:8px">Dictionary <span style="color:var(--blue);font-weight:400">+</span></p><p style="background:var(--s2);border-radius:9px;padding:7px 9px">Claude</p><p style="padding:7px 9px">JARVIS</p><p style="padding:7px 9px">Nullzedz</p><p style="padding:7px 9px">korus</p></div>
+        <div class="dcol" data-dfull="snippets" style="background:var(--s0);border-radius:16px;padding:14px"><p class="row" style="justify-content:space-between;font-weight:600;margin-bottom:8px">Snippets <span style="color:var(--blue);font-weight:400">+</span></p><p style="padding:7px 9px">"my email" <span class="cap">→ the address</span></p><p style="background:var(--s2);border-radius:9px;padding:7px 9px">"sign off" <span class="cap">→ Kind regards…</span></p><p style="padding:7px 9px">"standup" <span class="cap">→ Yesterday / Today</span></p></div>
+        <div class="dcol" data-dfull="styles" style="background:var(--s0);border-radius:16px;padding:14px"><p class="row" style="justify-content:space-between;font-weight:600;margin-bottom:8px">Styles <span style="color:var(--blue);font-weight:400">+</span></p><p style="border-radius:9px;padding:7px 9px;box-shadow:inset 0 0 0 1.5px var(--blue)">Natural <span class="cap">in use</span></p><p style="padding:7px 9px">Formal <span class="cap">Outlook</span></p><p style="padding:7px 9px">Casual <span class="cap">Slack</span></p></div>
+      </div>
+    </div>
+    <div id="dFull" style="display:none"></div>
+    </div>
+
+    <div data-npane="notetaker" style="display:none">
+      <div id="ntHome">
+        <div class="lined"><div class="margin"></div>
+          <p class="cap" style="font-size:13px">Friday 20 November</p>
+          <p class="serif" style="font-size:18px;line-height:40px;color:var(--t2);margin-top:2px">10:00 &nbsp;<span style="color:#e5e5ea">Standup went quickly.</span> Two to-dos.</p>
+          <p class="serif" style="font-size:18px;line-height:40px;color:var(--t2)">14:00 &nbsp;<span style="color:#e5e5ea">We ship Friday;</span> Maya reviews. <button data-open-note style="color:var(--blue);font:inherit">Open note ›</button></p>
+          <p class="serif" style="font-size:32px;line-height:40px;margin-top:40px">Your next call is at <span style="color:var(--red)">16:30</span>.</p>
+          <p class="serif" style="font-size:32px;line-height:40px;color:var(--t3)">I'll write it down for you.<span class="caret"></span></p>
+          <button id="recBtn" style="position:absolute;left:24px;bottom:34px;display:flex;flex-direction:column;align-items:center;gap:6px"><span class="recdot"></span><span class="cap">Record</span></button>
+        </div>
+        <p class="cap" style="margin:26px 0 10px;font-size:13px">Today</p>
+        <div class="tile" style="padding:6px 16px">
+          <div class="row" style="padding:10px 0;border-bottom:1px solid var(--s2)"><span class="cap" style="width:50px">10:00</span><span class="dot" style="background:var(--green)"></span><span style="flex:1">Standup</span><span class="cap">notes ready · 2 to-dos</span></div>
+          <button data-open-note class="row" style="width:100%;padding:10px 0;border-bottom:1px solid var(--s2);text-align:left"><span class="cap" style="width:50px">14:00</span><span class="dot" style="background:var(--blue)"></span><span style="flex:1">Weekly sync</span><span class="cap" style="color:var(--blue)">open note ›</span></button>
+          <div class="row" style="padding:10px 0"><span class="cap" style="width:50px">16:30</span><span class="dot" style="background:var(--red)"></span><span style="flex:1">Client call</span><span class="cap">in 25 min</span></div>
+        </div>
+        <p class="cap" style="margin:22px 0 10px;font-size:13px">Earlier</p>
+        <div class="tile" style="margin-bottom:12px"><p class="cap">Yesterday · Client call · 18 min</p><p style="font-size:18px;font-weight:600;margin-top:4px">They'll sign once the invoice tax is fixed.</p><p class="cap" style="color:#aeaeb2;margin-top:4px;font-size:13px">New rate 20%, deadline Monday, Ethan sends the contract.</p></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-bottom:60px"><div class="tile"><p class="cap">Tuesday · 1:1 Priya</p><p style="font-size:15px;font-weight:600;margin-top:4px">Priya leads the API work.</p></div><div class="tile"><p class="cap">Monday · Planning</p><p style="font-size:15px;font-weight:600;margin-top:4px">Sprint goal: the new windows.</p></div></div>
+      </div>
+
+      <div id="ntRec" style="display:none;flex-direction:column;align-items:center;min-height:620px">
+        <div class="row" style="align-self:stretch;justify-content:space-between"><button id="recBack" style="color:var(--blue)">‹ Notetaker</button><span class="live" style="font-size:18px"><span class="dot"></span><span id="recTime">00:00</span></span></div>
+        <p class="cap" style="font-size:13px;margin-top:60px">Client call · Ethan, you</p>
+        <div class="wv red" id="rWave" style="height:140px;margin:22px 0"></div>
+        <p class="serif" style="color:var(--t3);font-size:18px;min-height:26px" id="rPrev"></p>
+        <p class="serif" style="font-size:30px;text-align:center;margin:12px 40px 0;line-height:1.3;min-height:80px" id="rNow"></p>
+        <p class="cap" style="margin-top:8px;font-size:13px" id="rWho"></p>
+        <button id="recStop" style="margin-top:auto;width:64px;height:64px;border-radius:50%;box-shadow:0 0 0 4px #000,0 0 0 7px #48484a;display:grid;place-items:center"><i style="width:24px;height:24px;border-radius:6px;background:var(--red);display:block"></i></button>
+      </div>
+
+      <div id="ntNote" style="display:none;padding-bottom:60px">
+        <div class="row" style="justify-content:space-between"><button id="noteBack" style="color:var(--blue)">‹ Notetaker</button><span class="row" style="gap:8px"><button class="chip" data-todo="Copy">Copy</button><button class="chip" data-todo="Export">Export</button></span></div>
+        <p class="cap" style="margin-top:30px;font-size:13px" id="noteMeta">Weekly sync · 20 Nov · 14:00 · 32 min · Maya, Priya</p>
+        <p style="font-size:38px;font-weight:600;line-height:1.18;letter-spacing:-.01em;margin:12px 0 26px" id="noteSum">We ship Friday. <span style="color:var(--t3)">Maya reviews today, and the budget is agreed.</span></p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="tile"><p class="cap" style="margin-bottom:8px">To-dos</p><div id="noteTodos"></div></div>
+          <div class="tile"><p class="cap" style="margin-bottom:8px">Key points</p><p style="font-size:14px;line-height:1.85;color:#e5e5ea" id="noteKeys">· Release moves to Friday<br>· Tests must pass first<br>· Budget: €4,200<br>· Priya owns the API</p></div>
+        </div>
+        <button style="margin-top:22px;color:var(--blue)" id="txOpen">Show transcript ›</button>
+      </div>
+
+      <div id="ntTx" style="display:none">
+        <div class="row" style="justify-content:space-between"><button id="txBack" style="color:var(--blue)">‹ Note</button><span class="cap" style="font-size:13px" id="txTitle"></span><button class="chip" data-todo="Search the transcript">Search</button></div>
+        <div class="lyr" id="lyr"><div id="lyrIn"></div></div>
+        <div class="txbar">
+          <button class="txplay" id="txPlay" aria-label="Play"></button>
+          <span class="cap" id="txNow" style="width:44px">00:00</span>
+          <div class="txscrub" id="txScrub"><i id="txFill"></i></div>
+          <span class="cap" id="txLen" style="width:44px;text-align:right"></span>
+          <button class="chip" id="txSpeed">1×</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ Connections ═════════ -->
+<section id="connections" class="view">
+  <div class="wrap" style="padding-bottom:60px">
+    <div class="sec-top"><div><p class="title">Connections</p><p class="cap" style="margin-top:4px;font-size:13px">9 live · 1 needs you · 1 off</p></div><button class="chip" data-todo="Add a connection" style="width:38px;height:38px;justify-content:center;padding:0;color:var(--blue);font-size:20px">+</button></div>
+    <div class="row" style="gap:8px;margin-bottom:22px" id="rooms"><button class="room on" data-room="all">All</button><button class="room" data-room="code">Code</button><button class="room" data-room="money">Money</button><button class="room" data-room="life">Life</button></div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="homeTiles"></div>
+  </div>
+</section>
+
+<!-- ═════════ Mail ═════════ -->
+<section id="mail" class="view">
+  <div class="wrap">
+    <div id="mailMain" class="mail">
+      <div class="mon">
+        <div class="row" style="justify-content:space-between"><p class="title">November <span style="font-size:26px;font-weight:400">2026</span></p><span class="row"><button class="rb" style="background:var(--s2)" data-todo="October" aria-label="Previous month">‹</button><button class="rb" style="background:var(--s2)" data-todo="December" aria-label="Next month">›</button></span></div>
+        <div class="wd"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+        <div class="mgrid" id="mgrid"></div>
+        <div class="row cap" style="gap:14px;margin-top:10px"><span><span class="dot" style="background:var(--green)"></span>&nbsp;Work</span><span><span class="dot" style="background:var(--orange)"></span>&nbsp;VIP</span><span><span class="dot" style="background:#636366"></span>&nbsp;Receipts</span><span><span class="dot" style="background:var(--purple)"></span>&nbsp;Busy day</span><span style="margin-left:auto">bar = how much mail</span></div>
+      </div>
+      <div class="mright">
+        <div class="mp" id="mDay"></div>
+        <button class="mp" data-mfull="arrivals" aria-label="Open when mail arrives">
+          <div class="row" style="justify-content:space-between;width:100%"><b style="font-size:13.5px">When mail arrives</b><span class="cap">busiest <span style="color:var(--blue)">9:00</span> · quiet after 20:00</span></div>
+          <div id="mStrip" style="display:grid;grid-template-columns:repeat(24,1fr);gap:3px;align-items:end;flex:1;width:100%;margin-top:8px;min-height:40px"></div>
+          <div class="row cap" style="justify-content:space-between;width:100%;margin-top:3px"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+        </button>
+        <div class="pair2">
+          <button class="mp" data-mfull="waiting" aria-label="Open waiting on you">
+            <p class="cap" style="margin-bottom:6px">Waiting on you · 2</p>
+            <div style="background:var(--s2);border-radius:12px;padding:8px 10px;margin-bottom:6px;width:100%"><div class="row" style="justify-content:space-between"><b style="font-size:12.5px">Ethan · Contract</b><span class="cap" style="color:var(--orange)">VIP</span></div><div class="row" style="margin-top:6px;gap:6px"><span class="rb" style="background:var(--blue);color:#fff">↩</span><span class="rb" style="background:var(--green);color:#000">✓</span><span class="rb" style="background:#3a3a3c">?</span></div></div>
+            <div style="background:#242426;border-radius:12px;padding:8px 10px;width:100%"><div class="row" style="justify-content:space-between"><b style="font-size:12.5px">Maya · Notes</b><span class="cap">Work</span></div><div class="row" style="margin-top:6px;gap:6px"><span class="rb" style="background:var(--blue);color:#fff">↩</span><span class="rb" style="background:var(--green);color:#000">✓</span><span class="rb" style="background:#3a3a3c">?</span></div></div>
+          </button>
+          <button class="mp" data-mfull="files" aria-label="Open files today">
+            <p class="cap" style="margin-bottom:6px">Files today · 6</p>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:1fr;gap:6px;flex:1;width:100%">
+              <span class="ftile"><b style="background:var(--red)">PDF</b>contract</span><span class="ftile"><b style="background:var(--green)">XLS</b>budget</span><span class="ftile"><b style="background:var(--blue)">IMG</b>mockup</span>
+              <span class="ftile"><b style="background:var(--red)">PDF</b>invoice</span><span class="ftile"><b style="background:var(--purple)">ZIP</b>assets</span><span class="ftile"><b style="background:#636366">DOC</b>notes</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mFull-arrivals" class="mfull" style="display:none">
+      <div class="row" style="justify-content:space-between"><div class="row" style="gap:16px"><button class="back" data-mback>‹ Mail</button><p class="title">When mail arrives</p></div><span class="tabs2"><button class="on">Today</button><button>Week</button><button>Month</button></span></div>
+      <div class="tile" style="flex:1.3;display:flex;flex-direction:column;min-height:320px">
+        <div class="row" style="justify-content:space-between"><div><p style="font-size:30px;font-weight:600">32 <span style="font-size:14px;font-weight:400;color:var(--t2)">mails today</span></p><p class="cap">Busiest at <span style="color:var(--blue)">9:00</span> · quiet after 20:00 · click an hour</p></div><div class="row cap" style="gap:12px"><span><span class="dot" style="background:var(--orange)"></span> VIP</span><span><span class="dot" style="background:var(--green)"></span> Work</span><span><span class="dot" style="background:#636366"></span> Receipts</span><span><span class="dot" style="background:#3a3a3c"></span> Filed</span></div></div>
+        <div id="mBig" style="display:grid;grid-template-columns:repeat(24,1fr);gap:5px;align-items:end;flex:1;margin-top:12px"></div>
+        <div class="row cap" style="justify-content:space-between;margin-top:6px"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:12px">
+        <div class="tile"><p class="cap" style="margin-bottom:8px" id="mHourT">At 9:00 · 12 mails</p><div id="mHour"></div></div>
+        <div class="tile" style="display:flex;flex-direction:column;gap:8px"><p style="font-weight:600">Fewer interruptions?</p><p class="cap" style="font-size:13px;color:#aeaeb2;line-height:1.55">Most mail lands 9–11. JARVIS can hold everything but VIPs and deliver it twice a day.</p><div class="row" style="margin-top:auto"><span class="chip">9:00</span><span class="chip">16:00</span><span style="flex:1"></span><button class="tog" data-tog="batch" role="switch" aria-checked="false" aria-label="Deliver twice a day"></button></div></div>
+      </div>
+    </div>
+
+    <div id="mFull-waiting" class="mfull" style="display:none">
+      <div class="row" style="justify-content:space-between"><div class="row" style="gap:16px"><button class="back" data-mback>‹ Mail</button><p class="title">Waiting on you <span>2</span></p></div><span class="tabs2"><button class="on">Most important</button><button>Oldest</button></span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1">
+        <div class="tile" style="background:var(--s2);display:flex;flex-direction:column">
+          <div class="row" style="justify-content:space-between"><span class="cap">Today 16:28</span><span class="chip" style="background:var(--orange);color:#000;font-weight:600">VIP</span></div>
+          <div class="row" style="margin:12px 0 2px"><span class="rb" style="background:var(--orange);color:#000;width:34px;height:34px">E</span><div><p style="font-size:17px;font-weight:600">Contract ready to sign</p><p class="cap">Ethan · ethan@client.com</p></div></div>
+          <p style="font-size:14px;color:#d1d1d6;line-height:1.6;margin:12px 0">Hi, attached is the final version with the 20% rate. Could you sign it by Monday so we can start on the 1st? Thanks!</p>
+          <div class="row" style="background:var(--s1);border-radius:10px;padding:8px 10px"><b style="font-size:10px;background:var(--red);color:#fff;border-radius:4px;padding:0 5px">PDF</b><span style="font-size:13px">contract.pdf</span><span class="cap" style="margin-left:auto">220 KB</span></div>
+          <p class="cap" style="margin:14px 0 6px">JARVIS suggests</p>
+          <div class="row" style="flex-wrap:wrap;gap:6px"><button class="sug" data-reply>Signed, sending it back today.</button><button class="sug" data-reply>Will sign Monday morning.</button><button class="sug" data-reply>One question first…</button></div>
+          <div class="row" style="margin-top:auto;padding-top:14px;gap:8px"><span class="cap" style="flex:1">Reply · Done · Later</span><button class="rb" style="background:var(--blue);color:#fff;width:32px;height:32px" data-todo="Reply">↩</button><button class="rb" style="background:var(--green);color:#000;width:32px;height:32px" data-todo="Done">✓</button><button class="rb" style="background:#3a3a3c;width:32px;height:32px" data-todo="Later">?</button></div>
+        </div>
+        <div class="tile" style="display:flex;flex-direction:column">
+          <div class="row" style="justify-content:space-between"><span class="cap">Today 15:02</span><span class="chip" style="background:var(--purple);color:#fff;font-weight:600">Work</span></div>
+          <div class="row" style="margin:12px 0 2px"><span class="rb" style="background:var(--purple);color:#fff;width:34px;height:34px">M</span><div><p style="font-size:17px;font-weight:600">Review notes</p><p class="cap">Maya · 3 comments</p></div></div>
+          <p style="font-size:14px;color:#d1d1d6;line-height:1.6;margin:12px 0">Left three comments on the PR. The main one is about the window placement on small screens. Can you take a look before Friday?</p>
+          <p class="cap" style="margin:14px 0 6px">JARVIS suggests</p>
+          <div class="row" style="flex-wrap:wrap;gap:6px"><button class="sug" data-reply>On it, before Friday.</button><button class="sug" data-reply>Thanks, fixing now.</button></div>
+          <div class="row" style="margin-top:auto;padding-top:14px;gap:8px"><span class="cap" style="flex:1">Reply · Done · Later</span><button class="rb" style="background:var(--blue);color:#fff;width:32px;height:32px" data-todo="Reply">↩</button><button class="rb" style="background:var(--green);color:#000;width:32px;height:32px" data-todo="Done">✓</button><button class="rb" style="background:#3a3a3c;width:32px;height:32px" data-todo="Later">?</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="mFull-files" class="mfull" style="display:none">
+      <div class="row" style="justify-content:space-between"><div class="row" style="gap:16px"><button class="back" data-mback>‹ Mail</button><p class="title">Files today <span>6</span></p></div><span class="tabs2" id="fFilter"><button class="on">All</button><button>PDF</button><button>Images</button><button>Sheets</button><button>Other</button></span></div>
+      <div id="fGrid" style="display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:220px;gap:12px"></div>
+      <div class="row" style="justify-content:space-between;background:var(--s1);border-radius:14px;padding:10px 14px"><span class="cap" id="fSel">contract.pdf selected</span><span class="row" style="gap:6px"><button class="chip" data-todo="Open">Open</button><button class="chip" data-todo="Save to…">Save to…</button><button class="chip" data-todo="Forward">Forward</button><button class="chip" data-todo="Show the mail">Show the mail</button></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ Settings ═════════ -->
+<section id="settings" class="view">
+  <div class="wrap"><div class="set">
+    <nav class="snav" aria-label="Settings sections"><label class="search"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="setSearch" placeholder="Search settings"><kbd>Ctrl K</kbd></label><a href="#s-general" data-sg="general" class="on"><svg viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="5"/></svg>General</a><a href="#s-appearance" data-sg="appearance"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>Appearance</a><a href="#s-island" data-sg="island"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="6" rx="3"/><path d="M4 14h16M4 18h10"/></svg>Island</a><a href="#s-shortcuts" data-sg="shortcuts"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Shortcuts</a><a href="#s-sound" data-sg="sound"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>Sound</a><a href="#s-accounts" data-sg="accounts"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l2 2M15 8l2 2"/></svg>Accounts and keys</a><a href="#s-privacy" data-sg="privacy"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Privacy</a><a href="#s-about" data-sg="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>About</a></nav>
+    <div id="setBody"><p class="title" style="margin:0 0 22px">Settings</p><div class="sgroup" id="s-general"><h3>General</h3><p>How JARVIS starts and keeps itself up to date.</p><div class="srow"><div class="lbl"><b>Open at login</b><span>Start JARVIS when you sign in to Windows.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="login" aria-label="login"></button></div></div><div class="srow"><div class="lbl"><b>Opens on</b><span>The page you see when you open the window.</span></div><div class="ctl"><span class="segc" data-seg="opens"><button class="on">Home</button><button class="">Last page</button></span></div></div><div class="srow"><div class="lbl"><b>Language</b><span>For the app and his voice. His answers follow the language you speak.</span></div><div class="ctl"><label class="field" style="max-width:320px"><select><option selected>English</option><option>Français</option><option>Deutsch</option><option>Español</option><option>Nederlands</option><option>Português (Brasil)</option><option>日本語</option><option>한국어</option><option>中文 (简体)</option><option>العربية</option><option>हिन्दी</option><option>বাংলা</option><option>Bahasa Indonesia</option><option>Türkçe</option><option>Русский</option></select><span class="chev">⌄</span></label></div></div><div class="srow"><div class="lbl"><b>Updates</b><span>Install new versions automatically, when JARVIS isn't busy.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="updates" aria-label="updates"></button></div></div></div><div class="sgroup" id="s-appearance"><h3>Appearance</h3><p>How everything looks. Changes apply at once.</p><div class="srow"><div class="lbl"><b>Theme</b><span>Light, dark, or follow Windows.</span></div><div class="ctl"><span class="segc" data-seg="theme"><button class="on">Dark</button><button class="">Light</button><button class="">Match Windows</button></span></div></div><div class="srow"><div class="lbl"><b>Accent colour</b><span>Buttons, selection and his eye.</span></div><div class="ctl"><button class="swatch on" data-acc="#0a84ff" title="Blue" aria-label="Blue" style="background:#0a84ff"></button><button class="swatch" data-acc="#bf5af2" title="Purple" aria-label="Purple" style="background:#bf5af2"></button><button class="swatch" data-acc="#ff375f" title="Pink" aria-label="Pink" style="background:#ff375f"></button><button class="swatch" data-acc="#ff453a" title="Red" aria-label="Red" style="background:#ff453a"></button><button class="swatch" data-acc="#ff9f0a" title="Orange" aria-label="Orange" style="background:#ff9f0a"></button><button class="swatch" data-acc="#ffd60a" title="Yellow" aria-label="Yellow" style="background:#ffd60a"></button><button class="swatch" data-acc="#30d158" title="Green" aria-label="Green" style="background:#30d158"></button><button class="swatch" data-acc="#8e8e93" title="Graphite" aria-label="Graphite" style="background:#8e8e93"></button></div></div><div class="srow"><div class="lbl"><b>Text size</b><span>Across every window.</span></div><div class="ctl"><input type="range" class="sl" min="12" max="18" value="14" step="1" data-sl="text" style="--v:33%"><span class="cap" id="textV" style="width:34px;text-align:right">14 pt</span></div></div><div class="srow"><div class="lbl"><b>Motion</b><span>Turn animations down if movement bothers you.</span></div><div class="ctl"><span class="segc" data-seg="motion"><button class="on">Full</button><button class="">Subtle</button><button class="">Off</button></span></div></div><div class="srow"><div class="lbl"><b>JARVIS on the desktop</b><span>Let him fly out of the island and sit on your desktop.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="desktop" aria-label="desktop"></button></div></div></div><div class="sgroup" id="s-island"><h3>Island</h3><p>The black island at the top of your screen.</p><div class="srow"><div class="lbl"><b>Show the island</b><span>Hide it to use JARVIS only by voice and shortcuts.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="island" aria-label="island"></button></div></div><div class="srow"><div class="lbl"><b>Folds back after</b><span>Without you, it shrinks to his visor.</span></div><div class="ctl"><span class="segc" data-seg="fold"><button class="">2 s</button><button class="on">3 s</button><button class="">5 s</button><button class="">Never</button></span></div></div><div class="srow"><div class="lbl"><b>Tabs</b><span>What the bigger island shows, in this order. Drag to reorder.</span></div><div class="ctl"><div class="ctl left" style="justify-content:flex-end"><span class="chip2">Home<button aria-label="Remove Home" data-chipx>×</button></span><span class="chip2">Ask<button aria-label="Remove Ask" data-chipx>×</button></span><span class="chip2">Calendar<button aria-label="Remove Calendar" data-chipx>×</button></span><span class="chip2">Reminders<button aria-label="Remove Reminders" data-chipx>×</button></span><span class="chip2">Clipboard<button aria-label="Remove Clipboard" data-chipx>×</button></span><span class="chip2">Focus<button aria-label="Remove Focus" data-chipx>×</button></span><span class="chip2">Agents<button aria-label="Remove Agents" data-chipx>×</button></span><span class="chip2 off" data-chipadd>+ Add</span></div></div></div><div class="srow"><div class="lbl"><b>Screen</b><span>Where the island lives with several monitors.</span></div><div class="ctl"><label class="field" style="max-width:320px"><select><option selected>Main display</option><option>The display with the mouse</option><option>Display 2</option></select><span class="chev">⌄</span></label></div></div></div><div class="sgroup" id="s-shortcuts"><h3>Shortcuts</h3><p>Click a shortcut, press the new keys together, let go.</p><div class="srow"><div class="lbl"><b>Talk</b><span>Hold to talk, tap for hands-free.</span></div><div class="ctl"><div class="keys" data-keys><span class="cap2">Ctrl</span><span class="cap2">Win</span></div></div></div><div class="srow"><div class="lbl"><b>Ask</b><span>Opens the ask box at the cursor; hold and circle to show him something.</span></div><div class="ctl"><div class="keys" data-keys><span class="cap2">Ctrl</span><span class="cap2">Shift</span><span class="cap2">Z</span></div></div></div><div class="srow"><div class="lbl"><b>Show more</b><span>Hold and circle something else to add it.</span></div><div class="ctl"><div class="keys" data-keys><span class="cap2">Shift</span><span class="cap2">Win</span></div></div></div><div class="srow"><div class="lbl"><b>Dictate</b><span>Hold and speak; the text is typed where your cursor is.</span></div><div class="ctl"><div class="keys" data-keys><span class="cap2">Right Ctrl</span></div></div></div></div><div class="sgroup" id="s-sound"><h3>Sound</h3><p>What you hear from JARVIS.</p><div class="srow"><div class="lbl"><b>Sounds</b><span>The island's small sounds: opening, closing, a drop.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="sounds" aria-label="sounds"></button></div></div><div class="srow"><div class="lbl"><b>Volume</b><span>His voice and the sounds.</span></div><div class="ctl"><input type="range" class="sl" min="0" max="100" value="70" data-sl="vol" style="--v:70%"><span class="cap" id="volV" style="width:34px;text-align:right">70%</span></div></div><div class="srow"><div class="lbl"><b>Quiet other apps while you talk</b><span>Music and videos go quiet while JARVIS listens, then come back.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="quiet" aria-label="quiet"></button></div></div><div class="srow"><div class="lbl"><b>Speaker</b><span>Where he speaks.</span></div><div class="ctl"><label class="field" style="max-width:320px"><select><option selected>Default (Speakers)</option><option>Headphones</option><option>Monitor speakers</option></select><span class="chev">⌄</span></label></div></div><div class="srow"><div class="lbl"><b>Microphone</b><span>What he listens to.</span></div><div class="ctl"><label class="field" style="max-width:320px"><select><option selected>Automatic</option><option>Headset microphone</option><option>Webcam microphone</option></select><span class="chev">⌄</span></label></div></div></div><div class="sgroup" id="s-accounts"><h3>Accounts and keys</h3><p>Keys stay in Windows Credential Manager. They never leave this PC except to the service they belong to.</p><div class="srow"><div class="lbl"><b>Claude</b><span>Your key, or your Claude Code sign-in when there's no key.</span></div><div class="ctl"><label class="field"><span class="pre"><span style="width:16px;height:16px;border-radius:4px;background:#d97757;display:inline-block"></span>Claude Code</span><input value="Signed in" placeholder="Paste a key"><span class="ok">✓</span></label></div></div><div class="srow"><div class="lbl"><b>Gemini</b><span>For his Gemini voice.</span></div><div class="ctl"><label class="field"><span class="pre"><span style="width:16px;height:16px;border-radius:4px;background:#4285f4;display:inline-block"></span>Gemini key</span><input value="••••••••••••3f2a" placeholder="Paste a key"><span class="ok">✓</span></label></div></div><div class="srow"><div class="lbl"><b>ElevenLabs</b><span>For an ElevenLabs voice. Optional.</span></div><div class="ctl"><label class="field"><span class="pre"><span style="width:16px;height:16px;border-radius:4px;background:#f5f5f7;display:inline-block"></span>ElevenLabs key</span><input value="" placeholder="Paste a key"></label></div></div><div class="srow"><div class="lbl"><b>ChatGPT</b><span>Through the Codex app, to draw his windows. Optional.</span></div><div class="ctl"><label class="field"><span class="pre"><span style="width:16px;height:16px;border-radius:4px;background:#10a37f;display:inline-block"></span>Codex</span><input value="Signed in" placeholder="Paste a key"><span class="ok">✓</span></label></div></div></div><div class="sgroup" id="s-privacy"><h3>Privacy</h3><p>Everything stays on this PC unless you send it.</p><div class="srow"><div class="lbl"><b>Keep history for</b><span>Conversations, dictations and call notes.</span></div><div class="ctl"><span class="segc" data-seg="hist"><button class="">7 days</button><button class="on">30 days</button><button class="">Forever</button></span></div></div><div class="srow"><div class="lbl"><b>Hide JARVIS from screenshots</b><span>His windows don't appear in screen captures or recordings.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="hide" aria-label="hide"></button></div></div><div class="srow"><div class="lbl"><b>Answer only my voice</b><span>He ignores other voices once he's trained on yours.</span></div><div class="ctl"><button class="tog on" role="switch" aria-checked="true" data-tog="onlyme" aria-label="onlyme"></button></div></div><div class="srow"><div class="lbl"><b>Clear history</b><span>Deletes every conversation, dictation and note. This can't be undone.</span></div><div class="ctl"><button class="danger" data-clear>Clear history…</button></div></div></div><div class="sgroup" id="s-about"><h3>About</h3><p>JARVIS, a fork of coucou.</p><div class="srow"><div class="lbl"><b>Version</b><span>You're up to date.</span></div><div class="ctl"><span class="cap" style="font-size:13px">0.9.0 · 21 November 2026</span><button class="btn2" data-todo="Checked: up to date">Check for updates</button></div></div><div class="srow"><div class="lbl"><b>Logs</b><span>For when something goes wrong.</span></div><div class="ctl"><button class="btn2" data-todo="Logs folder">Open the logs folder</button></div></div></div></div>
+  </div></div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+const APPS = [
+  { id: "voice", name: "Voice", color: "#bf5af2", icon: '<path d="M3 12h2l2-6 4 12 3-9 2 5h5"/>' },
+  { id: "agents", name: "Agents", color: "#30d158", icon: '<path d="M4 17l6-5-6-5M12 19h8"/>' },
+  { id: "windows", name: "Windows", color: "#5e5ce6", icon: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/>' },
+  { id: "dictation", name: "Dictation", color: "#ff9f0a", icon: '<path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4"/>' },
+  { id: "mail", name: "Mail", color: "#0a84ff", icon: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>' },
+  { id: "connections", name: "Connections", color: "#64d2ff", icon: '<path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/>' },
+  { id: "settings", name: "Settings", color: "#3a3a3c", icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>' },
+];
+const SESSIONS = [
+  { id: "korus", watch: 1, tool: "Claude Code", what: "editing src/invoice.ts", state: "working", mood: "#30d158", color: "#30d158", ring: 0, angle: -0.9, mins: "4 min", progress: 64,
+    code: '<span class="n">12</span>import { Item } from \'./types\'<span class="del"><span class="n">13</span>const TVA = 0.196</span><span class="add"><span class="n">13</span>const TVA = 0.2</span><span class="n">14</span>export function total(items: Item[]) {' },
+  { id: "api-server", watch: 0, tool: "Codex", what: "wants to run npm test", state: "needs", mood: "#ff9f0a", color: "#0a84ff", ring: 0, angle: 2.4, mins: "now", progress: 40,
+    code: '<span style="color:#636366">$</span> <span style="color:#e5e5ea">npm test</span><br><span style="color:#636366">Runs the test suite in api-server. It reads files only.</span>' },
+  { id: "jarvis-ui", watch: 0, tool: "Claude Code", what: "reading window.rs", state: "working", mood: "#bf5af2", color: "#30d158", ring: 1, angle: 0.6, mins: "1 min", progress: 16,
+    code: '<span class="n">29</span>pub fn split(text: &amp;str) -&gt; (String, Option&lt;Value&gt;) {<br><span class="n">30</span>    let Some(at) = starts_at(text) else {' },
+  { id: "docs-site", watch: 2, tool: "Cursor", what: "done 12 min ago", state: "done", mood: "#636366", color: "#636366", ring: 1, angle: 3.9, mins: "done", progress: 100,
+    code: '<span style="color:#636366">Finished: 3 files changed, build passed.</span>' },
+];
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+const toast = (msg) => { const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1600); };
+function go(id) {
+  document.querySelectorAll(".view").forEach((v) => v.classList.toggle("on", v.id === id));
+  window.scrollTo(0, 0);
+  document.getElementById("flyers").style.display = id === "home" ? "" : "none";
+  document.getElementById("pinbar").classList.remove("on");
+  if (id === "home") { requestAnimationFrame(layout); if (typeof drawGlance === "function") drawGlance(); }
+  if (typeof markRail === "function") markRail(id);
+  document.body.classList.toggle("at-home", id === "home");
+}
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-go],[data-todo]");
+  if (!el) return;
+  if (el.dataset.go) go(el.dataset.go);
+  else toast(`${el.dataset.todo}: not designed yet`);
+});
+
+// ── Front page: the dock squares glide into the pinned bar as you scroll ─────
+const dock = document.getElementById("dock"), pinslots = document.getElementById("pinslots"), flyers = document.getElementById("flyers");
+for (const a of APPS) {
+  dock.insertAdjacentHTML("beforeend", `<span class="app"><span class="slot" data-slot="${a.id}"></span>${a.name}</span>`);
+  pinslots.insertAdjacentHTML("beforeend", `<span data-pin="${a.id}" style="width:30px;height:30px;display:block"></span>`);
+  const b = document.createElement("button");
+  b.className = "sq"; b.style.background = a.color; b.title = a.name;
+  b.innerHTML = `<svg viewBox="0 0 24 24">${a.icon}</svg>`;
+  const TO = { voice: "jarvis", agents: "agents", windows: "jarvis", dictation: "notes", mail: "mail", connections: "connections", settings: "settings" };
+  b.addEventListener("click", () => { go(TO[a.id]); if (a.id === "dictation") noteTab("dictation"); });
+  a.el = b; flyers.append(b);
+}
+let from = [], to = [];
+const START = 150, RUN = 170; // the glide starts when the dock is 150 px from the top, and takes 170 px of scrolling
+function layout() {
+  const y = window.scrollY;
+  from = APPS.map((a) => { const r = document.querySelector(`[data-slot="${a.id}"]`).getBoundingClientRect(); return { x: r.left, y: r.top + y, s: r.width }; });
+  to = APPS.map((a) => { const r = document.querySelector(`[data-pin="${a.id}"]`).getBoundingClientRect(); return { x: r.left, y: r.top, s: r.width }; });
+  onScroll();
+}
+const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+function onScroll() {
+  if (!document.getElementById("home").classList.contains("on")) return;
+  const y = window.scrollY;
+  let pinned = 0;
+  APPS.forEach((a, i) => {
+    const f = from[i], t = to[i], natural = f.y - y;
+    const k = Math.min(1, Math.max(0, (START - natural) / RUN)), e = ease(k);
+    const x = f.x + (t.x - f.x) * e;
+    const top = k === 0 ? natural : START + (t.y - START) * e;
+    const size = f.s + (t.s - f.s) * e;
+    a.el.style.width = a.el.style.height = `${size}px`;
+    a.el.style.transform = `translate(${x}px, ${top}px)`;
+    pinned = k;
+  });
+  document.getElementById("pinbar").classList.toggle("on", pinned > 0.55);
+}
+window.addEventListener("scroll", onScroll, { passive: true });
+window.addEventListener("resize", layout);
+
+// ── Agents: the orbit ────────────────────────────────────────────────────────
+const NS = "http://www.w3.org/2000/svg", orbit = document.getElementById("orbit");
+const C = { x: 450, y: 205 }, R = [92, 140, 186], SQ = 0.82;   // watch closely, normal, quiet
+const RINGS = [
+  { name: "Watch closely", say: "tells you every step and asks before it acts", col: "#0a84ff", speed: 0.022 },
+  { name: "Normal", say: "tells you when it needs you or finishes", col: "#8e8e93", speed: -0.016 },
+  { name: "Quiet", say: "only speaks up when it's done or stuck", col: "#636366", speed: 0.008 },
+];
+orbit.innerHTML = `<ellipse class="oring" data-ring="2" cx="${C.x}" cy="${C.y}" rx="${R[2]}" ry="${R[2] * SQ}" fill="none" stroke="#1c1c1e" stroke-dasharray="5 6"/>
+  <ellipse class="oring" data-ring="1" cx="${C.x}" cy="${C.y}" rx="${R[1]}" ry="${R[1] * SQ}" fill="none" stroke="#1c1c1e"/>
+  <ellipse class="oring" data-ring="0" cx="${C.x}" cy="${C.y}" rx="${R[0]}" ry="${R[0] * SQ}" fill="rgba(10,132,255,.06)" stroke="rgba(10,132,255,.32)"/>
+  ${RINGS.map((r, i) => `<text class="olabel" data-ring="${i}" x="${C.x}" y="${C.y - R[i] * SQ - 7}" text-anchor="middle" font-size="11" fill="${r.col}">${r.name}</text>`).join("")}
+  <text id="oHint" x="${C.x}" y="410" text-anchor="middle" font-size="12.5" fill="#8e8e93">Drag a planet to another ring to change how closely he watches it</text>
+  <defs><linearGradient id="oBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f7f9"/><stop offset=".7" stop-color="#eceef1"/><stop offset="1" stop-color="#dcdfe4"/></linearGradient>
+  <linearGradient id="oSlot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b0f17"/><stop offset="1" stop-color="#1b2433"/></linearGradient></defs>
+  <rect x="${C.x - 36}" y="${C.y - 25}" width="72" height="50" rx="17" fill="url(#oBody)"/><path d="M${C.x - 18} ${C.y - 24.5} H${C.x + 18}" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/>
+  <rect x="${C.x - 22.5}" y="${C.y - 5}" width="45" height="10" rx="5" fill="url(#oSlot)" stroke="#c9cdd4" stroke-width=".8"/>
+  <rect id="oEye" x="${C.x - 16}" y="${C.y - 2.5}" width="32" height="5" rx="2.5" fill="#0a84ff"><animateTransform attributeName="transform" type="translate" values="0 0;0 0;-4 0;-4 0;4 0;4 0;0 0" keyTimes="0;.18;.24;.4;.46;.62;.68" dur="7s" repeatCount="indefinite"/></rect>`;
+for (const s of SESSIONS) {
+  const g = document.createElementNS(NS, "g"); g.setAttribute("class", "planet");
+  const big = s.state === "done" ? 7 : s.state === "needs" ? 11 : 10;
+  g.innerHTML = `<circle r="${big + 8}" fill="none" stroke="${s.color}" stroke-opacity="${s.state === "done" ? 0 : .3}"/><circle r="${big}" fill="${s.color}"/>
+    <line class="ld" stroke="#48484a" stroke-width="1" opacity="0"/><text class="nm" font-size="15" font-weight="600" fill="${s.state === "done" ? "#8e8e93" : "#f5f5f7"}">${s.id}</text>
+    <text class="wh" font-size="12.5" fill="${s.state === "needs" ? "#0a84ff" : "#8e8e93"}">${s.what}</text>`;
+  g.addEventListener("click", () => { if (s.dragged) { s.dragged = false; return; } front(s.id); document.getElementById("stack").scrollIntoView({ behavior: "smooth", block: "start" }); });
+  g.addEventListener("pointerdown", (e) => dragStart(e, s));
+  s.g = g; orbit.append(g);
+}
+let t0 = performance.now();
+function spin(now) {
+  const dt = (now - t0) / 1000;
+  for (const s of SESSIONS) {
+    if (s.drag) ({ x: s.px, y: s.py } = s.drag);
+    else {
+      const r = R[s.watch], a = s.angle + dt * RINGS[s.watch].speed;
+      s.px = C.x + Math.cos(a) * r; s.py = C.y + Math.sin(a) * r * SQ;
+    }
+    s.left = s.px < C.x;
+    s.g.setAttribute("transform", `translate(${s.px.toFixed(1)} ${s.py.toFixed(1)})`);
+  }
+  // Labels never overlap: on each side, a label that would sit on the one above slides down (and the stack eases back up when there's room)
+  const GAP = 42, pad = 22;
+  for (const side of [true, false]) {
+    const list = SESSIONS.filter((s) => s.left === side).sort((a, b) => a.py - b.py);
+    let floor = -Infinity;
+    for (const s of list) {
+      const want = Math.max(s.py, floor);
+      s.ly = s.ly == null ? want : s.ly + (want - s.ly) * 0.2;
+      floor = s.ly + GAP;
+    }
+    // if the stack ran past the bottom, push it back up from below
+    let ceil = Infinity;
+    for (const s of [...list].reverse()) { if (s.ly > ceil) s.ly = ceil; ceil = s.ly - GAP; }
+  }
+  for (const s of SESSIONS) {
+    const off = s.ly - s.py, left = s.left;
+    for (const [cls, dy] of [["nm", -3], ["wh", 14]]) {
+      const tx = s.g.querySelector("." + cls);
+      tx.setAttribute("x", left ? -pad : pad); tx.setAttribute("y", (dy + off).toFixed(1)); tx.setAttribute("text-anchor", left ? "end" : "start");
+    }
+    const ld = s.g.querySelector(".ld"), far = Math.abs(off) > 8;   // a hairline ties a moved label back to its planet
+    ld.setAttribute("opacity", far ? 1 : 0);
+    ld.setAttribute("x1", left ? -12 : 12); ld.setAttribute("y1", 0); ld.setAttribute("x2", left ? -pad + 4 : pad - 4); ld.setAttribute("y2", (off + 2).toFixed(1));
+  }
+  requestAnimationFrame(spin);
+}
+requestAnimationFrame(spin);
+document.querySelectorAll("[data-answer]").forEach((b) => b.addEventListener("click", () => {
+  document.getElementById("approve").classList.add("gone");
+  const s = SESSIONS.find((x) => x.id === "api-server");
+  if (b.dataset.answer === "Allowed") { s.state = "working"; s.color = "#30d158"; s.mood = "#30d158"; s.what = "running npm test"; }
+  else { s.state = "done"; s.color = "#636366"; s.mood = "#636366"; s.what = "stopped"; }
+  s.g.querySelectorAll("circle").forEach((c, i) => i ? c.setAttribute("fill", s.color) : c.setAttribute("stroke", s.color));
+  s.g.querySelector(".wh").textContent = s.what; s.g.querySelector(".wh").setAttribute("fill", "#8e8e93");
+  toast(`${b.dataset.answer}: npm test`);
+  render();
+}));
+
+// ── Agents: drag a planet to another ring (design B: the ring sets how closely he watches it) ──
+const svgPt = (e) => { const pt = orbit.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; return pt.matrixTransform(orbit.getScreenCTM().inverse()); };
+const ringAt = (x, y) => { const d = Math.hypot(x - C.x, (y - C.y) / SQ); let best = 0; R.forEach((r, i) => { if (Math.abs(d - r) < Math.abs(d - R[best])) best = i; }); return best; };
+function ringGlow(i) {
+  orbit.querySelectorAll(".oring").forEach((el) => el.setAttribute("stroke-width", +el.dataset.ring === i ? 2.5 : 1));
+  orbit.querySelectorAll(".olabel").forEach((el) => el.setAttribute("font-weight", +el.dataset.ring === i ? 600 : 400));
+  const h = document.getElementById("oHint");
+  if (i == null) { h.textContent = "Drag a planet to another ring to change how closely he watches it"; h.setAttribute("fill", "#8e8e93"); }
+  else { h.textContent = `${RINGS[i].name}: ${RINGS[i].say}`; h.setAttribute("fill", RINGS[i].col === "#636366" ? "#aeaeb2" : RINGS[i].col); }
+}
+function dragStart(e, s) {
+  e.preventDefault();
+  const p0 = svgPt(e); let moved = false;
+  s.g.setPointerCapture(e.pointerId);
+  const move = (ev) => {
+    const p = svgPt(ev);
+    if (!moved && Math.hypot(p.x - p0.x, p.y - p0.y) < 5) return;
+    moved = true; s.drag = { x: p.x, y: p.y }; s.g.style.cursor = "grabbing";
+    s.g.querySelector("circle:nth-of-type(2)").setAttribute("transform", "scale(1.25)");
+    ringGlow(ringAt(p.x, p.y));
+  };
+  const up = () => {
+    s.g.removeEventListener("pointermove", move); s.g.removeEventListener("pointerup", up); s.g.removeEventListener("pointercancel", up);
+    s.g.style.cursor = ""; s.g.querySelector("circle:nth-of-type(2)").removeAttribute("transform");
+    if (!moved) return;
+    const { x, y } = s.drag, was = s.watch, ring = ringAt(x, y), dt = (performance.now() - t0) / 1000;
+    s.watch = ring; s.angle = Math.atan2((y - C.y) / SQ, x - C.x) - dt * RINGS[ring].speed;   // lands where you let go
+    s.drag = null; s.dragged = true; ringGlow(null);
+    if (ring !== was) toast(`${s.id} · ${RINGS[ring].name}`);
+    if (typeof drawGlance === "function") drawGlance();
+  };
+  s.g.addEventListener("pointermove", move); s.g.addEventListener("pointerup", up); s.g.addEventListener("pointercancel", up);
+}
+
+// ── Agents: the card stack (front card open; the others peek above it) ───────
+let order = ["korus", "api-server", "jarvis-ui", "docs-site"];
+const stack = document.getElementById("stack");
+for (const s of SESSIONS) {
+  const c = document.createElement("div");
+  c.className = "card";
+  c.innerHTML = `<div class="peekline"><span class="dot" style="background:${s.color}"></span><span class="pk">${s.id} · ${s.what}</span></div>
+    <div class="body" style="padding:18px 20px">
+      <div class="row" style="margin-bottom:14px"><span class="vis" style="width:42px;height:28px"><b style="width:24px;height:5px"></b></span>
+        <div style="flex:1"><p class="ct" style="font-size:16px">${s.id}</p><p class="cs">${s.tool} · ${s.what}</p></div>
+        <span class="chip" style="background:var(--s2)"><span class="dot" style="background:${s.color}"></span>${s.mins}</span></div>
+      <div class="code" style="margin-bottom:14px">${s.code}</div>
+      <div class="row"><div class="bar" style="flex:1"><i style="width:${s.progress}%;background:${s.color}"></i></div><button class="btn bs" data-todo="Open terminal">Open terminal</button></div>
+    </div>`;
+  c.addEventListener("click", (e) => { if (!e.target.closest("button") && order[0] !== s.id) front(s.id); });
+  s.card = c; stack.append(c);
+}
+function front(id) { order = [id, ...order.filter((x) => x !== id)]; render(); }
+function render() {
+  const behind = order.slice(1).reverse(); // farthest first
+  const peek = 26, frontTop = behind.length * peek;
+  behind.forEach((id, i) => {
+    const s = SESSIONS.find((x) => x.id === id), inset = (behind.length - i) * 10;
+    s.card.classList.remove("front");
+    s.card.style.zIndex = i + 1;
+    s.card.style.transform = `translateY(${i * peek}px) scaleX(${1 - inset / 500})`;
+    s.card.style.background = ["#141416", "#18181b", "#1d1d20"][Math.min(2, i + (3 - behind.length))];
+    s.card.querySelector(".peekline .dot").style.background = s.color;
+    s.card.querySelector(".pk").textContent = `${s.id} · ${s.what}`;
+  });
+  const f = SESSIONS.find((x) => x.id === order[0]);
+  SESSIONS.forEach((x) => x.card.querySelector(".vis")?.style.setProperty("--eye", x.mood || x.color));
+  f.card.classList.add("front");
+  f.card.style.zIndex = 10;
+  f.card.style.transform = `translateY(${frontTop}px)`;
+  f.card.style.background = "#232326";
+  stack.style.height = `${frontTop + f.card.offsetHeight + 120}px`;
+}
+
+// ── The sidebar ──
+function markRail(id) { document.querySelectorAll("[data-nav]").forEach((b) => b.classList.toggle("on", b.dataset.nav === id)); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-nav]");
+  if (!b) return;
+  const id = b.dataset.nav;
+  go(id);
+});
+// ── JARVIS: his live waveform, the voice card, the conversation ──
+const jWave = document.getElementById("jWave");
+for (let i = 0; i < 16; i++) jWave.insertAdjacentHTML("beforeend", "<i></i>");
+const rWave = document.getElementById("rWave");
+for (let i = 0; i < 18; i++) rWave.insertAdjacentHTML("beforeend", "<i></i>");
+setInterval(() => {
+  [...jWave.children].forEach((b, i) => (b.style.height = `${i > 11 ? 6 + Math.random() * 6 : 10 + Math.random() * 56}px`));
+  if (recording) [...rWave.children].forEach((b, i) => (b.style.height = `${i > 13 ? 10 + Math.random() * 8 : 20 + Math.random() * 115}px`));
+}, 140);
+const VOICES = [["George", "British, calm"], ["Daniel", "Deep, formal"], ["Lewis", "Warm"], ["Charon", "Gemini"]];
+let vi = 0;
+document.getElementById("voiceCard").addEventListener("click", () => { vi = (vi + 1) % VOICES.length; document.getElementById("voiceName").textContent = VOICES[vi][0]; document.getElementById("voiceDesc").textContent = VOICES[vi][1]; toast(`Voice: ${VOICES[vi][0]}`); });
+let onlyMe = true;
+document.getElementById("onlyMe").addEventListener("click", () => { onlyMe = !onlyMe; const t = document.getElementById("onlyMeT"); t.style.background = onlyMe ? "var(--green)" : "#3a3a3c"; t.firstElementChild.style.right = onlyMe ? "2px" : "18px"; });
+document.getElementById("jIn").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !e.target.value.trim()) return;
+  const c = document.getElementById("convo"), q = e.target.value.trim(); e.target.value = "";
+  c.insertAdjacentHTML("beforeend", `<div class="bub you"></div>`); c.lastElementChild.textContent = q;
+  document.getElementById("jHeard").textContent = `"${q}"`;
+  setTimeout(() => c.insertAdjacentHTML("beforeend", `<div class="bub him">Certainly, sir.</div>`), 700);
+});
+
+// ── Notes: Dictation / Notetaker tabs ──
+function noteTab(id) {
+  document.querySelectorAll("[data-ntab]").forEach((b) => b.classList.toggle("on", b.dataset.ntab === id));
+  document.querySelectorAll("[data-npane]").forEach((p) => (p.style.display = p.dataset.npane === id ? "" : "none"));
+  document.getElementById("noteRight").style.visibility = id === "dictation" ? "visible" : "hidden";
+  showNt("home");
+  if (typeof wallShow === "function" && document.getElementById("dFull").style.display !== "none") wallShow(null);
+}
+document.querySelectorAll("[data-ntab]").forEach((b) => b.addEventListener("click", () => noteTab(b.dataset.ntab)));
+document.querySelectorAll(".tabs2").forEach((g) => g.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || b.dataset.ntab) return; g.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); if (g.id === "range") drawChart(b.textContent); }));
+function drawChart(range = "Week") {
+  const sets = { Day: [3, 6, 9, 14, 8, 12, 5], Week: [96, 150, 74, 190, 126, 50, 26], Month: [120, 160, 140, 180, 170, 150, 190] };
+  const labels = { Day: ["9", "11", "13", "15", "17", "19", "21"], Week: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], Month: ["W1", "W2", "W3", "W4", "W5", "W6", "W7"] };
+  const v = sets[range].map((x) => (range === "Day" ? x * 13 : x)), today = range === "Week" ? 3 : 6;
+  document.getElementById("chart").innerHTML = `<line x1="0" y1="30" x2="900" y2="30" stroke="#1c1c1e"/><line x1="0" y1="130" x2="900" y2="130" stroke="#1c1c1e"/><line x1="0" y1="230" x2="900" y2="230" stroke="#2c2c2e"/><line x1="0" y1="110" x2="800" y2="110" stroke="#30d158" stroke-dasharray="5 5"/><text x="808" y="114" fill="#30d158" font-size="13">avg</text>`
+    + v.map((h, i) => `<rect x="${26 + i * 114}" y="${230 - h}" width="80" height="${h}" rx="10" fill="${i > today ? "#3a3a3c" : "#ff9f0a"}"><animate attributeName="height" from="0" to="${h}" dur=".45s" fill="freeze"/><animate attributeName="y" from="230" to="${230 - h}" dur=".45s" fill="freeze"/></rect>`).join("")
+    + labels[range].map((l, i) => `<text x="${66 + i * 114}" y="250" fill="${i === today ? "#f5f5f7" : "#8e8e93"}" font-size="13" text-anchor="middle">${l}</text>`).join("");
+}
+drawChart();
+
+// ── Notetaker: the blank page, its recording page, a call's note ──
+function showNt(which) {
+  document.getElementById("ntHome").style.display = which === "home" ? "" : "none";
+  document.getElementById("ntRec").style.display = which === "rec" ? "flex" : "none";
+  document.getElementById("ntNote").style.display = which === "note" ? "" : "none";
+  document.getElementById("ntTx").style.display = which === "tx" ? "" : "none";
+  if (which !== "tx" && typeof txPause === "function") txPause();
+  window.scrollTo(0, 0);
+}
+const LINES = [["Ethan", "#ff9f0a", "Thanks for joining. We looked at the invoice again."], ["You", "#0a84ff", "Right, the tax rate was still the old one."], ["Ethan", "#ff9f0a", "Once that's fixed we can sign, likely Monday."], ["You", "#0a84ff", "I'll fix it today and send it over."], ["Ethan", "#ff9f0a", "Perfect. I'll send the contract tonight."]];
+let recording = false, recT = 0, recTimer = 0, li = 0;
+function say() {
+  const [who, col, line] = LINES[li % LINES.length];
+  document.getElementById("rPrev").textContent = li ? `"${LINES[(li - 1) % LINES.length][2]}"` : "";
+  document.getElementById("rNow").textContent = `"${line}"`;
+  const w = document.getElementById("rWho"); w.textContent = who; w.style.color = col;
+  li++;
+}
+document.getElementById("recBtn").addEventListener("click", () => {
+  showNt("rec"); recording = true; recT = 0; li = 0; say();
+  clearInterval(recTimer);
+  recTimer = setInterval(() => { recT++; document.getElementById("recTime").textContent = `${String(Math.floor(recT / 60)).padStart(2, "0")}:${String(recT % 60).padStart(2, "0")}`; if (recT % 3 === 0) say(); }, 1000);
+  document.getElementById("recTime").textContent = "00:00";
+});
+function stopRec() { recording = false; clearInterval(recTimer); }
+document.getElementById("recBack").addEventListener("click", () => { stopRec(); showNt("home"); });
+document.getElementById("recStop").addEventListener("click", () => {
+  stopRec();
+  document.getElementById("noteMeta").textContent = `Client call · just now · ${Math.max(1, Math.round(recT / 60))} min · Ethan, you`;
+  document.getElementById("noteSum").innerHTML = `They'll sign Monday. <span style="color:var(--t3)">You fix the tax rate today; Ethan sends the contract tonight.</span>`;
+  drawTodos([["You · fix the tax rate to 20%", false], ["Ethan · send the contract", false]]);
+  document.getElementById("noteKeys").innerHTML = "· New tax rate: 20%<br>· Signing on Monday<br>· Contract tonight";
+  TX = { title: `Client call · ${mmss(Math.max(recT, 60))}`, len: Math.max(recT, 60), lines: LINES.map(([who, , line], i) => [Math.round(i * Math.max(recT, 60) / LINES.length), who, line, i === 3 ? "To-do" : undefined]) };
+  showNt("note"); toast("Note written");
+});
+function drawTodos(list) {
+  const box = document.getElementById("noteTodos");
+  box.innerHTML = list.map(([t, ok]) => `<button class="chk${ok ? " ok" : ""}"><i></i>${t}</button>`).join("");
+}
+document.getElementById("noteTodos").addEventListener("click", (e) => { const c = e.target.closest(".chk"); if (c) c.classList.toggle("ok"); });
+document.querySelectorAll("[data-open-note]").forEach((b) => b.addEventListener("click", () => {
+  document.getElementById("noteMeta").textContent = "Weekly sync · 20 Nov · 14:00 · 32 min · Maya, Priya";
+  document.getElementById("noteSum").innerHTML = `We ship Friday. <span style="color:var(--t3)">Maya reviews today, and the budget is agreed.</span>`;
+  drawTodos([["Maya · review PR #17", false], ["Priya · update the API docs", false], ["You · send the budget", true]]);
+  document.getElementById("noteKeys").innerHTML = "· Release moves to Friday<br>· Tests must pass first<br>· Budget: €4,200<br>· Priya owns the API";
+  TX = TX_SYNC;
+  showNt("note");
+}));
+document.getElementById("noteBack").addEventListener("click", () => showNt("home"));
+
+// ── Connections: Apple Home tiles by room ──
+const TILES = [
+  ["code", "GitHub", "#24292f", "⌥", "3 open pull requests", true, 2], ["code", "Vercel", "#000", "▲", "Deployed 2 h ago", true], ["code", "n8n", "#ea4b71", "⇄", "6 flows running", true],
+  ["money", "Stripe", "#635bff", "$", "€1,284 today", true], ["money", "Resend", "#3a3a3c", "✉", "Key expired · fix", false],
+  ["life", "Spotify", "#1db954", "♪", "Weightless · playing", true], ["life", "Google Calendar", "#4285f4", "▦", "Design review 21:00", true], ["life", "Notion", "#111", "N", "Synced", true], ["life", "Cal.com", "#292929", "◷", "2 bookings today", true], ["life", "WhatsApp", "#3a3a3c", "◎", "Off · turn on", false],
+];
+let room = "all";
+function drawTiles() {
+  // All: one heading per room, like Apple Home; a room alone: just its tiles. GitHub lists its pull requests.
+  const tile = ([, n, c, ic, v, on, span], i) => `<button class="ht${on ? "" : " off"}" data-tile="${i}" style="${span ? "grid-column:span 2" : ""}"><span class="ic" style="background:${c}">${ic}</span><div style="width:100%"><p style="font-weight:600;font-size:15px">${n}</p><p class="v"${on ? "" : ' style="color:var(--orange)"'}>${v}</p>${n === "GitHub" ? '<div style="margin-top:6px;font-size:12.5px;line-height:1.75;color:#3a3a3c"><span class="dot" style="background:#30d158"></span>&nbsp; #17 Follow-ups in the window<br><span class="dot" style="background:#30d158"></span>&nbsp; #15 Clean drawings<br><span class="dot" style="background:#ff9f0a"></span>&nbsp; #13 Explanation windows</div>' : ""}</div></button>`;
+  const rooms = room === "all" ? [["code", "Code"], ["money", "Money"], ["life", "Life"]] : [[room, ""]];
+  document.getElementById("homeTiles").innerHTML = rooms.map(([r, label]) => {
+    const list = TILES.map((t, i) => [t, i]).filter(([t]) => t[0] === r);
+    return (label ? `<p style="grid-column:1/-1;font-size:17px;font-weight:600;margin:${r === "code" ? 0 : 14}px 0 0">${label} <span class="cap" style="font-weight:400">${list.length}</span></p>` : "") + list.map(([t, i]) => tile(t, i)).join("");
+  }).join("");
+}
+
+document.getElementById("rooms").addEventListener("click", (e) => { const b = e.target.closest("[data-room]"); if (!b) return; room = b.dataset.room; document.querySelectorAll("[data-room]").forEach((x) => x.classList.toggle("on", x === b)); drawTiles(); });
+document.getElementById("homeTiles").addEventListener("click", (e) => { const t = e.target.closest("[data-tile]"); if (!t) return; const d = TILES[+t.dataset.tile]; d[5] = !d[5]; if (d[5] && /fix|turn on/.test(d[4])) d[4] = "Live"; drawTiles(); toast(`${d[1]} ${d[5] ? "on" : "off"}`); });
+drawTiles();
+
+// ── Settings: every control works; the sub-navigation follows the scroll ──
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tog]");
+  if (t) { t.classList.toggle("on"); t.setAttribute("aria-checked", t.classList.contains("on")); toast(`${t.closest(".srow").querySelector("b").textContent}: ${t.classList.contains("on") ? "on" : "off"}`); return; }
+  const sb = e.target.closest(".segc button");
+  if (sb) {
+    const g = sb.parentElement; g.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === sb));
+    if (g.dataset.seg === "motion") document.body.classList.toggle("calm", sb.textContent === "Off");
+    return;
+  }
+  const sw = e.target.closest("[data-acc]");
+  if (sw) { document.querySelectorAll("[data-acc]").forEach((x) => x.classList.toggle("on", x === sw)); document.documentElement.style.setProperty("--blue", sw.dataset.acc); toast(`Accent: ${sw.title}`); return; }
+  const x = e.target.closest("[data-chipx]"); if (x) { x.parentElement.remove(); return; }
+  if (e.target.closest("[data-chipadd]")) { const name = ["Notes", "Ask", "Drop", "New session", "Overview"].find((n) => ![...document.querySelectorAll(".chip2:not(.off)")].some((c) => c.firstChild.textContent === n)); if (name) e.target.closest("[data-chipadd]").insertAdjacentHTML("beforebegin", `<span class="chip2">${name}<button aria-label="Remove ${name}" data-chipx>×</button></span>`); return; }
+  if (e.target.closest("[data-clear]")) { if (confirm("Delete every conversation, dictation and note? This can't be undone.")) toast("History cleared"); return; }
+  const k = e.target.closest("[data-keys]");
+  if (k && !k.classList.contains("rec")) {
+    k.classList.add("rec"); const was = k.innerHTML; k.textContent = "Press the new keys…";
+    const held = new Set();
+    const names = { Control: "Ctrl", Meta: "Win", " ": "Space", Shift: "Shift", Alt: "Alt" };
+    const down = (ev) => { ev.preventDefault(); if (ev.key === "Escape") return finish(true); held.add(names[ev.key] || ev.key.toUpperCase()); k.innerHTML = [...held].map((x) => `<span class="cap2">${x}</span>`).join(""); };
+    const up = () => finish(false);
+    const finish = (cancel) => { removeEventListener("keydown", down, true); removeEventListener("keyup", up, true); k.classList.remove("rec"); if (cancel || !held.size) k.innerHTML = was; else toast("Shortcut saved"); };
+    addEventListener("keydown", down, true); addEventListener("keyup", up, true);
+  }
+});
+document.querySelectorAll("[data-sl]").forEach((r) => r.addEventListener("input", () => {
+  const pct = ((r.value - r.min) / (r.max - r.min)) * 100; r.style.setProperty("--v", pct + "%");
+  if (r.dataset.sl === "vol") document.getElementById("volV").textContent = `${r.value}%`;
+  else { document.getElementById("textV").textContent = `${r.value} pt`; document.body.style.fontSize = `${r.value}px`; }
+}));
+// The sub-navigation: jumps to a group, and lights the group you're reading.
+document.querySelectorAll(".snav a").forEach((a) => a.addEventListener("click", (e) => { e.preventDefault(); document.getElementById(a.getAttribute("href").slice(1)).scrollIntoView({ behavior: "smooth", block: "start" }); }));
+addEventListener("scroll", () => {
+  if (!document.getElementById("settings").classList.contains("on")) return;
+  let cur = "general";
+  document.querySelectorAll(".sgroup").forEach((g) => { if (g.getBoundingClientRect().top < 140) cur = g.id.slice(2); });
+  document.querySelectorAll(".snav a").forEach((a) => a.classList.toggle("on", a.dataset.sg === cur));
+}, { passive: true });
+// Search: shows only the rows whose label or description match.
+document.getElementById("setSearch").addEventListener("input", (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll(".srow").forEach((r) => (r.style.display = !q || r.textContent.toLowerCase().includes(q) ? "" : "none"));
+  document.querySelectorAll(".sgroup").forEach((g) => (g.style.display = [...g.querySelectorAll(".srow")].some((r) => r.style.display !== "none") ? "" : "none"));
+});
+addEventListener("keydown", (e) => { if (e.ctrlKey && e.key.toLowerCase() === "k" && document.getElementById("settings").classList.contains("on")) { e.preventDefault(); document.getElementById("setSearch").focus(); } });
+
+// ── Light mode (palette A, "Apple grouped") ─────────────────────────────────────
+// The prototype was drawn in dark colours, so light mode maps each dark colour to its
+// light partner: in the style sheets, in inline styles and in SVG paint. The original
+// is kept, so switching back is exact. New content drawn while light is mapped as it appears.
+const LIGHT = {
+  "#000": "#f2f2f7", "#000000": "#f2f2f7", "#050506": "#f2f2f7", "#0b0b0d": "#f2f2f7",
+  "#0e0f11": "#ffffff", "#141416": "#e3e3e8", "#16171a": "#ffffff", "#18181b": "#eaeaef", "#1c1c1e": "#ffffff",
+  "#1d1d20": "#f0f0f5", "#1f1f1f": "#ffffff", "#232326": "#ffffff", "#242426": "#f2f2f7", "#08080a": "#ffffff",
+  "#2c2c2e": "#e5e5ea", "#3a3a3c": "#d1d1d6", "#48484a": "#c7c7cc",
+  "#f5f5f7": "#1c1c1e", "#f5f6f8": "#1c1c1e", "#e5e5ea": "#3a3a3c", "#e6e7ea": "#3a3a3c", "#d1d1d6": "#3a3a3c", "#aeaeb2": "#6e6e73", "#c8c8c8": "#6e6e73",
+  "#8e8e93": "#8e8e93", "#636366": "#8e8e93",
+  "#0a84ff": "#007aff", "#30d158": "#34c759", "#ff9f0a": "#ff9500", "#ff453a": "#ff3b30", "#bf5af2": "#af52de", "#64d2ff": "#32ade6", "#ff375f": "#ff2d55", "#5e5ce6": "#5856d6",
+  "#ff8d85": "#d70015", "#7ee2a0": "#248a3d", "#3a1420": "#ffd6dd", "#0f3318": "#d4f5dc", "#3a2606": "#ffe8c7", "#0a2a4d": "#d6e8ff",
+  "#f2f2f7": "#ffffff", "#151517": "#dcdce1", "#0b0f17": "#0b0f17", "#1b2433": "#1b2433",
+};
+const ACCENT_BG = /background:\s*(var\(--(blue|red|green|orange|purple|pink)\)|#0a84ff|#ff453a|#30d158|#bf5af2|#ff9f0a|#ff375f|#635bff|#1db954|#24292f|#ea4b71|#4285f4|#111|#292929|#000;)/i;
+const hex2 = (n) => (+n).toString(16).padStart(2, "0");
+const flip = (m) => {
+  const k = m.toLowerCase();
+  const rgb = k.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+  if (rgb) { const h = `#${hex2(rgb[1])}${hex2(rgb[2])}${hex2(rgb[3])}`; return h in LIGHT ? LIGHT[h] : m; }
+  if (k in LIGHT) return LIGHT[k];
+  const r = k.match(/^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)$/);
+  if (r) {
+    if (r[1] === "255" && r[2] === "255" && r[3] === "255") return `rgba(0,0,0,${r[4]})`;
+    if (r[1] === "0" && r[2] === "0" && r[3] === "0" && +r[4] >= 0.8) return `rgba(242,242,247,${r[4]})`;
+  }
+  return m;
+};
+const TOKEN = /#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b|rgba?\([^)]*\)/g;
+// Text colours are mapped by their own rules: dark text drawn on light tiles stays dark,
+// white text turns dark (except on a colour, like a blue button), black text turns white
+// (it sits on what becomes a dark chip). Every other colour is a surface or a line.
+const TEXT = { "#1c1c1e": "#1c1c1e", "#3a3a3c": "#3a3a3c", "#6e6e73": "#6e6e73", "#000": "#ffffff", "#000000": "#ffffff", "#fff": "#1c1c1e", "#ffffff": "#1c1c1e" };
+const mapTok = (t, prop, onColour) => {
+  const k = t.toLowerCase();
+  if (onColour && /^#fff(fff)?$/.test(k)) return t;
+  if (prop === "color" && k in TEXT) return TEXT[k];
+  return flip(t);
+};
+const mapRule = (rule) => {
+  const onColour = ACCENT_BG.test(rule);
+  return rule.replace(/([{;"]|^)(\s*)([\w-]+)(\s*:\s*)([^;{}"]*)/gi, (all, a, sp, prop, colon, val) => a + sp + prop + colon + val.replace(TOKEN, (t) => mapTok(t, prop.toLowerCase(), onColour)));
+};
+const mapCss = (css) => css.replace(/\{[^{}]*\}/g, mapRule);
+
+let isLight = false;
+function paint(el) {
+  if (el.nodeType !== 1) return;
+  const all = [el, ...el.querySelectorAll("*")];
+  for (const n of all) {
+    // Brand icons keep their own colours.
+    if (n.classList.contains("ic") || n.closest(".ic")) continue;
+    if (n.hasAttribute("style")) {
+      if (!n.dataset.dk) n.dataset.dk = n.getAttribute("style");
+      n.setAttribute("style", mapRule(n.dataset.dk));
+      n.dataset.lt = n.getAttribute("style");
+    }
+    for (const a of ["fill", "stroke", "stop-color", "flood-color"]) {
+      if (n.hasAttribute(a)) {
+        const key = "dk" + a.replace("-", "");
+        if (!(key in n.dataset)) n.dataset[key] = n.getAttribute(a);
+        n.setAttribute(a, flip(n.dataset[key]));
+      }
+    }
+  }
+}
+function unpaint() {
+  document.querySelectorAll("[data-dk]").forEach((n) => { n.setAttribute("style", n.dataset.dk); delete n.dataset.dk; delete n.dataset.lt; });
+  for (const a of ["fill", "stroke", "stop-color", "flood-color"]) {
+    const key = "dk" + a.replace("-", "");
+    document.querySelectorAll(`[data-${key}]`).forEach((n) => { n.setAttribute(a, n.dataset[key]); delete n.dataset[key]; });
+  }
+}
+const sheets = [...document.querySelectorAll("style")].map((st) => ({ st, dark: st.textContent }));
+const watcher = new MutationObserver((list) => {
+  if (!isLight) return;
+  watcher.disconnect();
+  for (const m of list) {
+    m.addedNodes.forEach((n) => paint(n));
+    if (m.type === "attributes" && m.target.nodeType === 1) {
+      const n = m.target;
+      if (m.attributeName === "style") {
+        // Only colours that weren't already light are converted (scripts change other properties too).
+        const now = n.getAttribute("style") || "", done = new Set((n.dataset.lt || "").match(TOKEN) || []);
+        const out = now.replace(TOKEN, (t) => (done.has(t) ? t : flip(t)));
+        if (out !== now) n.setAttribute("style", out);
+        n.dataset.lt = out;
+      }
+      else if (m.attributeName !== "style") { const a = m.attributeName, key = "dk" + a.replace("-", ""); const v = n.getAttribute(a); if (v !== flip(n.dataset[key] || "")) { n.dataset[key] = v; n.setAttribute(a, flip(v)); } }
+    }
+  }
+  watch();
+});
+const watch = () => watcher.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "fill", "stroke", "stop-color"] });
+function setTheme(light) {
+  if (light === isLight) return;
+  isLight = light;
+  watcher.disconnect();
+  document.body.classList.toggle("light", light);
+  sheets.forEach(({ st, dark }) => (st.textContent = light ? mapCss(dark) : dark));
+  if (light) { paint(document.body); watch(); } else unpaint();
+  try { localStorage.setItem("jarvis-theme", light ? "light" : "dark"); } catch {}
+}
+let themeMode = "Dark";
+const dark = matchMedia("(prefers-color-scheme: dark)");
+function applyMode(mode) {
+  themeMode = mode;
+  setTheme(mode === "Light" || (mode === "Match Windows" && !dark.matches));
+  document.querySelectorAll('[data-seg="theme"] button').forEach((b) => b.classList.toggle("on", b.textContent === mode));
+}
+dark.addEventListener("change", () => themeMode === "Match Windows" && applyMode(themeMode));
+document.addEventListener("click", (e) => { const b = e.target.closest('[data-seg="theme"] button'); if (b) applyMode(b.textContent); }, true);
+try { const saved = localStorage.getItem("jarvis-theme"); if (saved === "light") requestAnimationFrame(() => applyMode("Light")); } catch {}
+window.jarvisTheme = applyMode;
+
+// ── Mail: the month, the chosen day, the three widgets and their full views ──
+const MVOL = [12, 4, 18, 22, 9, 3, 2, 15, 25, 19, 14, 30, 5, 3, 20, 28, 17, 21, 24, 32], MVIP = [3, 9, 12, 16, 20], MTODAY = 20;
+const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+let mSel = MTODAY;
+function drawMonth() {
+  let h = "";
+  for (let i = 0; i < 6; i++) h += `<div class="md mute">${26 + i}</div>`;
+  for (let d = 1; d <= 30; d++) {
+    const n = d <= MTODAY ? MVOL[d - 1] : 0;
+    const dots = n ? `<div class="dd">${n > 8 ? '<i style="background:#30d158"></i>' : ""}${n > 15 ? '<i style="background:#636366"></i>' : ""}${MVIP.includes(d) ? '<i style="background:#ff9f0a"></i>' : ""}${n > 22 ? '<i style="background:#bf5af2"></i>' : ""}</div>` : "";
+    const bar = n ? `<div class="vb"><i style="width:${Math.round((n / 32) * 100)}%"></i></div>` : "";
+    h += `<button class="md${d === MTODAY ? " today" : ""}${d === mSel ? " sel" : ""}${d > MTODAY ? " fut" : ""}" data-mday="${d}" aria-label="${d} November, ${n} mails"><span class="n">${d}</span>${dots}${bar}</button>`;
+  }
+  document.getElementById("mgrid").innerHTML = h;
+}
+function drawDay(d) {
+  const n = d <= MTODAY ? MVOL[d - 1] : 0, wd = WD[(d + 6) % 7], vip = MVIP.includes(d);
+  const box = document.getElementById("mDay");
+  if (!n) { box.innerHTML = `<div class="row" style="justify-content:space-between"><b style="font-size:16px">${wd} ${d}</b><span class="cap">No mail yet</span></div><div style="flex:1;display:grid;place-items:center" class="cap">Nothing has arrived for this day.</div>`; return; }
+  const work = Math.max(1, Math.round(n * 0.3)), rec = Math.max(1, Math.round(n * 0.15)), filed = Math.max(1, n - work - rec - (vip ? 3 : 0));
+  box.innerHTML = `<div class="row" style="justify-content:space-between;margin-bottom:4px"><b style="font-size:16px">${wd} ${d}</b><span class="cap">${n} mails${d === MTODAY ? " · 2 need you" : ""}</span></div>
+    <div class="mrow"><span class="cap">09:00</span><div><p>Morning batch</p><span class="capsule"><span class="gpill" style="background:#30d158"><span><i class="gav" style="background:#64d2ff"></i><i class="gav" style="background:#bf5af2"></i></span>Work<span class="c">${work}</span></span><span class="gpill" style="background:#636366;color:#fff">Receipts<span class="c">${rec}</span></span></span></div></div>
+    <div class="mrow"><span class="cap">12:00</span><div><p style="color:#636366;text-decoration:line-through">Newsletters</p><span class="capsule" style="opacity:.55"><span class="gpill" style="background:#3a3a3c;color:#aeaeb2">Filed<span class="c" style="color:#fff">${filed}</span></span></span></div></div>
+    <div class="mrow"><span class="cap">15:00</span><div><p>${vip ? "From people who matter" : "Afternoon"}</p><span class="capsule">${vip ? '<span class="gpill" style="background:#ff9f0a"><span><i class="gav" style="background:#ff9f0a"></i></span>VIP<span class="c">2</span></span>' : ""}<span class="gpill" style="background:#bf5af2;color:#fff">Maya<span class="c">1</span></span></span></div></div>
+    <div class="mrow" style="flex:.6"><span class="cap">18:00</span><div><p style="color:#3a3a3c">${d === MTODAY ? "Nothing yet" : "Quiet"}</p></div></div>`;
+}
+const HRS = [[0,0,1,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,1,0],[0,1,1,0],[0,2,1,2],[1,4,2,2],[1,6,2,3],[0,4,1,3],[0,3,1,2],[0,2,0,2],[0,2,1,2],[0,3,1,2],[2,3,0,2],[0,3,1,1],[0,2,0,2],[0,1,1,1],[0,1,0,1],[0,1,0,1],[0,0,0,1],[0,0,0,1],[0,0,0,0]];
+const HCOL = ["#ff9f0a", "#30d158", "#636366", "#3a3a3c"];
+function drawStrips() {
+  document.getElementById("mStrip").innerHTML = HRS.map((h, i) => { const v = h.reduce((a, b) => a + b, 0); return `<i style="display:block;height:${Math.max(6, v * 8)}%;border-radius:2px;background:${i === 9 ? "#0a84ff" : i > 20 ? "#2c2c2e" : "#48484a"}"></i>`; }).join("");
+  document.getElementById("mBig").innerHTML = HRS.map((h, i) => `<button data-hour="${i}" style="display:flex;flex-direction:column-reverse;gap:2px;height:100%;justify-content:flex-start;border-radius:5px;${i === 9 ? "box-shadow:0 0 0 1.5px #0a84ff;" : ""}" aria-label="${i}:00">${h.map((v, k) => (v ? `<i style="display:block;height:${v * 7}%;background:${HCOL[k]};border-radius:3px"></i>` : "")).join("")}</button>`).join("");
+}
+const HOUR_MAIL = { 9: [["#30d158", "Maya · Sprint notes", "9:04"], ["#636366", "Stripe · Receipt €42", "9:11"], ["#30d158", "GitHub · PR #17 review", "9:26"], ["#30d158", "Priya · Assets", "9:30"]], 15: [["#ff9f0a", "Ethan · Contract ready", "15:12"], ["#ff9f0a", "Ethan · Small change", "15:40"], ["#30d158", "Maya · Review notes", "15:02"]] };
+function drawHour(hr) {
+  const tot = HRS[hr].reduce((a, b) => a + b, 0), list = HOUR_MAIL[hr] || (tot ? [["#30d158", "Work · 2 messages", `${hr}:10`], ["#636366", "Filed for later", `${hr}:35`]] : []);
+  document.getElementById("mHourT").textContent = `At ${hr}:00 · ${tot} mail${tot === 1 ? "" : "s"}`;
+  document.getElementById("mHour").innerHTML = list.length ? list.map(([c, t, at]) => `<div class="row" style="padding:7px 0;border-bottom:1px solid var(--s2)"><span class="dot" style="background:${c}"></span><span style="flex:1;font-size:13px">${t}</span><span class="cap">${at}</span></div>`).join("") : `<p class="cap">Nothing arrived at this hour.</p>`;
+  document.querySelectorAll("[data-hour]").forEach((b) => (b.style.boxShadow = +b.dataset.hour === hr ? "0 0 0 1.5px #0a84ff" : ""));
+}
+const FILES = [["PDF", "#ff453a", "contract.pdf", "Ethan · 16:28", "PDF", "<div style='width:70%'><p style='font-weight:600;font-size:12px;color:#1c1c1e;margin:0 0 6px'>SERVICE AGREEMENT</p><i style='display:block;height:4px;background:#d1d1d6;margin:4px 0;border-radius:2px'></i><i style='display:block;height:4px;background:#d1d1d6;margin:4px 0;width:80%;border-radius:2px'></i><i style='display:block;height:4px;background:#d1d1d6;margin:4px 0;width:90%;border-radius:2px'></i></div>", "#f2f2f7"],
+  ["XLS", "#30d158", "budget.xlsx", "Maya · 14:10", "Sheets", "<div style='display:grid;grid-template-columns:repeat(4,1fr);gap:3px;width:80%'>" + "<i style='background:#1f3a26;height:14px;border-radius:2px;display:block'></i>".repeat(6) + "<i style='background:#30d158;height:14px;border-radius:2px;display:block'></i>".repeat(2) + "</div>", "#0e1a12"],
+  ["IMG", "#0a84ff", "mockup.png", "Priya · 11:40", "Images", "<span style='color:#aeaeb2;font-size:12px'>mockup preview</span>", "linear-gradient(135deg,#1e2a44,#2d2347)"],
+  ["PDF", "#ff453a", "invoice-1182.pdf", "Stripe · 10:02", "PDF", "<span style='color:#3a3a3c;font-size:13px;font-weight:600'>INVOICE · €1,284</span>", "#f2f2f7"],
+  ["ZIP", "#bf5af2", "assets.zip", "Priya · 9:30", "Other", "<span style='color:#aeaeb2;font-size:12px'>assets · 14 files</span>", "#1d1726"],
+  ["DOC", "#636366", "notes.docx", "Maya · 9:04", "Other", "<span style='color:#3a3a3c;font-size:12px'>Meeting notes</span>", "#f2f2f7"]];
+let fSel = 0;
+function drawFiles(filter = "All") {
+  document.getElementById("fGrid").innerHTML = FILES.map((f, i) => [f, i]).filter(([f]) => filter === "All" || f[4] === filter).map(([f, i]) => `<button data-file="${i}" style="background:var(--s1);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;text-align:left;${i === fSel ? "box-shadow:inset 0 0 0 2px #0a84ff;" : ""}"><div style="flex:1;margin:10px 10px 0;border-radius:10px;background:${f[6]};display:grid;place-items:center">${f[5]}</div><div class="row" style="padding:10px 12px"><b style="font-size:10px;background:${f[1]};color:#fff;border-radius:4px;padding:0 5px">${f[0]}</b><div style="flex:1;min-width:0"><p style="font-size:13px">${f[2]}</p><p class="cap">${f[3]}</p></div></div></button>`).join("");
+}
+function mailShow(which) {
+  document.getElementById("mailMain").style.display = which ? "none" : "";
+  ["arrivals", "waiting", "files"].forEach((k) => (document.getElementById(`mFull-${k}`).style.display = which === k ? "" : "none"));
+  scrollTo(0, 0);
+}
+document.addEventListener("click", (e) => {
+  const d = e.target.closest("[data-mday]"); if (d) { mSel = +d.dataset.mday; drawMonth(); drawDay(mSel); return; }
+  const f = e.target.closest("[data-mfull]"); if (f) { mailShow(f.dataset.mfull); return; }
+  if (e.target.closest("[data-mback]")) { mailShow(null); return; }
+  const h = e.target.closest("[data-hour]"); if (h) { drawHour(+h.dataset.hour); return; }
+  const fi = e.target.closest("[data-file]"); if (fi) { fSel = +fi.dataset.file; document.getElementById("fSel").textContent = `${FILES[fSel][2]} selected`; drawFiles(document.querySelector("#fFilter .on").textContent); return; }
+  const r = e.target.closest("[data-reply]"); if (r) { toast(`Reply drafted: "${r.textContent}"`); return; }
+});
+document.getElementById("fFilter").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) drawFiles(b.textContent); });
+drawMonth(); drawDay(MTODAY); drawStrips(); drawHour(9); drawFiles();
+
+// The first layout once fonts have settled.
+window.addEventListener("load", () => { layout(); render(); });
+layout(); render();
+
+// ── Notetaker: the transcript, played back like lyrics ──
+const TX_SYNC = { title: "Weekly sync · 32:10", len: 1930, lines: [
+  [0, "You", "Okay, let's start. Where are we with the release?"],
+  [48, "Maya", "The island is done. Mail still needs a week."],
+  [152, "You", "Then let's ship the island first and leave Mail for next week."],
+  [236, "Maya", "Fine, but the drawings need the overlap fix before that."],
+  [318, "Priya", "I can review PR #17 today if someone pings me.", "To-do"],
+  [431, "You", "Do it. Tests have to pass before anything ships."],
+  [566, "Maya", "So we're saying Friday?"],
+  [612, "You", "Friday. I'll send the budget after this call.", "To-do"],
+  [904, "Priya", "And the API docs, who owns those now?"],
+  [968, "Maya", "You do, Priya. You wrote most of it anyway."],
+  [1107, "Priya", "Fair. I'll update them this week.", "To-do"],
+  [1502, "You", "Good. Budget is four thousand two hundred, agreed?"],
+  [1781, "Maya", "Agreed. That's everything from me."],
+] };
+let TX = TX_SYNC, txI = 0, txT = 0, txTimer = 0, txRate = 1;
+const COLS = { You: "#0a84ff", Maya: "#ff9f0a", Priya: "#30d158", Ethan: "#ff9f0a" };
+const mmss = (t) => `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+function txOpen() {
+  document.getElementById("txTitle").textContent = TX.title;
+  document.getElementById("txLen").textContent = mmss(TX.len);
+  document.getElementById("lyrIn").innerHTML = TX.lines.map(([t, who, line, tag], i) =>
+    `<button class="ly" data-ly="${i}"><span class="who" style="color:${COLS[who] || "#8e8e93"}">${who} · ${mmss(t)}</span>${line}${tag ? `<span class="tag">${tag}</span>` : ""}</button>`).join("");
+  document.getElementById("txScrub").innerHTML = '<i id="txFill"></i>' + TX.lines.filter((l) => l[3]).map((l) => `<b style="left:${(l[0] / TX.len * 100).toFixed(2)}%"></b>`).join("");
+  showNt("tx"); txSeek(0);
+}
+function txSeek(i) {
+  txI = Math.max(0, Math.min(TX.lines.length - 1, i)); txT = TX.lines[txI][0];
+  document.querySelectorAll(".ly").forEach((el, j) => { el.classList.toggle("on", j === txI); el.classList.toggle("near", Math.abs(j - txI) === 1); });
+  const on = document.querySelector(".ly.on"), box = document.getElementById("lyr");
+  if (on) document.getElementById("lyrIn").style.transform = `translateY(${Math.round(box.clientHeight * 0.4 - on.offsetTop - on.offsetHeight / 2)}px)`;
+  txClock();
+}
+function txClock() {
+  document.getElementById("txNow").textContent = mmss(txT);
+  document.getElementById("txFill").style.width = `${(txT / TX.len * 100).toFixed(2)}%`;
+}
+function txPause() { clearInterval(txTimer); txTimer = 0; document.getElementById("txPlay").classList.remove("on"); }
+function txPlay() {
+  if (txTimer) return txPause();
+  document.getElementById("txPlay").classList.add("on");
+  txTimer = setInterval(() => {               // sped up for the prototype, so you can watch it move
+    txT += 25 * txRate;
+    const next = TX.lines[txI + 1];
+    if (next && txT >= next[0]) txSeek(txI + 1); else txClock();
+    if (!next && txT >= TX.len) { txT = TX.len; txClock(); txPause(); }
+  }, 1000);
+}
+document.getElementById("txOpen").addEventListener("click", txOpen);
+document.getElementById("txBack").addEventListener("click", () => showNt("note"));
+document.getElementById("txPlay").addEventListener("click", txPlay);
+document.getElementById("txSpeed").addEventListener("click", (e) => { txRate = txRate === 1 ? 1.5 : txRate === 1.5 ? 2 : 1; e.currentTarget.textContent = `${txRate}×`; });
+document.getElementById("lyr").addEventListener("click", (e) => { const b = e.target.closest("[data-ly]"); if (b) txSeek(+b.dataset.ly); });
+document.getElementById("txScrub").addEventListener("click", (e) => {
+  const r = e.currentTarget.getBoundingClientRect(), t = (e.clientX - r.left) / r.width * TX.len;
+  let i = 0; TX.lines.forEach((l, j) => { if (l[0] <= t) i = j; }); txSeek(i);
+});
+// Light-mode lyric greys, added after load so the theme engine leaves them as written
+addEventListener("load", () => { const st = document.createElement("style"); st.textContent = "body.light .ly{color:#d1d1d6}body.light .ly.near,body.light .ly:hover{color:#aeaeb2}body.light .ly.on{color:#1c1c1e}"; document.head.append(st); });
+document.getElementById("lyr").addEventListener("wheel", (e) => { e.preventDefault(); txSeek(txI + (e.deltaY > 0 ? 1 : -1)); }, { passive: false });
+
+// ── Dictation: the word walls (Dictionary, Snippets, Styles) ──
+const WALLS = {
+  dictionary: { title: "Dictionary", hint: "Search or add a word", items: [
+    { k: "Claude", n: 41, heard: ["cloud", "clawed"], last: "Ask Claude to review the PR", app: "Slack" },
+    { k: "JARVIS", n: 33, heard: ["jarvis's", "harvest"], last: "JARVIS, open my mail", app: "Voice" },
+    { k: "Nullzedz", n: 18, heard: ["null said", "nulls Ed's"], last: "push it to Nullzedz's repo", app: "Terminal" },
+    { k: "Codex", n: 15, heard: ["codecs"], last: "let Codex run the tests", app: "Slack" },
+    { k: "WebView2", n: 11, heard: ["web view two"], last: "WebView2 needs the runtime", app: "VS Code" },
+    { k: "korus", n: 9, heard: ["chorus"], last: "open korus", app: "Outlook" },
+    { k: "Tauri", n: 8, heard: ["tower e", "torii"], last: "we stay on Tauri", app: "Notion" },
+    { k: "Parakeet", n: 6, heard: ["para keet"], last: "Parakeet is ready", app: "Voice" },
+    { k: "Vercel", n: 5, heard: ["vessel"], last: "the Vercel deploy failed", app: "Slack" },
+    { k: "Resend", n: 3, heard: ["re-send"], last: "send it through Resend", app: "VS Code" },
+    { k: "n8n", n: 3, heard: ["n eight n"], last: "the n8n flow", app: "Notion" },
+    { k: "Cupola", n: 2, heard: ["cupula"], last: "like Cupola's notch", app: "Voice" },
+  ] },
+  snippets: { title: "Snippets", hint: "Search or add a snippet", items: [
+    { k: "sign off", n: 52, out: "Kind regards,\nAndrew" },
+    { k: "my email", n: 37, out: "hello@example.com" },
+    { k: "standup", n: 20, out: "Yesterday: …\nToday: …\nBlocked by: nothing" },
+    { k: "address", n: 9, out: "12 Example Street, 1000 Brussels" },
+    { k: "thanks", n: 14, out: "Thanks a lot, that helps." },
+    { k: "calendar link", n: 6, out: "cal.com/example/30min" },
+    { k: "pr template", n: 4, out: "## What\n## Why\n## How I tested it" },
+  ] },
+  styles: { title: "Styles", hint: "Search or add a style", items: [
+    { k: "Natural", n: 60, apps: "everywhere else", said: "yeah so the build passed i think we can ship", out: "Yeah, the build passed. I think we can ship.", use: true },
+    { k: "Formal", n: 28, apps: "Outlook", said: "yeah so the build passed i think we can ship", out: "The build has passed, so we are ready to release." },
+    { k: "Casual", n: 22, apps: "Slack, WhatsApp", said: "yeah so the build passed i think we can ship", out: "build passed, we can ship" },
+    { k: "Code", n: 12, apps: "VS Code, Terminal", said: "open paren user dot name close paren", out: "(user.name)" },
+    { k: "Notes", n: 7, apps: "Notion", said: "first point the build passed", out: "• The build passed" },
+  ] },
+};
+let wallKind = "dictionary", wallSel = 0;
+function wallShow(kind) {
+  const main = document.getElementById("dMain"), full = document.getElementById("dFull");
+  main.style.display = kind ? "none" : ""; full.style.display = kind ? "" : "none";
+  document.getElementById("noteRight").style.visibility = kind ? "hidden" : "visible";
+  window.scrollTo(0, 0);
+  if (!kind) return;
+  wallKind = kind; wallSel = 0;
+  const W = WALLS[kind];
+  full.innerHTML = `<div class="wall-top"><button class="back" id="wallBack">‹ Dictation</button>
+      <span class="tabs2" id="wallTabs">${Object.keys(WALLS).map((k) => `<button data-wall="${k}" class="${k === kind ? "on" : ""}">${WALLS[k].title}</button>`).join("")}</span>
+      <label class="wall-search"><input id="wallQ" placeholder="${W.hint}"><button class="wall-add" id="wallAdd" aria-label="Add">+</button></label>
+      <span class="cap" id="wallCount"></span></div>
+    <div class="wall" id="wall"></div><div class="wdetail" id="wdetail"></div>`;
+  document.getElementById("wallBack").onclick = () => wallShow(null);
+  document.getElementById("wallTabs").onclick = (e) => { const b = e.target.closest("[data-wall]"); if (b) wallShow(b.dataset.wall); };
+  const q = document.getElementById("wallQ");
+  q.oninput = () => drawWall();
+  q.onkeydown = (e) => { if (e.key === "Enter") wallAddItem(); };
+  document.getElementById("wallAdd").onclick = (e) => { e.preventDefault(); wallAddItem(); };
+  drawWall();
+}
+function wallAddItem() {
+  const q = document.getElementById("wallQ"), v = q.value.trim(); if (!v) { q.focus(); return; }
+  const W = WALLS[wallKind];
+  const item = wallKind === "dictionary" ? { k: v, n: 1, heard: ["(learning)"], last: "added just now", app: "you" }
+    : wallKind === "snippets" ? { k: v, n: 1, out: "Say what it should type…" }
+    : { k: v, n: 1, apps: "no apps yet", said: "yeah so the build passed", out: "Yeah, the build passed." };
+  W.items.push(item); wallSel = W.items.length - 1; q.value = "";
+  drawWall(true); toast(`Added "${v}"`);
+}
+function drawWall(fresh) {
+  const W = WALLS[wallKind], q = (document.getElementById("wallQ").value || "").toLowerCase();
+  const top = Math.max(...W.items.map((x) => x.n));
+  const sized = (n) => Math.round(14 + 20 * Math.sqrt(n / top)); // bigger the more you say it
+  // shuffle-free "cloud" order: biggest in the middle
+  const order = W.items.map((x, i) => i).sort((a, b) => W.items[b].n - W.items[a].n);
+  const mid = []; order.forEach((i, j) => (j % 2 ? mid.push(i) : mid.unshift(i)));
+  const shown = mid.filter((i) => W.items[i].k.toLowerCase().includes(q));
+  document.getElementById("wall").innerHTML = shown.map((i) => {
+    const x = W.items[i], quote = wallKind === "snippets" ? `"${x.k}"` : x.k;
+    const sub = wallKind === "styles" && x.use ? '<span class="sub">in use</span>' : "";
+    return `<button class="wchip${i === wallSel ? " on" : ""}${fresh && i === W.items.length - 1 ? " new" : ""}" data-wi="${i}" style="font-size:${sized(x.n)}px;font-weight:${x.n / top > 0.5 ? 600 : 400}">${quote}${sub}</button>`;
+  }).join("") || `<p class="cap" style="font-size:14px">No match. Press + to add "${q}".</p>`;
+  document.getElementById("wallCount").textContent = `${W.items.length} ${W.title.toLowerCase()}`;
+  document.getElementById("wall").onclick = (e) => { const b = e.target.closest("[data-wi]"); if (b) { wallSel = +b.dataset.wi; drawWall(); } };
+  const x = W.items[wallSel], d = document.getElementById("wdetail");
+  const btns = (extra = "") => `<span class="row" style="margin-left:auto;gap:8px;flex:none">${extra}<button class="btn bs" data-todo="Edit">Edit</button><button class="btn bs" style="color:var(--red)" id="wallDel">Remove</button></span>`;
+  if (wallKind === "dictionary")
+    d.innerHTML = `<span style="font-size:22px;font-weight:600;color:var(--orange)">${x.k}</span>
+      <div style="min-width:0"><p class="cap">Heard as ${x.heard.map((h) => `"${h}"`).join(", ")} · ${x.n} time${x.n === 1 ? "" : "s"}</p><p style="margin-top:4px;color:#e5e5ea">"${x.last.replace(x.k, `<b style="color:var(--orange);font-weight:600">${x.k}</b>`)}" <span class="cap">· ${x.app}</span></p></div>` + btns();
+  else if (wallKind === "snippets")
+    d.innerHTML = `<span style="font-size:20px;font-weight:600;color:var(--orange);flex:none">"${x.k}"</span><span class="cap" style="flex:none">types</span>
+      <pre style="margin:0;font:13px/1.5 var(--mono);color:#e5e5ea;background:var(--s0);border-radius:12px;padding:9px 13px;white-space:pre-wrap;min-width:0">${x.out}</pre>
+      <span class="cap" style="flex:none">${x.n} time${x.n === 1 ? "" : "s"}</span>` + btns();
+  else
+    d.innerHTML = `<span style="font-size:22px;font-weight:600;color:var(--orange);flex:none">${x.k}</span>
+      <div style="min-width:0"><p class="cap">You say: "${x.said}"</p><p style="margin-top:4px;color:#e5e5ea;font-size:15px">${x.out}</p><p class="cap" style="margin-top:4px">Used in ${x.apps}</p></div>`
+      + btns(x.use ? '<span class="chip"><span class="dot" style="background:var(--green)"></span>In use</span>' : '<button class="btn bp" id="wallUse">Use this style</button>');
+  document.getElementById("wallDel").onclick = () => { const gone = W.items.splice(wallSel, 1)[0]; wallSel = 0; drawWall(); toast(`Removed "${gone.k}"`); };
+  const u = document.getElementById("wallUse");
+  if (u) u.onclick = () => { W.items.forEach((y) => (y.use = y === x)); drawWall(); toast(`${x.k} is now in use`); };
+}
+document.querySelectorAll("[data-dfull]").forEach((c) => c.addEventListener("click", () => wallShow(c.dataset.dfull)));
+
+// ── At a glance: the widgets under the front page ──
+function drawGlance() {
+  const o = document.getElementById("gOrbit"); if (!o) return;
+  const RR = [48, 76, 104];
+  const planets = (ring) => SESSIONS.filter((x) => x.watch === ring).map((x) => `<circle cx="${(Math.cos(x.angle) * RR[ring]).toFixed(1)}" cy="${(Math.sin(x.angle) * RR[ring]).toFixed(1)}" r="${x.state === "done" ? 6 : 8}" fill="${x.mood}"/>`).join("");
+  o.innerHTML = `<defs><linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f7f9"/><stop offset=".7" stop-color="#eceef1"/><stop offset="1" stop-color="#dcdfe4"/></linearGradient></defs>
+    <circle r="104" fill="none" stroke="#2c2c2e" stroke-dasharray="4 5"/><circle r="76" fill="none" stroke="#2c2c2e"/><circle r="48" fill="rgba(10,132,255,.07)" stroke="rgba(10,132,255,.35)"/>
+    <g class="spin">${planets(0)}</g><g class="spin r2">${planets(1)}</g><g class="spin r3">${planets(2)}</g>
+    <rect x="-30" y="-21" width="60" height="42" rx="14" fill="url(#gBody)"/><rect x="-19" y="-5" width="38" height="10" rx="5" fill="#0b0f17" stroke="#c9cdd4" stroke-width=".8"/>
+    <rect x="-9" y="-2.5" width="18" height="5" rx="2.5" fill="#0a84ff"><animate attributeName="x" values="-9;-14;-9;-4;-9" dur="7s" repeatCount="indefinite"/></rect>`;
+  const label = { working: "", needs: "needs you", done: "done" };
+  document.getElementById("gAgList").innerHTML = SESSIONS.map((x) => `<div class="agrow"><span class="vis" style="--eye:${x.mood}"><b></b></span>
+    <div style="flex:1;min-width:0"><p style="font-size:14px;font-weight:600">${x.id}</p><p class="cs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${x.what}</p></div>
+    <span class="cap" style="color:${x.state === "needs" ? "var(--orange)" : "var(--t3)"}">${label[x.state] || x.mins}</span></div>`).join("");
+  const need = SESSIONS.some((x) => x.state === "needs");
+  document.getElementById("gApprove").classList.toggle("gone", !need);
+}
+(function fillGlance() {
+  const cal = document.getElementById("gCal"); if (!cal) return;
+  const top = Math.max(...MVOL);
+  let h = ["M", "T", "W", "T", "F", "S", "S"].map((d) => `<i style="color:#636366">${d}</i>`).join("") + "<i></i>".repeat(6); // 1 November 2026 is a Sunday
+  for (let d = 1; d <= 30; d++) {
+    const v = MVOL[d - 1];
+    const bg = d === MTODAY ? "#ff453a" : v ? `rgba(10,132,255,${(0.18 + 0.7 * v / top).toFixed(2)})` : "#2c2c2e";
+    h += `<i style="background:${bg};color:${d === MTODAY || (v && v / top > 0.5) ? "#fff" : "#8e8e93"}">${d}</i>`;
+  }
+  cal.innerHTML = h;
+  const arr = [0, 0, 0, 0, 0, 0, 1, 3, 6, 5, 4, 2, 3, 4, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0];
+  document.getElementById("gArr").innerHTML = arr.map((v, i) => `<i style="flex:1;height:${v ? 6 + v * 4.5 : 3}px;border-radius:3px;background:${v ? (i >= 17 ? "#3a3a3c" : "#0a84ff") : "#2c2c2e"}"></i>`).join("");
+  const wk = [96, 150, 74, 190, 126, 50, 26], days = ["M", "T", "W", "T", "F", "S", "S"], avg = wk.reduce((a, b) => a + b) / 7;
+  document.getElementById("gDict").innerHTML = wk.map((v, i) => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px"><i style="width:100%;max-width:26px;height:${Math.round(v / 190 * 70)}px;border-radius:5px;background:${i === 4 ? "#ff9f0a" : "rgba(255,159,10,.35)"}"></i><span class="cap" style="font-size:10px">${days[i]}</span></div>`).join("")
+    + `<span style="position:absolute;left:0;right:0;bottom:${Math.round(avg / 190 * 70) + 20}px;border-top:1.5px dashed #30d158;opacity:.8"></span>`;
+  drawGlance();
+})();
+document.getElementById("gApprove").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-gans]"); if (!b) return;
+  e.stopPropagation();
+  const s = SESSIONS.find((x) => x.id === "api-server");
+  if (b.dataset.gans === "Allowed") { s.state = "working"; s.color = s.mood = "#30d158"; s.what = "running npm test"; }
+  else { s.state = "done"; s.color = s.mood = "#636366"; s.what = "stopped"; }
+  toast(`${b.dataset.gans}: npm test`);
+  drawGlance();
+});
+document.querySelectorAll(".w[data-open]").forEach((w) => w.addEventListener("click", () => {
+  go(w.dataset.open);
+  if (w.dataset.ntabGo) noteTab(w.dataset.ntabGo);
+}));
+
+// ── Opened at a view by its address (the design board uses this): #view=…&theme=…&… ──
+addEventListener("load", () => setTimeout(() => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  if (![...q.keys()].length) return;
+  if (q.get("theme")) jarvisTheme(q.get("theme") === "light" ? "Light" : "Dark");
+  if (q.get("wide")) document.head.insertAdjacentHTML("beforeend", "<style>#rail{width:208px!important;box-shadow:12px 0 40px rgba(0,0,0,.6)!important}#rail .ri .g{background:var(--c)!important;color:#fff!important}#rail .ri .n,#rail .rlogo .n{opacity:1!important;transform:none!important}</style>");
+  const v = q.get("view"); if (v) go(v);
+  if (q.get("ntab")) noteTab(q.get("ntab"));
+  if (q.get("rec")) document.getElementById("recBtn").click();
+  if (q.get("note")) document.querySelector("[data-open-note]").click();
+  if (q.get("tx")) { txOpen(); txSeek(+q.get("tx") || 3); }
+  if (q.get("full")) mailShow(q.get("full"));
+  if (q.get("wall")) wallShow(q.get("wall"));
+  const sc = q.get("scroll");
+  if (sc === "stack") scrollTo(0, document.getElementById("stack").offsetTop - 30);
+  else if (sc === "accounts") document.getElementById("s-accounts").scrollIntoView();
+  else if (sc) { scrollTo(0, +sc); dispatchEvent(new Event("scroll")); }
+}, 300));
+</script>
+</body>
+</html>
