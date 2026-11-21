@@ -111,7 +111,8 @@ export function islandDances(o: {
   focusId: string | null | undefined;
 }): boolean {
   if (!o.music || !DANCE_STATES.has(o.state)) return false;
-  if (o.mode === "compact") return true;
+  // JARVIS: and on the closed pill, as in the notch prototype (dance112 while it's folded).
+  if (o.mode === "compact" || o.mode === "hidden") return true;
   return o.mode === "expanded" && o.view === "overview" && o.focusId === SPOTIFY_ID;
 }
 

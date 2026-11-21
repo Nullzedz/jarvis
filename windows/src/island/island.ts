@@ -86,6 +86,7 @@ export class Island {
    *  the loop runs for what he is doing (a blink, a glance). */
   private closedLook = { x: 0, y: 0 };
   private closedAwakeUntil = 0;
+  private closedBlink: number | null = null;
   private closedLife: number | null = null;
   /** The size the window was last folded to, so a new one is only sent on a change. */
   private collapsedTo = { w: 0, h: 0 };
@@ -951,29 +952,45 @@ export class Island {
   }
 
   /**
-   * Mochi in the closed island now and then blinks or glances around, as he
-   * does on a Mac without a notch: a few frames every few seconds, the loop
-   * asleep in between. Nothing runs for the other closed islands.
+   * JARVIS on the closed pill lives as in the notch prototype (its visLook and visBlink):
+   * a 7 s glance cycle (centre, left at 24 %, right at 46 %, back at 68 %) and a blink
+   * every 5 s. The loop only wakes for each move; nothing runs for the other closed islands.
    */
   private scheduleClosedLife() {
     if (this.closedLife != null) window.clearTimeout(this.closedLife);
     this.closedLife = null;
+    if (this.closedBlink != null) window.clearInterval(this.closedBlink);
+    this.closedBlink = null;
     if (State.mode !== "hidden" || closedIsland(State.settings.closedIsland) !== "mochi") {
       this.closedLook = { x: 0, y: 0 };
       return;
     }
-    this.closedLife = window.setTimeout(() => {
+    const LOOK: [number, number][] = [[0.24, -0.8], [0.46, 0.8], [0.68, 0]]; // when in the 7 s cycle, where
+    let step = 0;
+    const next = () => {
+      const [at] = LOOK[step];
+      const prev = step === 0 ? 0 : LOOK[step - 1][0];
+      return (at - prev) * 7000;
+    };
+    const move = () => {
       this.closedLife = null;
-      if (State.mode !== "hidden" || State.paused) return this.scheduleClosedLife();
-      if (Math.random() < 0.55) {
-        this.engine.blink();
-      } else {
-        this.closedLook = { x: (Math.random() * 2 - 1) * 0.8, y: (Math.random() * 2 - 1) * 0.3 };
+      if (State.mode !== "hidden") return;
+      if (!State.paused) {
+        this.closedLook = { x: LOOK[step][1], y: 0 };
+        this.closedAwakeUntil = performance.now() + 700;
+        this.ensureRunning();
       }
-      this.closedAwakeUntil = performance.now() + 700;
+      step = (step + 1) % LOOK.length;
+      // After the last move, the rest of the cycle (32 %) before it starts again.
+      this.closedLife = window.setTimeout(move, step === 0 ? 0.32 * 7000 + next() : next());
+    };
+    this.closedLife = window.setTimeout(move, next());
+    this.closedBlink = window.setInterval(() => {
+      if (State.mode !== "hidden" || State.paused) return;
+      this.engine.blink();
+      this.closedAwakeUntil = performance.now() + 400;
       this.ensureRunning();
-      this.scheduleClosedLife();
-    }, 2500 + Math.random() * 3500);
+    }, 5000);
   }
 
   /** The pointer is on the folded window (Rust's `closed-hover`): the island wakes. */
@@ -1326,7 +1343,7 @@ export class Island {
     // Closed, only the folding — and Mochi reaching his place in the closed island.
     const busy = State.mode === "hidden"
       ? settling || (closedIsland(State.settings.closedIsland) === "mochi" &&
-        (botMoving || nowMs < this.closedAwakeUntil))
+        (botMoving || nowMs < this.closedAwakeUntil || this.engine.isDancing))
       : settling ||
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
         greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating;
