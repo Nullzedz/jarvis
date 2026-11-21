@@ -134,6 +134,8 @@ pub struct Prefs {
     pub ask_keys: Vec<String>,
     /// JARVIS: the keys held to circle something else, « show him more ».
     pub more_keys: Vec<String>,
+    /// JARVIS: who draws his windows, "maker:model" (voice/draw.rs), issue #14.
+    pub draw_model: String,
 }
 
 impl Default for Prefs {
@@ -163,6 +165,7 @@ impl Default for Prefs {
             talk_keys: crate::voice::shortcut::DEFAULT_TALK.map(String::from).to_vec(),
             ask_keys: crate::voice::shortcut::DEFAULT_ASK.map(String::from).to_vec(),
             more_keys: crate::voice::shortcut::DEFAULT_MORE.map(String::from).to_vec(),
+            draw_model: crate::voice::draw::DEFAULT.into(),
         }
     }
 }

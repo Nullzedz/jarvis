@@ -11,7 +11,7 @@
 import "./explain.css";
 import { Bridge, onEvent } from "../core/bridge";
 import { resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
-import { BLUE, content, widthFor } from "./draw";
+import { BLUE, content, fitViewBox, textOverlap, widthFor } from "./draw";
 import { place, type Rect } from "./place";
 
 /** The approved pace (ms), and how long the circle stays lit once the window is drawn. */
@@ -20,8 +20,10 @@ const RING_STAYS = 3000;
 const NS = "http://www.w3.org/2000/svg";
 
 type Box = [number, number, number, number];
-type Show = { add: boolean; question: string; said: string; window: Record<string, any>; target: Box | null; about: Box | null; cursor: [number, number] };
-type Card = { id: number; el: HTMLElement; inner: HTMLElement; slot: HTMLElement; marks: SVGElement[]; s: Show; tried: string[] };
+type Show = { add: boolean; draw: number; question: string; said: string; window: Record<string, any>; target: Box | null; about: Box | null; cursor: [number, number] };
+type Drawn = { draw: number; window?: Record<string, any>; failed?: boolean };
+/** `ready`: drawn out and docked; `moved`: the user dragged it; `fixed`: one redraw for overlapping text was asked; `early`: a drawing that came before it was ready. */
+type Card = { id: number; el: HTMLElement; inner: HTMLElement; slot: HTMLElement; marks: SVGElement[]; s: Show; tried: string[]; about: Rect; target: Rect | null; ready: boolean; moved: boolean; fixed: boolean; early: Drawn | null };
 
 const ink = document.createElementNS(NS, "svg");
 ink.id = "ink";
@@ -143,7 +145,9 @@ function build(s: Show): Card {
   inner.append(hd);
   const grip = Object.assign(document.createElement("div"), { className: "ex-grip" });
   el.append(inner, grip);
-  const card: Card = { id: nextId++, el, inner, slot, marks: [], s, tried: [formOf(s.window)] };
+  const pending = s.window.kind === "pending";
+  const card: Card = { id: nextId++, el, inner, slot, marks: [], s, tried: pending ? [] : [formOf(s.window)], about: { x: 0, y: 0, w: 0, h: 0 }, target: null, ready: false, moved: false, fixed: false, early: null };
+  if (pending) again.disabled = true;
   fill(card);
   x.addEventListener("click", () => remove(card));
   again.addEventListener("click", () => redraw(card, again));
@@ -153,6 +157,7 @@ function build(s: Show): Card {
     e.preventDefault();
     hd.setPointerCapture(e.pointerId);
     const r = bounds(el), sx = e.clientX, sy = e.clientY;
+    card.moved = true;
     card.marks.filter((m) => m.tagName === "line").forEach(fadeMark);
     const move = (m: PointerEvent) => {
       el.style.left = `${Math.max(0, Math.min(window.innerWidth - 60, r.x + m.clientX - sx))}px`;
@@ -237,6 +242,7 @@ function show(s: Show) {
   const taken = cards.map(({ el: c }) => bounds(c));
   if (target && s.about) taken.push(target);
   const spot = place(about, width, height, window.innerWidth, window.innerHeight, taken);
+  Object.assign(card, { about, target });
   Object.assign(el.style, { left: `${spot.x}px`, top: `${spot.y}px`, width: "0px", height: "0px" });
   cards.push(card);
   // The pointer comes out where the mouse is.
@@ -272,6 +278,10 @@ function show(s: Show) {
         ptr.style.opacity = "0";
         card.slot.replaceChildren(face());
         card.slot.classList.add("home");
+        // Still being drawn: his eye sweeps until it comes (issue #14).
+        if (s.window.kind === "pending") card.slot.classList.add("thinking");
+        card.ready = true;
+        if (card.early) later(PACE.show, () => drawn(card.early!));
       });
       reveal(card, PACE.show);
     });
@@ -282,36 +292,82 @@ function show(s: Show) {
 function redraw(card: Card, button: HTMLButtonElement) {
   if (button.disabled) return;
   button.disabled = true;
+  card.fixed = false;
   card.slot.classList.add("thinking");
-  void Bridge.explainRedraw(card.id, card.s.question, card.s.said, card.s.window, card.tried);
+  void Bridge.explainRedraw(card.s.draw, card.tried, null);
 }
 
-function redrawn(r: { id: number; said?: string; window?: Record<string, any>; failed?: boolean }) {
-  const card = cards.find((c) => c.id === r.id);
-  if (!card) return;
-  const button = card.el.querySelector<HTMLButtonElement>(".ex-again")!;
-  button.disabled = false;
-  card.slot.classList.remove("thinking");
-  if (r.failed || !r.window) {
-    button.classList.add("nope");
-    window.setTimeout(() => button.classList.remove("nope"), 600);
-    return;
-  }
-  card.s = { ...card.s, said: r.said || card.s.said, window: r.window };
-  card.tried.push(formOf(r.window));
-  fill(card);
-  // Same place, its new size, kept on screen.
-  const width = widthFor(r.window);
+/** Its new size, kept where it is, or beside what he explains if the user hasn't moved it. */
+function resize(card: Card) {
+  const width = widthFor(card.s.window);
   const height = measure(card, width);
   const b = bounds(card.el);
+  let { x, y } = b;
+  if (!card.moved) {
+    const taken = cards.filter((c) => c !== card).map(({ el }) => bounds(el));
+    if (card.target && card.s.about) taken.push(card.target);
+    ({ x, y } = place(card.about, width, height, window.innerWidth, window.innerHeight, taken));
+  }
+  card.el.style.transition = "opacity .15s ease, width .25s ease, height .25s ease, left .25s ease, top .25s ease";
   Object.assign(card.el.style, {
     width: `${width}px`,
     height: `${height}px`,
-    left: `${Math.max(12, Math.min(b.x, window.innerWidth - width - 12))}px`,
-    top: `${Math.max(12, Math.min(b.y, window.innerHeight - height - 12))}px`,
+    left: `${Math.max(12, Math.min(x, window.innerWidth - width - 12))}px`,
+    top: `${Math.max(12, Math.min(y, window.innerHeight - height - 12))}px`,
   });
+  window.setTimeout(() => {
+    card.el.style.transition = "";
+    report();
+  }, 270);
+}
+
+/** A drawing came (or didn't) for a card: checked for overlapping text, then shown. */
+function drawn(r: Drawn) {
+  const card = cards.find((c) => c.s.draw === r.draw);
+  if (!card) return;
+  if (!card.ready) {
+    card.early = r;
+    return;
+  }
+  card.early = null;
+  const button = card.el.querySelector<HTMLButtonElement>(".ex-again")!;
+  const waiting = card.s.window.kind === "pending";
+  if (r.failed || !r.window) {
+    card.slot.classList.remove("thinking");
+    button.disabled = false;
+    if (waiting) {
+      card.s = { ...card.s, window: { kind: "failed", text: t("I couldn't draw this, sir. Try ↻.") } };
+      fill(card);
+      resize(card);
+      reveal(card, PACE.show);
+    } else {
+      button.classList.add("nope");
+      window.setTimeout(() => button.classList.remove("nope"), 600);
+    }
+    return;
+  }
+  const before = card.s;
+  card.s = { ...card.s, window: r.window };
+  fill(card);
+  measure(card, widthFor(r.window));
+  const own = card.inner.querySelector<SVGSVGElement>("svg.ex-own");
+  if (own) fitViewBox(own);
+  // Text on top of other text: one more try, his eye still sweeping (issue #14).
+  const overlap = own ? textOverlap(own) : null;
+  if (overlap && !card.fixed) {
+    card.fixed = true;
+    card.s = before;
+    fill(card);
+    card.inner.querySelectorAll(".ix").forEach((e) => e.classList.add("on"));
+    card.slot.classList.add("thinking");
+    void Bridge.explainRedraw(card.s.draw, [], overlap);
+    return;
+  }
+  card.slot.classList.remove("thinking");
+  button.disabled = false;
+  card.tried.push(formOf(r.window));
+  resize(card);
   reveal(card, PACE.show);
-  report();
 }
 
 async function main() {
@@ -319,7 +375,7 @@ async function main() {
   setLanguage(resolveLanguage(boot?.settings.language, systemLanguages()));
   void onEvent<Show>("explain-show", (s) => show(s));
   void onEvent<null>("explain-close", () => closeAll());
-  void onEvent<{ id: number; said?: string; window?: Record<string, any>; failed?: boolean }>("explain-redrawn", (r) => redrawn(r));
+  void onEvent<Drawn>("explain-drawn", (r) => drawn(r));
 }
 
 void main();

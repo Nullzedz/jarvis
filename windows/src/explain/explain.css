@@ -222,6 +222,32 @@ body {
   color: #ffb3a8;
 }
 
+/* Being drawn: faint lines that shimmer (issue #14). */
+.ex-wait {
+  display: grid;
+  gap: 9px;
+  padding: 8px 0 6px;
+}
+
+.ex-wait i {
+  display: block;
+  height: 9px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(79, 163, 255, 0.08), rgba(79, 163, 255, 0.22), rgba(79, 163, 255, 0.08));
+  background-size: 200% 100%;
+  animation: ex-shimmer 1.4s linear infinite;
+}
+
+@keyframes ex-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+.ex-failed {
+  color: #8b93a3;
+  padding: 4px 0;
+}
+
 /* Parts that appear one after another. */
 .ix {
   opacity: 0;

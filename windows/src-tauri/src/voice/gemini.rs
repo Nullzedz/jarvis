@@ -245,7 +245,7 @@ pub async fn gemini_key_check() -> String {
     }
 }
 
-fn base64_decode(s: &str) -> Option<Vec<u8>> {
+pub(super) fn base64_decode(s: &str) -> Option<Vec<u8>> {
     let val = |c: u8| -> Option<u32> {
         Some(match c {
             b'A'..=b'Z' => c - b'A',

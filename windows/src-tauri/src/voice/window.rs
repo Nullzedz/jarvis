@@ -36,8 +36,33 @@ pub fn split(text: &str) -> (String, Option<Value>) {
     (said, window)
 }
 
-/// A kind we draw, with something to draw in it.
+/// A window to draw now (a kind with something in it), or a request for one
+/// (`idea`: the drawing model makes it, voice/draw.rs).
 fn usable(w: &Value) -> bool {
+    ready(w) || is_request(w)
+}
+
+/// He asked for a window to be drawn for him (issue #14): what it should show.
+pub fn is_request(w: &Value) -> bool {
+    !ready(w) && w["idea"].as_str().is_some_and(|s| !s.trim().is_empty())
+}
+
+/// What his window shows under the question: his first sentence, at most 15 words (issue #14).
+pub fn short_line(said: &str) -> String {
+    let said = said.trim();
+    let first = said
+        .char_indices()
+        .find(|&(i, c)| matches!(c, '.' | '!' | '?') && said[i + c.len_utf8()..].starts_with(char::is_whitespace))
+        .map_or(said, |(i, c)| &said[..i + c.len_utf8()]);
+    let words: Vec<&str> = first.split_whitespace().collect();
+    if words.len() <= 15 {
+        return first.to_string();
+    }
+    format!("{}…", words[..15].join(" ").trim_end_matches([',', ';', ':']))
+}
+
+/// A ready-made kind, or his own drawing, with something to draw in it.
+pub fn ready(w: &Value) -> bool {
     let list = |k: &str| w[k].as_array().is_some_and(|a| !a.is_empty());
     match w["kind"].as_str() {
         Some("steps") => list("steps"),
@@ -110,6 +135,25 @@ mod tests {
         assert_eq!(about(&w, (1280, 720)), Some((0.0, 0.0, 400.0, 300.0)));
         let (_, none) = split(r#"Here. <window>{"kind": "drawing", "svg": "no picture"}</window>"#);
         assert!(none.is_none());
+    }
+
+    #[test]
+    fn a_request_for_a_drawing_is_kept_with_its_places() {
+        let (said, w) = split(r#"Audit logs each change, sir. <window>{"idea": "how the tables link", "about": [0, 0, 400, 300]}</window>"#);
+        assert_eq!(said, "Audit logs each change, sir.");
+        let w = w.unwrap();
+        assert!(is_request(&w));
+        assert_eq!(about(&w, (1280, 720)), Some((0.0, 0.0, 400.0, 300.0)));
+        let (_, none) = split(r#"Here. <window>{"idea": "  "}</window>"#);
+        assert!(none.is_none());
+    }
+
+    #[test]
+    fn his_line_in_the_window_is_one_sentence_of_at_most_15_words() {
+        assert_eq!(short_line("Audit logs each change. HistoryEvent holds the details."), "Audit logs each change.");
+        assert_eq!(short_line("Version 2.5 is out, sir."), "Version 2.5 is out, sir.");
+        let long = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen, sixteen seventeen";
+        assert_eq!(short_line(long), "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen…");
     }
 
     #[test]

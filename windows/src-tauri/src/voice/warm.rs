@@ -158,28 +158,38 @@ pub fn ask(model: &str, system: &str, content: Value, on_text: &mut dyn FnMut(&s
     }
     let w = guard.as_mut().unwrap();
     while w.lines.try_recv().is_ok() {}
-    let message = json!({ "type": "user", "message": { "role": "user", "content": content } });
-    let sent = writeln!(w.stdin, "{message}").and_then(|_| w.stdin.flush());
-    if let Err(err) = sent {
+    let got = send(w, content).and_then(|_| read(w, ANSWER_TIMEOUT, on_text));
+    if got.is_err() {
         *guard = None;
-        return Err(err.to_string());
     }
+    got
+}
+
+/// JARVIS: one question to a Claude Code of its own, gone after it answers: his
+/// drawings (draw.rs), each with a fresh conversation so no older picture rides along.
+pub fn once(model: &str, system: &str, content: Value, timeout: Duration) -> Result<String, String> {
+    let mut w = spawn(model, system)?;
+    send(&mut w, content)?;
+    read(&mut w, timeout, &mut |_| {})
+}
+
+fn send(w: &mut Warm, content: Value) -> Result<(), String> {
+    let message = json!({ "type": "user", "message": { "role": "user", "content": content } });
+    writeln!(w.stdin, "{message}").and_then(|_| w.stdin.flush()).map_err(|e| e.to_string())
+}
+
+/// The answer's words as they are written, until its result.
+fn read(w: &mut Warm, timeout: Duration, on_text: &mut dyn FnMut(&str)) -> Result<String, String> {
     let started = Instant::now();
     let mut text = String::new();
     // Text of the turn being written; a turn that ends in a tool call is not the answer.
     let mut turn = String::new();
     loop {
-        let left = ANSWER_TIMEOUT.saturating_sub(started.elapsed());
+        let left = timeout.saturating_sub(started.elapsed());
         let line = match w.lines.recv_timeout(left) {
             Ok(v) => v,
-            Err(RecvTimeoutError::Timeout) => {
-                *guard = None;
-                return Err(crate::i18n::t("Claude Code took too long to answer."));
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                *guard = None;
-                return Err(crate::i18n::t("Claude Code gave no answer."));
-            }
+            Err(RecvTimeoutError::Timeout) => return Err(crate::i18n::t("Claude Code took too long to answer.")),
+            Err(RecvTimeoutError::Disconnected) => return Err(crate::i18n::t("Claude Code gave no answer.")),
         };
         match line["type"].as_str() {
             Some("stream_event") => {
@@ -205,7 +215,6 @@ pub fn ask(model: &str, system: &str, content: Value, on_text: &mut dyn FnMut(&s
                 w.used = Some(Instant::now());
                 if line["is_error"].as_bool().unwrap_or(false) {
                     let why = line["result"].as_str().unwrap_or("").trim().to_string();
-                    *guard = None;
                     return Err(if why.is_empty() { crate::i18n::t("Claude Code could not answer.") } else { why });
                 }
                 if text.trim().is_empty() {

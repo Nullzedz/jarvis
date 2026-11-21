@@ -10,6 +10,7 @@ import { button, card, divider, label, row, segmented, select, toggle } from "..
 import { modelsControl } from "./flowsettings";
 import { openVoiceTraining } from "./voicetrain";
 import { shortcutTiles } from "./shortcuts";
+import { drawModelCards } from "./drawmodel";
 
 const ELEVEN = "elevenlabs-api-key";
 const GEMINI = "gemini-api-key";
@@ -299,6 +300,10 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   // JARVIS: his shortcuts, as keycap tiles (design B).
   page.append(label(t("Shortcuts")));
   page.append(shortcutTiles(ctx, prefs, status.platform));
+
+  // JARVIS: who draws his windows (issue #14).
+  page.append(label(t("His windows")));
+  page.append(drawModelCards(ctx, prefs));
 
   // JARVIS: which microphone, and a bar that shows how loud you come through.
   page.append(label(t("Microphone")));
