@@ -4528,6 +4528,9 @@ html[data-dir="rtl"] #views :is(.bubble, .reply .md-p, .reply .md-h, .reply .md-
 
 /* JARVIS: Home. Clicking a square makes it the main; right-click a square → Edit opens its
    list. The menu and the list open inside the right card, so nothing hangs outside it. */
+.overview .pill.empty { justify-content: center; border: 1px dashed rgba(255, 255, 255, 0.18); background: none; cursor: pointer; font: inherit; }
+.overview .pill.empty:hover { border-color: rgba(255, 255, 255, 0.35); }
+.overview .pill.empty .lbl { color: #8e8e93; }
 .overview .ctx-menu { position: absolute; z-index: 4; min-width: 96px; background: #2c2c2e; border-radius: 10px; padding: 4px; animation: sp-in .15s cubic-bezier(.32, .72, 0, 1); }
 .overview .ctx-menu button { display: block; width: 100%; border: 0; background: none; border-radius: 7px; padding: 5px 10px; color: #f5f5f7; font: 12.5px var(--font); text-align: left; cursor: pointer; outline: 0; }
 .overview .ctx-menu button:hover, .overview .ctx-menu button:focus-visible { background: #0a84ff; }

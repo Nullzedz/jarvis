@@ -1096,6 +1096,10 @@ export class Island {
     // else (the chat field) the webview keeps its own menu.
     this.islandEl.addEventListener("contextmenu", (e) => {
       if (this.isBotHit(e.clientX, e.clientY)) e.preventDefault();
+      // JARVIS: never the webview's own menu (Back, Refresh, Inspect…): Back or Refresh reloads
+      // the island mid-open and leaves it stuck. Text fields keep it for copy and paste.
+      const field = (e.target as HTMLElement).closest("input, textarea, [contenteditable='true']");
+      if (!field) e.preventDefault();
     });
 
     // Dragging Mochi out of the island puts him on the desktop.

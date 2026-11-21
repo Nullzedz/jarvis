@@ -275,22 +275,26 @@ function buildOverview(actions: ViewActions): ViewHost {
     ctxMenu.remove();
     hold();
   }
-  right.addEventListener("contextmenu", (e) => {
-    const pill = (e.target as HTMLElement).closest(".pill") as HTMLElement | null;
-    const slot = pill?.dataset.id ? sanitizeDeclared(State.settings, State.os).activeIntegrations.indexOf(pill.dataset.id) : -1;
-    if (slot < 0) return;
+  // Right-click anywhere on Home, empty space too: Edit opens the square under the pointer, else
+  // the first empty one, else the first. The menu opens inside the card that was clicked.
+  function onContext(e: MouseEvent, host: HTMLElement) {
     e.preventDefault();
     e.stopPropagation();
-    ctxSlot = slot;
-    const box = right.getBoundingClientRect();
-    right.append(ctxMenu);
+    const d = sanitizeDeclared(State.settings, State.os);
+    const at = (e.target as HTMLElement).closest("[data-slot], .pill") as HTMLElement | null;
+    const under = at?.dataset.slot != null ? Number(at.dataset.slot) : at?.dataset.id ? d.activeIntegrations.indexOf(at.dataset.id) : -1;
+    ctxSlot = under >= 0 ? under : Math.min(d.activeIntegrations.length, 3);
+    const box = host.getBoundingClientRect();
+    host.append(ctxMenu);
     hold();
     const x = Math.min(e.clientX - box.left, box.width - ctxMenu.offsetWidth - 6);
     const y = Math.min(e.clientY - box.top, box.height - ctxMenu.offsetHeight - 6);
     ctxMenu.style.left = `${Math.max(6, x)}px`;
     ctxMenu.style.top = `${Math.max(6, y)}px`;
     ctxEdit.focus();
-  });
+  }
+  left.addEventListener("contextmenu", (e) => onContext(e, left));
+  right.addEventListener("contextmenu", (e) => onContext(e, right));
   window.addEventListener("pointerdown", (e) => { if (!ctxMenu.contains(e.target as Node)) closeCtx(); }, true);
   ctxMenu.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeCtx(); } });
 
@@ -575,6 +579,12 @@ function buildOverview(actions: ViewActions): ViewHost {
           } else {
             pills.append(buildPill(t, actions, () => promote(t.id)));
           }
+        }
+        // Empty squares (fewer than four apps chosen): "+ Add" opens that square's list.
+        for (let slot = declared.activeIntegrations.length; slot < 4 && pills.childElementCount < 4; slot++) {
+          const n = slot;
+          pills.append(h("button", { class: "pill empty", "data-slot": String(n), onclick: () => pickSlot(n) },
+            h("span", { class: "lbl", text: t("+ Add") })));
         }
         pruneMiniBots();
       }

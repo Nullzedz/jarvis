@@ -9708,6 +9708,21 @@
       "ru": "Пусто",
       "tr": "Boş",
       "zh-Hans": "空"
+    },
+    "+ Add": {
+      "ar": "+ إضافة",
+      "bn": "+ যোগ করুন",
+      "de": "+ Hinzufügen",
+      "es": "+ Añadir",
+      "fr": "+ Ajouter",
+      "hi": "+ जोड़ें",
+      "id": "+ Tambah",
+      "ja": "+ 追加",
+      "ko": "+ 추가",
+      "pt-BR": "+ Adicionar",
+      "ru": "+ Добавить",
+      "tr": "+ Ekle",
+      "zh-Hans": "+ 添加"
     }
   }
 }
