@@ -45,7 +45,7 @@ export function windowControls(): HTMLElement {
       shut = window.setTimeout(() => {
         wc.classList.remove("open");
         document.body.classList.remove("wc-open");
-      }, 250);
+      }, 60); // just enough to ignore a pointer's twitch
     }
   };
   // Open near his corner only, not along the whole top edge; once open they stay while

@@ -8,9 +8,10 @@ body.hub-window { background: var(--jv-bg); color: var(--jv-t1); }
   position: fixed; left: 12px; top: 12px; bottom: 12px; width: 68px; z-index: 30;
   background: var(--jv-s0); border-radius: 26px;
   display: flex; flex-direction: column; gap: 10px; padding: 16px 12px; overflow: hidden;
-  transition: width .32s var(--jv-ease), box-shadow .32s ease, transform .45s var(--jv-ease), opacity .3s ease;
+  /* Closing is quicker than opening (the open states below set .32s). */
+  transition: width .2s var(--jv-ease), box-shadow .2s ease, transform .45s var(--jv-ease), opacity .3s ease;
 }
-.jv-rail:hover { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); }
+.jv-rail:hover { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
 body.at-home .jv-rail { transform: translateX(-110px); opacity: 0; pointer-events: none; }
 .jv-rlogo { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 4px; margin-bottom: 8px; white-space: nowrap; font-weight: 600; font-size: 14px; }
 .jv-ri {
@@ -118,21 +119,23 @@ body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
   width: 13px; height: 13px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
   box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .25);
   opacity: 0; transform: translateX(-34px) scale(.3); pointer-events: none;
-  transition: transform .38s var(--jv-ease), opacity .22s ease, filter .15s ease;
+  /* Going back in: quick, all together, so they're gone before the sidebar closes. */
+  transition: transform .16s ease-in, opacity .12s ease-in, filter .15s ease;
 }
 /* macOS's own traffic-light colours */
 .jv-dot.close { background: #ff5f57; }
 .jv-dot.min { background: #febc2e; }
 .jv-dot.max { background: #28c840; }
-.jv-dot:nth-child(2) { transition-delay: .03s; } .jv-dot:nth-child(3) { transition-delay: .06s; }
-.jv-wc.open .jv-dot { opacity: 1; transform: none; pointer-events: auto; }
+/* Coming out: one after another, with a little spring. */
+.jv-wc.open .jv-dot { opacity: 1; transform: none; pointer-events: auto; transition: transform .38s var(--jv-ease), opacity .22s ease, filter .15s ease; }
+.jv-wc.open .jv-dot:nth-child(2) { transition-delay: .03s; } .jv-wc.open .jv-dot:nth-child(3) { transition-delay: .06s; }
 .jv-dot:hover { filter: brightness(1.08); }
 .jv-dot:active { filter: brightness(.85); }
 /* The sidebar keeps a place for him, and hides his name while the dots are out. */
 .jv-rlogo-slot { width: 36px; height: 25px; flex: none; }
 body.wc-open .jv-rlogo .n { opacity: 0 !important; }
 /* On a section page the sidebar opens with them, so the dots sit inside it, not over the page. */
-body.wc-open:not(.at-home) .jv-rail { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); }
+body.wc-open:not(.at-home) .jv-rail { width: 208px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
 body.wc-open:not(.at-home) .jv-rail .jv-ri .g { background: var(--c); color: #fff; }
 body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; }
 @media (prefers-reduced-motion: reduce) { .jv-dot, .jv-wc-face { transition: none; } }
