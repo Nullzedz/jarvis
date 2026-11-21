@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { DROWSY_AFTER_S, IDLE_BITS, PLAYFUL_AFTER_S, bitGapMs, idlePhase, pickBit, yawnGapMs } from "../src/core/idle.ts";
+import { ASLEEP_AFTER_S, DROWSY_AFTER_S, IDLE_BITS, PLAYFUL_AFTER_S, bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs } from "../src/core/idle.ts";
 
 test("awake, then playful after 30 s, then drowsy after 4 min", () => {
   assert.equal(idlePhase(0), "awake");
@@ -24,4 +24,13 @@ test("bits come every 20–40 s, yawns every 25–45 s", () => {
   assert.equal(bitGapMs(1), 40_000);
   assert.equal(yawnGapMs(0), 25_000);
   assert.equal(yawnGapMs(1), 45_000);
+});
+
+test("he falls asleep a minute after the notch was last touched, only idle and in the closed pill", () => {
+  assert.equal(ASLEEP_AFTER_S, 60);
+  assert.ok(!fallsAsleep(ASLEEP_AFTER_S - 1, true, true));
+  assert.ok(fallsAsleep(ASLEEP_AFTER_S, true, true));
+  assert.ok(!fallsAsleep(ASLEEP_AFTER_S, false, true), "busy, or dancing to music: awake");
+  assert.ok(!fallsAsleep(ASLEEP_AFTER_S, true, false), "open, or the closed island shows something else");
+  assert.ok(!fallsAsleep(0, true, true), "touching the notch wakes him");
 });

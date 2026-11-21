@@ -234,6 +234,13 @@ body {
 }
 
 /* The closed island's one line (core/closed.ts): the time, the plan, the song. */
+/* JARVIS asleep (step 7): a small z drifts up and fades in the pill's room to his right
+   (the pill is 46 wide, his visor ends at 34), so it rides the pill and never leaves it. */
+#sleep-z { position: absolute; top: 4px; left: 37px; font: 600 8px/1 var(--font); color: #8e8e93; opacity: 0; pointer-events: none; }
+#sleep-z.on { animation: sleep-z 4s ease-in-out 1s infinite; }
+@keyframes sleep-z { 0% { opacity: 0; transform: translate(-1px, 6px) scale(.8); } 35% { opacity: .9; } 80%, 100% { opacity: 0; transform: translate(2px, -1px) scale(1); } }
+@media (prefers-reduced-motion: reduce) { #sleep-z.on { animation: none; opacity: .7; } }
+
 #island-closed {
   position: absolute;
   inset: 0;

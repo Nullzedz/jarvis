@@ -25,6 +25,10 @@ export const CLOSED_H = 34;
 export const CLOSED_MIN_W = 132;
 /** Mochi in it, as on that Mac: centred, a little smaller than the island is tall. */
 export const CLOSED_BOT_D = 22; // his visor: 22 px wide, as the prototype's .vis
+/** JARVIS asleep (step 7, design B): the closed pill hugs him, 46 × 26, corners 13. */
+export const ASLEEP_W = 46;
+export const ASLEEP_H = 26;
+export const ASLEEP_R = 13;
 /** Widest: a long song title is cut, the island doesn't run across the screen. */
 export const CLOSED_MAX_W = 280;
 /** Room on each side of the text. */
