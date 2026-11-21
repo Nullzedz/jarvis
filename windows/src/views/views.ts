@@ -34,6 +34,7 @@ import { buildCalendar } from "./gcal";
 import { buildClipboard, buildNotes, buildReminders } from "./pocket";
 import { buildWidgets } from "./widgets";
 import { buildFocusMode, buildFocusTab } from "./focus";
+import { dropIndex, loadTabOrder, moveItem, orderTabs, saveTabOrder } from "../core/taborder";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
@@ -92,6 +93,91 @@ export interface ViewHost {
 }
 
 // ── Shared pieces ─────────────────────────────────────────────────────────────
+
+/**
+ * Dragging a tab along the bar: past 5 px it lifts and follows the pointer, the others slide
+ * aside to make room, and on release it takes its new place (Home, not in `items`, never moves).
+ * The click that ends a drag doesn't open the tab. The island stays open meanwhile.
+ */
+function dragTabs(
+  bar: HTMLElement,
+  items: Map<string, HTMLElement>,
+  getOrder: () => string[],
+  setOrder: (next: string[]) => void,
+  hold: (on: boolean) => void,
+) {
+  let drag: { id: string; el: HTMLElement; x0: number; started: boolean; pid: number; from: number; to: number;
+    lefts: number[]; step: number } | null = null;
+  let swallowClick = false;
+  const els = () => getOrder().map((id) => items.get(id)!);
+
+  for (const [id, el] of items) {
+    el.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      drag = { id, el, x0: e.clientX, started: false, pid: e.pointerId, from: 0, to: 0, lefts: [], step: 0 };
+    });
+    el.addEventListener("click", (e) => {
+      if (!swallowClick) return;
+      swallowClick = false;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }, true);
+  }
+
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x0;
+    if (!drag.started) {
+      if (Math.abs(dx) < 5) return;
+      drag.started = true;
+      const list = els();
+      drag.from = list.indexOf(drag.el);
+      drag.to = drag.from;
+      drag.lefts = list.map((t) => t.getBoundingClientRect().left);
+      drag.step = list.length > 1 ? drag.lefts[1] - drag.lefts[0] : drag.el.offsetWidth;
+      try { drag.el.setPointerCapture(drag.pid); } catch { /* fine without */ }
+      drag.el.classList.add("dragging");
+      for (const t of list) if (t !== drag.el) t.style.transition = "transform .2s cubic-bezier(.32,.72,0,1)";
+      hold(true);
+    }
+    // It follows the pointer, kept within the movable tabs' span.
+    const n = drag.lefts.length;
+    const minDx = drag.lefts[0] - drag.lefts[drag.from];
+    const maxDx = drag.lefts[n - 1] - drag.lefts[drag.from];
+    const cdx = Math.max(minDx, Math.min(maxDx, dx));
+    drag.el.style.transform = `translateX(${cdx}px) scale(1.08)`;
+    const half = drag.el.offsetWidth / 2;
+    const others = drag.lefts.filter((_, i) => i !== drag!.from).map((l) => l + half);
+    drag.to = dropIndex(others, drag.lefts[drag.from] + half + cdx);
+    // The others make room.
+    els().forEach((t, i) => {
+      if (t === drag!.el) return;
+      let shift = 0;
+      if (drag!.from < drag!.to && i > drag!.from && i <= drag!.to) shift = -drag!.step;
+      if (drag!.from > drag!.to && i >= drag!.to && i < drag!.from) shift = drag!.step;
+      t.style.transform = shift ? `translateX(${shift}px)` : "";
+    });
+  });
+
+  const end = () => {
+    if (!drag) return;
+    const d = drag;
+    drag = null;
+    if (!d.started) return;
+    swallowClick = true;
+    window.setTimeout(() => { swallowClick = false; }, 0);
+    const next = moveItem(getOrder(), d.from, d.to);
+    setOrder(next);
+    for (const t of els()) { t.style.transition = "none"; t.style.transform = ""; }
+    d.el.classList.remove("dragging");
+    const home = bar.firstElementChild;
+    bar.replaceChildren(...(home ? [home] : []), ...els());
+    requestAnimationFrame(() => { for (const t of els()) t.style.transition = ""; });
+    hold(false);
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+}
 
 function card(wash: Wash, ...children: (Node | string)[]): HTMLElement {
   const el = h("div", { class: wash ? "card wash" : "card" }, ...children);
@@ -166,10 +252,19 @@ export function buildHeader(actions: ViewActions): ViewHost {
     actions.setView(v);
   }
 
+  // JARVIS: the tabs in your order (core/taborder.ts); Home always first. Drag one to move it.
+  const movable = new Map<string, HTMLElement>([
+    ["ask", tabChat], ["drop", tabDrop], ["launch", tabLaunch], ["calendar", tabCalendar], ["widgets", tabWidgets],
+    ["reminders", tabReminders], ["notes", tabNotes], ["clipboard", tabClipboard], ["focus", tabFocus],
+  ]);
+  let order = orderTabs([...movable.keys()], loadTabOrder());
+  const tabsBar = h("div", { class: "tabs" }, tabHome, ...order.map((id) => movable.get(id)!));
+  dragTabs(tabsBar, movable, () => order, (next) => { order = next; saveTabOrder(next); }, (on) => actions.holdOpen(on));
+
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabWidgets, tabReminders, tabNotes, tabClipboard, tabFocus),
+    tabsBar,
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn, closeBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
