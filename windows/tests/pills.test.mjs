@@ -250,10 +250,10 @@ test("the main pill always loads, the declared ones join it, and focus starts on
   State.settings.mainPill = "agent_cursor";
   State.settings.activeIntegrations = ["integration_github", "agent_gemini"];
   State.loadIntegrationTasks();
-  assert.deepEqual(ids(), ["agent_cursor", "agent_gemini", "integration_github"]);
+  assert.deepEqual(ids(), ["agent_cursor", "integration_github", "agent_gemini"]); // JARVIS: in slot order
   assert.equal(State.focusId, "agent_cursor");
-  assert.equal(State.tasks[1].name, "Gemini CLI");
-  assert.equal(State.tasks[1].color, "#8AB4F8");
+  assert.equal(State.tasks[2].name, "Gemini CLI");
+  assert.equal(State.tasks[2].color, "#FFB340"); // JARVIS: slot 2 is orange, whoever is in it
 });
 
 test("an old settings file gets Claude Code as its main pill and keeps its integrations", () => {
@@ -345,4 +345,43 @@ test("the Claude Code idle card keeps the agent title when the task has a projec
   assert.ok(card.textContent.includes("Claude Code"));
   assert.ok(!card.textContent.includes("my-project"));
   assert.ok(card.textContent.includes("Open Visual Studio Code"));
+});
+
+// ── JARVIS: Home's slots (design A) ──
+import { MAIN_COLOR, SLOT_COLORS, setSlot, slotChoices, slotColor } from "../src/core/pills.ts";
+
+const home = { mainPill: "integration_claude", activeIntegrations: ["integration_resend", "integration_n8n", "integration_vercel", "integration_github"] };
+
+test("the colour belongs to the place: main white, slots green, orange, purple, red", () => {
+  assert.equal(slotColor(home, "integration_claude"), MAIN_COLOR);
+  assert.deepEqual(home.activeIntegrations.map((id) => slotColor(home, id)), [...SLOT_COLORS]);
+  assert.equal(slotColor(home, "integration_notion"), null);
+  const moved = { ...home, activeIntegrations: ["integration_github", "integration_n8n"] };
+  assert.equal(slotColor(moved, "integration_github"), SLOT_COLORS[0]);
+});
+
+test("a slot takes a new app, swaps with another slot, or empties", () => {
+  assert.deepEqual(setSlot(home, 1, "integration_notion", "windows"),
+    ["integration_resend", "integration_notion", "integration_vercel", "integration_github"]);
+  assert.deepEqual(setSlot(home, 0, "integration_github", "windows"),
+    ["integration_github", "integration_n8n", "integration_vercel", "integration_resend"]);
+  assert.deepEqual(setSlot(home, 2, null, "windows"), ["integration_resend", "integration_n8n", "integration_github"]);
+  const two = { ...home, activeIntegrations: ["integration_resend"] };
+  assert.deepEqual(setSlot(two, 3, "integration_stripe", "windows"), ["integration_resend", "integration_stripe"]);
+});
+
+test("the main app, an unknown one, the same app or a slot out of range change nothing", () => {
+  assert.equal(setSlot(home, 0, "integration_claude", "windows"), null);
+  assert.equal(setSlot(home, 0, "integration_nope", "windows"), null);
+  assert.equal(setSlot(home, 0, "integration_resend", "windows"), null);
+  assert.equal(setSlot(home, 4, "integration_notion", "windows"), null);
+  assert.ok(!slotChoices(home, "windows").some((p) => p.id === "integration_claude"));
+});
+
+test("Home's pills follow the slots' order, so the colours stay in place", () => {
+  State.settings.mainPill = "integration_claude";
+  State.settings.activeIntegrations = ["integration_github", "integration_stripe", "integration_vercel", "integration_resend"];
+  State.loadIntegrationTasks();
+  assert.deepEqual(ids(), ["integration_claude", "integration_github", "integration_stripe", "integration_vercel", "integration_resend"]);
+  assert.deepEqual(State.tasks.slice(1).map((t) => t.color), [...SLOT_COLORS]);
 });

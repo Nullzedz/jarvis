@@ -243,15 +243,60 @@ export function chooseMainPill(d: Declared, id: string, os: HostOs = HOST_OS): D
   return { mainPill: id, activeIntegrations: d.activeIntegrations.filter((x) => x !== id) };
 }
 
+// JARVIS: on Home the colour belongs to the slot, not the app: the main is always white,
+// slots 1–4 are green, orange, purple and red, whoever is in them (the prototype's .pillb).
+export const MAIN_COLOR = "#F5F6F8";
+export const SLOT_COLORS = ["#30D158", "#FFB340", "#7D5CFF", "#FF4F6D"] as const;
+
+/** The colour a pill wears for its place: white for the main, its slot's colour, else null. */
+export function slotColor(d: Declared, id: string): string | null {
+  if (id === d.mainPill) return MAIN_COLOR;
+  const i = d.activeIntegrations.indexOf(id);
+  return i >= 0 && i < SLOT_COLORS.length ? SLOT_COLORS[i] : null;
+}
+
+/** The apps a slot can hold: every one this build offers and runs, but the main. */
+export function slotChoices(d: Declared, os: HostOs = HOST_OS): PillDefinition[] {
+  return availablePills(os).filter((p) => p.support === "yes" && p.id !== d.mainPill);
+}
+
+/**
+ * Puts an app in a slot (0–3), or empties it with null. An app already in another slot
+ * swaps places with the one it replaces; a slot past the filled ones takes the next free
+ * place. Returns the new list, or null when nothing changes or the choice isn't allowed.
+ */
+export function setSlot(d: Declared, slot: number, id: string | null, os: HostOs = HOST_OS): string[] | null {
+  if (slot < 0 || slot >= MAX_DECLARED) return null;
+  if (id != null && !slotChoices(d, os).some((p) => p.id === id)) return null;
+  const list = [...d.activeIntegrations];
+  if (id == null) {
+    if (slot >= list.length) return null;
+    list.splice(slot, 1);
+    return list;
+  }
+  const from = list.indexOf(id);
+  if (slot >= list.length) {
+    if (from >= 0) return null;
+    return [...list, id];
+  }
+  if (from === slot) return null;
+  if (from >= 0) [list[slot], list[from]] = [list[from], list[slot]];
+  else list[slot] = id;
+  return list;
+}
+
 /**
  * Pill order: the main pill first, then pills from outside the catalog (any
  * other tagged agent), then the catalog's pills in catalog order. Pills of equal
  * rank keep their order. Mirrors sortTasksByCatalog on macOS, with the main
  * pill (not always VS Code here) leading.
  */
-export function orderPills<T extends { id: string }>(tasks: T[], mainPill: string): T[] {
+export function orderPills<T extends { id: string }>(tasks: T[], mainPill: string, slots: readonly string[] = []): T[] {
   const index = new Map(PILL_CATALOG.map((p, i) => [p.id, i]));
-  const rank = (t: T) => (t.id === mainPill ? -2 : index.has(t.id) ? index.get(t.id)! : -1);
+  // JARVIS: Home's slots come in their own order, so slot 1 (green) is always the first square.
+  const rank = (t: T) => (t.id === mainPill ? -2
+    : slots.includes(t.id) ? slots.indexOf(t.id) / 10
+    : index.has(t.id) ? 1 + index.get(t.id)! : -1);
   return tasks
     .map((t, i) => ({ t, i }))
     .sort((a, b) => rank(a.t) - rank(b.t) || a.i - b.i)

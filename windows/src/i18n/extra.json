@@ -9678,6 +9678,66 @@
       "ru": "Ничего не играет",
       "tr": "Çalan bir şey yok",
       "zh-Hans": "没有正在播放"
+    },
+    "Change main": {
+      "ar": "تغيير الرئيسي",
+      "bn": "মূল বদলান",
+      "de": "Hauptapp ändern",
+      "es": "Cambiar principal",
+      "fr": "Changer l'app principale",
+      "hi": "मुख्य बदलें",
+      "id": "Ganti utama",
+      "ja": "メインを変更",
+      "ko": "메인 변경",
+      "pt-BR": "Trocar principal",
+      "ru": "Сменить главное",
+      "tr": "Ana uygulamayı değiştir",
+      "zh-Hans": "更改主应用"
+    },
+    "Main app": {
+      "ar": "التطبيق الرئيسي",
+      "bn": "মূল অ্যাপ",
+      "de": "Hauptapp",
+      "es": "App principal",
+      "fr": "App principale",
+      "hi": "मुख्य ऐप",
+      "id": "Aplikasi utama",
+      "ja": "メインアプリ",
+      "ko": "메인 앱",
+      "pt-BR": "App principal",
+      "ru": "Главное приложение",
+      "tr": "Ana uygulama",
+      "zh-Hans": "主应用"
+    },
+    "Slot {n}": {
+      "ar": "الخانة {n}",
+      "bn": "স্লট {n}",
+      "de": "Platz {n}",
+      "es": "Espacio {n}",
+      "fr": "Emplacement {n}",
+      "hi": "स्लॉट {n}",
+      "id": "Slot {n}",
+      "ja": "スロット {n}",
+      "ko": "슬롯 {n}",
+      "pt-BR": "Espaço {n}",
+      "ru": "Слот {n}",
+      "tr": "Yuva {n}",
+      "zh-Hans": "位置 {n}"
+    },
+    "Empty": {
+      "ar": "فارغ",
+      "bn": "খালি",
+      "de": "Leer",
+      "es": "Vacío",
+      "fr": "Vide",
+      "hi": "खाली",
+      "id": "Kosong",
+      "ja": "空",
+      "ko": "비어 있음",
+      "pt-BR": "Vazio",
+      "ru": "Пусто",
+      "tr": "Boş",
+      "zh-Hans": "空"
     }
   }
 }

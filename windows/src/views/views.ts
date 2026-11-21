@@ -12,7 +12,7 @@ import { buildPrompt } from "./chat";
 import { buildChoose, buildUpload, buildUploading } from "./upload";
 import { renderIntegrationCard, type IntegrationCardHooks } from "./integrations";
 import { highlightRow, listRows, openRow } from "./github";
-import { pillDefinition, sessionSubtitle } from "../core/pills";
+import { mainPillChoices, pillDefinition, sanitizeDeclared, sessionSubtitle, setSlot, slotChoices, slotColor, chooseMainPill, type Declared } from "../core/pills";
 import {
   PlanCard, buildPlanPill, claudePillVisible, codexPillVisible, planCardOpen, refreshCodexPlanUsage,
 } from "./usage";
@@ -124,6 +124,9 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
   el.style.padding = `4px ${padRight}px 4px ${padLeft}px`;
   return el;
 }
+
+// JARVIS: the main app's square in Home's edit list (always white).
+const MAIN_SQUARE = "#F5F6F8";
 
 // ── Header ────────────────────────────────────────────────────────────────────
 
@@ -242,6 +245,123 @@ function buildOverview(actions: ViewActions): ViewHost {
   const left = card(null, leftBody, jump, liveBtn);
   const pills = h("div", { class: "pills" });
   const right = card(null, pills);
+  // JARVIS: choosing who's on Home (design A, opened by right-click → Edit). In edit mode the
+  // four slots each get a ⌄ and a list inside the card, the left card gets Change main, and a
+  // ✓ in the right card's corner finishes. The colour stays with the place (core/pills.ts
+  // slotColor), never with the app.
+  let editing = false;
+  type Picking = { kind: "main" } | { kind: "slot"; slot: number } | null;
+  let picking: Picking = null;
+  const editBtn = h("button", { class: "icon-btn slot-edit", onclick: () => setEditing(!editing) });
+  right.append(editBtn);
+  const changeMain = h("button", { class: "change-main", onclick: () => openPicker({ kind: "main" }) },
+    h("span", { text: t("Change main") }), svg(ICONS.chevronDown, 9, { stroke: 2.4 }));
+  left.append(changeMain);
+  const picker = h("div", { class: "slot-picker" });
+  picker.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); openPicker(null); } });
+
+  // Right-click on either card: a small menu with Edit, inside the card under the pointer.
+  const ctxMenu = h("div", { class: "ctx-menu", role: "menu" });
+  let ctxTarget: Picking = null;
+  const ctxEdit = h("button", { role: "menuitem", text: t("Edit"), onclick: () => {
+    const target = ctxTarget;
+    // Edit mode takes the hold over before the menu lets go of it, so the island never folds between.
+    if (!editing) setEditing(true);
+    closeCtx();
+    openPicker(target);
+  } });
+  ctxMenu.append(ctxEdit);
+  // The island stays open while the menu is up, as it does in edit mode.
+  function closeCtx() {
+    if (!ctxMenu.isConnected) return;
+    ctxMenu.remove();
+    if (!editing) actions.holdOpen(false);
+  }
+  function onContext(e: MouseEvent, host: HTMLElement) {
+    e.preventDefault();
+    e.stopPropagation();
+    const d = sanitizeDeclared(State.settings, State.os);
+    // What was under the pointer: a slot's pill opens its list, the main (card or pill) the main's.
+    const pill = (e.target as HTMLElement).closest(".pill") as HTMLElement | null;
+    const id = pill?.dataset.id ?? (host === left ? d.mainPill : null);
+    const slot = id ? d.activeIntegrations.indexOf(id) : -1;
+    ctxTarget = id === d.mainPill ? { kind: "main" } : slot >= 0 ? { kind: "slot", slot } : null;
+    const box = host.getBoundingClientRect();
+    host.append(ctxMenu);
+    actions.holdOpen(true);
+    const x = Math.min(e.clientX - box.left, box.width - ctxMenu.offsetWidth - 6);
+    const y = Math.min(e.clientY - box.top, box.height - ctxMenu.offsetHeight - 6);
+    ctxMenu.style.left = `${Math.max(6, x)}px`;
+    ctxMenu.style.top = `${Math.max(6, y)}px`;
+    ctxEdit.focus();
+  }
+  left.addEventListener("contextmenu", (e) => onContext(e, left));
+  right.addEventListener("contextmenu", (e) => onContext(e, right));
+  window.addEventListener("pointerdown", (e) => { if (!ctxMenu.contains(e.target as Node)) closeCtx(); }, true);
+  ctxMenu.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); closeCtx(); } });
+
+  function setEditing(on: boolean, quiet = false) {
+    if (on === editing && !quiet) return;
+    editing = on;
+    picking = null;
+    pillIds = "";
+    actions.holdOpen(on);
+    if (!quiet) { actions.blip(); State.notify(); }
+  }
+  function openPicker(p: Picking) {
+    picking = p;
+    pillIds = "";
+    State.notify();
+  }
+  function choose(next: Declared | null) {
+    if (next) {
+      State.applyDeclared(next);
+      void Bridge.saveSettings(State.settings);
+    }
+    openPicker(null);
+  }
+  function drawEdit() {
+    clear(editBtn);
+    editBtn.append(svg(ICONS.check, 11, { stroke: 2.4 }));
+    editBtn.title = t("Done");
+    editBtn.setAttribute("aria-label", editBtn.title);
+    editBtn.classList.toggle("on", editing);
+    left.classList.toggle("editing", editing);
+    right.classList.toggle("editing", editing);
+    changeMain.style.display = editing ? "" : "none";
+    if (!picking) { picker.remove(); return; }
+    const d = sanitizeDeclared(State.settings, State.os);
+    clear(picker);
+    const row = (label: string, color: string | null, on: boolean, pick: () => void) => {
+      const sq = h("i");
+      if (color) sq.style.background = color; else sq.classList.add("none");
+      return h("button", { class: on ? "on" : "", onclick: pick }, sq, h("span", { text: label }),
+        on ? svg(ICONS.check, 10, { stroke: 2.4 }) : null);
+    };
+    const close = h("button", { class: "sp-x", title: t("Close"), "aria-label": t("Close"), onclick: () => openPicker(null) }, svg(ICONS.xmark, 9));
+    const list = h("div", { class: "sp-list" });
+    if (picking.kind === "main") {
+      picker.append(h("p", { class: "sp-head" }, h("span", { text: t("Main app") }), close), list);
+      for (const def of mainPillChoices(State.os)) {
+        list.append(row(def.name, def.id === d.mainPill ? MAIN_SQUARE : "#48484a", def.id === d.mainPill,
+          () => choose(def.id === d.mainPill ? null : chooseMainPill(d, def.id, State.os))));
+      }
+      left.append(picker);
+    } else {
+      const slot = picking.slot;
+      const current = d.activeIntegrations[slot] ?? null;
+      picker.append(h("p", { class: "sp-head" }, h("span", { text: t("Slot {n}", { n: slot + 1 }) }), close), list);
+      if (current) list.append(row(t("Empty"), null, false, () => choose({ ...d, activeIntegrations: setSlot(d, slot, null, State.os) ?? d.activeIntegrations })));
+      for (const def of slotChoices(d, State.os)) {
+        list.append(row(def.name, slotColor(d, def.id) ?? "#48484a", def.id === current, () => {
+          const next = setSlot(d, slot, def.id, State.os);
+          choose(next ? { ...d, activeIntegrations: next } : null);
+        }));
+      }
+      right.append(picker);
+    }
+    (list.querySelector(".on") as HTMLElement | null)?.scrollIntoView({ block: "nearest" });
+  }
   // Opened from a plan pill in the header: stands in for the left card.
   const plan = new PlanCard();
   let planTimer: number | null = null;
@@ -469,12 +589,33 @@ function buildOverview(actions: ViewActions): ViewHost {
       highlightRow(rows, State.cardSelection, State.cardSelection !== shownSelection);
       shownSelection = State.cardSelection;
 
-      const others = State.otherTasks.slice(0, 4);
-      const pillKey = others.map((t) => `${t.id}:${t.color}:${t.pillBadge ?? ""}`).join("|");
+      // Edit mode ends when Home goes away or the island folds.
+      if (State.view !== "overview" || State.mode !== "expanded") {
+        closeCtx();
+        if (editing) setEditing(false, true);
+      }
+      const declared = sanitizeDeclared(State.settings, State.os);
+      const others = editing ? [] : State.otherTasks.slice(0, 4);
+      const pillKey = editing
+        ? `edit:${declared.mainPill}:${declared.activeIntegrations.join(",")}:${JSON.stringify(picking)}`
+        : others.map((t) => `${t.id}:${t.color}:${t.pillBadge ?? ""}`).join("|");
       if (pillKey !== pillIds) {
         pillIds = pillKey;
         clear(pills);
         spotifyPill = null;
+        drawEdit();
+        // Edit mode: the four slots in their order, each with its ⌄.
+        if (editing) {
+          for (let slot = 0; slot < 4; slot++) {
+            const id = declared.activeIntegrations[slot];
+            const task = id ? State.tasks.find((x) => x.id === id) : undefined;
+            const open = () => openPicker({ kind: "slot", slot });
+            const el = task ? buildPill(task, actions, open) : h("div", { class: "pill empty", onclick: open }, h("span", { class: "lbl", text: t("Add an app") }));
+            el.classList.add("editing");
+            el.append(h("span", { class: "chev" }, svg(ICONS.chevronDown, 9, { stroke: 2.4 })));
+            pills.append(el);
+          }
+        }
         for (const t of others) {
           if (t.id === SPOTIFY_ID) {
             spotifyPill = buildSpotifyPill(t, () => actions.setFocus(t.id));
@@ -504,12 +645,12 @@ export function hasSessionTicker(task: AgentTask): boolean {
   return isSession && (task.state !== "idle" || task.steps.length > 0);
 }
 
-function buildPill(task: AgentTask, actions: ViewActions): HTMLElement {
+function buildPill(task: AgentTask, actions: ViewActions, onClick?: () => void): HTMLElement {
   const label = task.id === "integration_claude" ? pillDefinition(task.id)!.name : task.name;
   const canvas = createMiniBot(task, 30); // JARVIS: the prototype's pill square, 36 × 26
   const pill = h(
     "div",
-    { class: "pill", onclick: () => actions.setFocus(task.id) },
+    { class: "pill", "data-id": task.id, onclick: onClick ?? (() => actions.setFocus(task.id)) },
     canvas,
     h("span", { class: "lbl", text: label }),
   );
