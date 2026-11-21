@@ -4,17 +4,21 @@
 // its coloured band. Port of FlowHub.swift.
 
 import "./hub.css";
+import "./redesign.css";
 import { initTheme } from "../theme/theme";
+import { homePage, sectionIcon, type HomeHandle } from "./home";
+import { SECTIONS, sectionOf, type Section } from "./sections";
+import { windowControls } from "./winctl";
 import { h, clear } from "../views/dom";
 import { t, onLanguageChange } from "../i18n/i18n";
 import { onEvent } from "../core/bridge";
 import { FlowBridge, type FlowPrefs, type FlowStatus, type ModelsStatus, flowKeyId } from "../core/flow";
-import { hero, liveMochi, setVoiceLevel, setWindowShown } from "./hero";
+import { hero, setVoiceLevel, setWindowShown } from "./hero";
 import { icon, keyLabel } from "./ui";
 import { searchSettings, type SettingsSearchHit } from "./search";
 
 export type PageId =
-  | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
+  | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
   | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP";
 
@@ -55,7 +59,8 @@ export const MAIL_PAGES: PageDef[] = [
   { id: "mailVIP", icon: "star", title: () => t("VIP") },
 ];
 
-const ALL = [...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+const HOME_PAGE: PageDef = { id: "home", icon: "grid", title: () => t("Home") };
+const ALL = [HOME_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
 
 /** What a page gets to draw itself and reach the rest of the window. */
 export interface HubContext {
@@ -104,12 +109,11 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   await onEvent<number[]>("flow-bands", (bands) => setVoiceLevel(Math.max(0, ...bands)));
   const shown = await FlowBridge.hubShown();
   if (shown !== null) setWindowShown(shown);
-  let current: PageId = "dictation";
+  let current: PageId = "home";
+  let home: HomeHandle | null = null;
   let activeAnchor: string | null = null;
   let searchHits: SettingsSearchHit[] = [];
   let status: FlowStatus = (await FlowBridge.status()) ?? DEFAULT_STATUS;
-  const items = new Map<PageId, HTMLElement>();
-  const labels = new Map<PageId, HTMLElement>();
   const searchRows = new Map<string, HTMLElement>();
   const statusLine = h("div", { class: "hub-status" });
   const scroll = h("div", { class: "hub-scroll" });
@@ -162,17 +166,25 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   }
 
   async function show(page: PageId, targetAnchor?: string) {
-    const def = ALL.find((p) => p.id === page) ?? FLOW_PAGES[0];
+    const def = ALL.find((p) => p.id === page) ?? HOME_PAGE;
     ctx.onLeave?.();
     ctx.onLeave = undefined;
     current = def.id;
     activeAnchor = targetAnchor ?? null;
-    for (const [id, el] of items) el.classList.toggle("on", id === current);
+    const sec = sectionOf(current);
+    for (const [id, el] of rail) el.classList.toggle("on", id === sec.id);
+    document.body.classList.toggle("at-home", current === "home");
     updateSearchRowHighlights();
     const token = ++rendering;
+    home?.destroy();
+    home = null;
     const page_ = h("div", { class: "hub-page" });
     const renderer = opts.flowPages[def.id];
-    if (renderer) {
+    if (def.id === "home") {
+      home = homePage(ctx, scroll, (id) => go(id));
+      page_.classList.add("jv-homepage");
+      page_.append(home.el);
+    } else if (renderer) {
       await renderer(page_, ctx);
     } else {
       page_.append(hero(def.id, def.title(), def.subtitle?.() ?? null));
@@ -182,7 +194,28 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
     if (token !== rendering) return;
     clear(scroll);
+    // A section with several pages shows them as tabs at its top.
+    const pages = sec.pages.filter((id) => ALL.some((p) => p.id === id));
+    if (pages.length > 1) {
+      const tabs = h("div", { class: "jv-tabs", role: "tablist" });
+      for (const id of pages) {
+        const pd = ALL.find((p) => p.id === id)!;
+        tabs.append(h("button", { class: id === current ? "on" : "", role: "tab", "aria-selected": String(id === current), text: pd.title(), onclick: () => void show(id) }));
+      }
+      scroll.append(tabs);
+    }
     scroll.append(page_);
+    // Measured again once the sidebar has slid away and the panel has widened.
+    if (home) {
+      // Coming back from a section the panel slides wider (about half a second):
+      // the squares follow it frame by frame until it has settled.
+      let frames = 55; // about 900 ms; counted, not timed, so a test's instant frames still end
+      const follow = () => {
+        home?.layout();
+        if (home && --frames > 0) requestAnimationFrame(follow);
+      };
+      requestAnimationFrame(follow);
+    }
     if (targetAnchor) {
       const el = page_.querySelector(`[data-anchor="${targetAnchor}"]`) as HTMLElement | null;
       if (el) {
@@ -198,13 +231,29 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
   }
 
-  // ── The sidebar ──
-  const side = h("nav", { class: "hub-side" });
-  const logo = h("canvas", {});
-  side.append(h("div", { class: "hub-brand" }, logo, h("span", { text: "JARVIS" })));
-  liveMochi(logo as HTMLCanvasElement);
+  // ── The sidebar: a slim pill of line icons that widens over the page on hover (SPEC §4) ──
+  const rail = new Map<Section["id"], HTMLElement>();
+  const side = h("nav", { class: "jv-rail", "aria-label": "JARVIS" });
+  // His visor in this corner is the window's controls (winctl.ts); the sidebar keeps his name beside it.
+  side.append(h("div", { class: "jv-rlogo" }, h("span", { class: "jv-rlogo-slot" }), h("span", { class: "n", text: "JARVIS" })));
+  const go = (id: Section["id"]) => {
+    const sec = SECTIONS.find((x) => x.id === id) ?? SECTIONS[0];
+    void show(sec.pages[0]);
+  };
+  const railItem = (sec: Section) => {
+    const g = h("span", { class: "g", style: `--c:${sec.color}` });
+    g.append(sectionIcon(sec.id, 19));
+    const b = h("button", { class: "jv-ri", title: sec.name(), "aria-label": sec.name(), onclick: () => go(sec.id) }, g, h("span", { class: "n", text: sec.name() }));
+    rail.set(sec.id, b);
+    return b;
+  };
+  for (const sec of SECTIONS) {
+    if (sec.id === "settings" || (sec.windowsOnly && status.platform !== "windows")) continue;
+    side.append(railItem(sec));
+  }
+  side.append(h("div", { class: "spacer" }), railItem(SECTIONS.find((x) => x.id === "settings")!), statusLine);
 
-  // Settings search field
+  // Settings search: Ctrl K anywhere in the window.
   const searchInput = h("input", {
     class: "hub-search-input",
     type: "text",
@@ -222,30 +271,30 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     icon("search"),
     searchInput,
     searchClear,
+    h("span", { class: "jv-kc", text: "Ctrl K" }),
   );
   searchBox.querySelector("svg")?.classList.add("hub-search-icon");
-  side.append(searchBox);
-
-  const groupsContainer = h("div", { class: "hub-groups" });
   const resultsContainer = h("div", { class: "hub-search-results", style: "display:none" });
-  side.append(groupsContainer, resultsContainer);
-
-  const group = (title: string, pages: PageDef[]) => {
-    const heading = h("div", { class: "hub-group", text: title });
-    groupsContainer.append(heading);
-    for (const p of pages) {
-      const b = h("button", { class: "hub-item", onclick: () => void show(p.id) });
-      const label = h("span", { text: p.title() });
-      b.append(icon(p.icon), label);
-      items.set(p.id, b);
-      labels.set(p.id, label);
-      groupsContainer.append(b);
-    }
-    return heading;
+  const searchPop = h("div", { class: "jv-searchpop", role: "dialog", "aria-label": t("Search settings") }, searchBox, resultsContainer);
+  const searchVeil = h("div", { class: "jv-veil", onclick: () => closeSearch() }, searchPop);
+  searchPop.addEventListener("click", (e) => e.stopPropagation());
+  const openSearch = () => {
+    searchVeil.classList.add("on");
+    searchInput.focus();
+    searchInput.select();
   };
-  group("Flow", FLOW_PAGES);
-  const notchGroup = group(t("Notch"), NOTCH_PAGES);
-  if (status.platform === "windows") group("Mail", MAIL_PAGES);
+  const closeSearch = () => {
+    searchVeil.classList.remove("on");
+    searchInput.value = "";
+    renderSearchResults();
+  };
+  addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (searchVeil.classList.contains("on")) closeSearch();
+      else openSearch();
+    }
+  });
 
   function renderSearchResults() {
     clear(resultsContainer);
@@ -254,12 +303,10 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     if (!query) {
       searchClear.style.display = "none";
       resultsContainer.style.display = "none";
-      groupsContainer.style.display = "";
       searchHits = [];
       return;
     }
     searchClear.style.display = "";
-    groupsContainer.style.display = "none";
     resultsContainer.style.display = "";
     searchHits = searchSettings(query, (pageId) => ALL.find((p) => p.id === pageId)?.title() ?? pageId);
     if (searchHits.length === 0) {
@@ -284,6 +331,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       textContainer.append(rowTitle, rowSubtitle);
       row.append(textContainer);
       row.addEventListener("click", () => {
+        closeSearch();
         void show(hit.entry.page, hit.entry.id);
       });
       searchRows.set(hit.entry.id, row);
@@ -294,11 +342,12 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   searchInput.addEventListener("input", renderSearchResults);
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      searchInput.value = "";
-      renderSearchResults();
+      closeSearch();
     } else if (e.key === "Enter") {
       if (searchHits.length > 0) {
-        void show(searchHits[0].entry.page, searchHits[0].entry.id);
+        const first = searchHits[0].entry;
+        closeSearch();
+        void show(first.page, first.id);
       }
     }
   });
@@ -314,10 +363,14 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     if (searchInput.value.trim()) renderSearchResults();
   });
 
-  side.append(h("div", { class: "spacer" }), statusLine, h("div", { class: "hub-version", text: `JARVIS ${opts.version}` }));
+  statusLine.title = `JARVIS ${opts.version}`;
+  scroll.addEventListener("scroll", () => home?.onScroll(), { passive: true });
 
   clear(root);
-  root.append(side, h("main", { class: "hub-panel" }, scroll));
+  const panel = h("main", { class: "hub-panel" }, scroll);
+  // And once more when the slide ends, wherever the window is.
+  panel.addEventListener("transitionend", () => home?.layout());
+  root.append(side, panel, searchVeil, windowControls());
   drawStatus();
   await show(current);
 
@@ -335,11 +388,13 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   });
   return {
     redraw: () => {
-      for (const p of ALL) {
-        const label = labels.get(p.id);
-        if (label) label.textContent = p.title();
+      for (const sec of SECTIONS) {
+        const b = rail.get(sec.id);
+        if (!b) continue;
+        b.title = sec.name();
+        b.setAttribute("aria-label", sec.name());
+        (b.querySelector(".n") as HTMLElement).textContent = sec.name();
       }
-      notchGroup.textContent = t("Notch");
       drawStatus();
       void show(current);
     },
