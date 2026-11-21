@@ -35,7 +35,7 @@ export class IslandStateMachine {
    */
   openOnHover = false;
   /** Grace period after the pointer leaves a hover-opened island, seconds. */
-  hoverCloseDelay = 0.6;
+  hoverCloseDelay = 3; // JARVIS: the prototype's IDLE_MS — folds 3 s after the pointer leaves
   /** How long the pointer rests on the compact island before Open on hover opens it, seconds. */
   hoverOpenDelay = 0.5;
   /** Open because of a hover, until the user clicks inside it. */
@@ -67,11 +67,11 @@ export class IslandStateMachine {
   mouseEntered() {
     switch (this.state) {
       case "hidden":
-        // The closed island only peeks: a PC has no notch, so the pointer
-        // lands on it far more often than on a Mac's, on its way elsewhere.
+        // JARVIS: as in the notch prototype (docs/jarvis/design/prototypes/jarvis-notch.html),
+        // the pointer on the closed pill opens the notch at once.
         this.cancelTimers();
-        this.transition("petit");
-        if (this.openOnHover && !this.pinned) this.scheduleHoverOpen();
+        this.byHover = true;
+        this.transition("home");
         break;
       case "petit":
         this.clear("petitHide");
@@ -179,9 +179,10 @@ export class IslandStateMachine {
       this.homeCollapse = null;
       this.homeCollapseDueAt = null;
       // An alert pinned while the countdown ran keeps the island open.
+      // JARVIS: it folds straight back to the closed pill, just his visor (the prototype's mini notch).
       if (this.state === "home" && !this.pinned) {
         this.byHover = false;
-        this.transition("petit");
+        this.transition("hidden");
       }
     }, ms);
   }

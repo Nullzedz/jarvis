@@ -866,7 +866,7 @@ export class Island {
 
   private targetSize(): { w: number; h: number; r: number } {
     if (State.mode === "hidden" && this.closedShows) {
-      return { w: this.closedW, h: CLOSED_H, r: 10 };
+      return { w: this.closedW, h: CLOSED_H, r: ROUNDED_CORNER }; // the prototype's 0 0 26 26
     }
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
