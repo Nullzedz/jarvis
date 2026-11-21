@@ -6,6 +6,7 @@ mod agy_approvals;
 mod agy_rules;
 mod chat;
 mod claude;
+mod clipboard_history;
 mod claude_code;
 mod cli_relay;
 mod claude_plan;
@@ -939,6 +940,9 @@ pub fn run() {
         .manage(recap::load())
         .invoke_handler(tauri::generate_handler![
             hub_window,
+            clipboard_history::clipboard_history,
+            clipboard_history::clipboard_use,
+            clipboard_history::clipboard_clear,
             boot,
             gcal::gcal_connected,
             gcal::gcal_connect,
@@ -1173,6 +1177,8 @@ pub fn run() {
             voice::ink::setup(&handle);
             voice::explain::setup(&handle);
             notes::setup(&handle);
+            // JARVIS: the island's clipboard history (in memory only).
+            clipboard_history::setup(&handle);
 
             if let Some(win) = island::window(&handle) {
                 // Where Tauri takes the drop itself (Linux), its paths are the

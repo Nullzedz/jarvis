@@ -274,6 +274,10 @@ export const Bridge = {
   askOpen: () => call<void>("ask_open"),
   /** The main window's own controls (it has no title bar). */
   hubWindow: (action: "minimize" | "maximize" | "close" | "drag") => call<void>("hub_window", { action }),
+  /** JARVIS: the island's clipboard history, newest first (in memory only). */
+  clipboardHistory: () => call<{ text: string; at: number }[]>("clipboard_history"),
+  clipboardUse: (text: string) => call<boolean>("clipboard_use", { text }),
+  clipboardClear: () => call<void>("clipboard_clear"),
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),

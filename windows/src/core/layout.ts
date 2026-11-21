@@ -30,7 +30,11 @@ export type IslandViewName =
   // JARVIS: the calendar tab (src/views/gcal.ts).
   | "calendar"
   // JARVIS: the live code view of a Claude Code session (src/views/live.ts).
-  | "live";
+  | "live"
+  // JARVIS: the bigger notch's Reminders and Notes tabs (src/views/pocket.ts).
+  | "reminders"
+  | "notes"
+  | "clipboard";
 
 export type BotStateName =
   | "idle"
@@ -65,11 +69,13 @@ export const PANEL_H = 320;
 // No notch on a PC: these are the hidden/compact sizes from docs/SPEC.md.
 export const NOTCH_W = 184;
 export const NOTCH_H = 32;
-export const COMPACT_W = 288; // NOTCH_W + 104
+// JARVIS: closed, the island is the live demo's small pill with only his visor in it
+// (docs/jarvis/design/prototypes/jarvis-notch.html: 132 × 32, bottom corners fully round).
+export const COMPACT_W = 132;
 export const EXPANDED_W = 640;
 
-export const ROUNDED_CORNER = 14; // hidden / compact
-export const EXPANDED_CORNER = 22;
+export const ROUNDED_CORNER = 26; // hidden / compact: the live demo's closed pill, 0 0 26 26
+export const EXPANDED_CORNER = 30; // the live demo's open notch
 
 /** Invisible hover strip that wakes the island when hidden. */
 export const WAKE_STRIP_W = 240;
@@ -111,6 +117,10 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   calendar: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   // JARVIS: the live code view, one file card — his eye small in the card's header, top left.
   live: { height: 252, botX: 44, botY: 58, botDiameter: 22, agentMode: "none" },
+  // JARVIS: Reminders and Notes. Like the calendar, he steps aside to leave them the width.
+  reminders: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  notes: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  clipboard: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -165,10 +175,14 @@ export function botPosition(
     case "hidden":
       return { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
-      return { cx: 40, cy: 16, diameter: 20, opacity: 1 };
+      // JARVIS: his visor alone, in the middle of the closed pill.
+      return { cx: COMPACT_W / 2, cy: 16, diameter: 20, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
-      if (view === "calendar") return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
+      // The full-width tabs: he steps aside, out of sight.
+      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard") {
+        return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
+      }
       if (view === "uploading") {
         return {
           cx: 36 + uploadProgress * 526,
