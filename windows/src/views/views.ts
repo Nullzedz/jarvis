@@ -33,6 +33,7 @@ import { buildMailCard } from "./mail";
 import { buildCalendar } from "./gcal";
 import { buildClipboard, buildNotes, buildReminders } from "./pocket";
 import { buildWidgets } from "./widgets";
+import { buildFocusMode, buildFocusTab } from "./focus";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
@@ -69,6 +70,9 @@ export interface ViewActions {
   keyboard(on: boolean): void;
   /** Something is being typed in a card: the island stays open until it is sent or cleared. */
   holdOpen(on: boolean): void;
+  /** JARVIS: a focus session started, or ended (done: it ran its full length). */
+  focusStarted(): void;
+  focusEnded(done: boolean): void;
   /** A Claude Code session was started from the launch card: Mochi is pleased, the island folds. */
   launched(): void;
 }
@@ -143,6 +147,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const tabWidgets = h("button", { class: "tab", title: t("Overview"), onclick: () => go("widgets") }, svg("M5 3.5h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9 10.5H5A1.5 1.5 0 0 1 3.5 9V5A1.5 1.5 0 0 1 5 3.5zM15 3.5h4A1.5 1.5 0 0 1 20.5 5v4a1.5 1.5 0 0 1-1.5 1.5h-4A1.5 1.5 0 0 1 13.5 9V5A1.5 1.5 0 0 1 15 3.5zM5 13.5h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9 20.5H5A1.5 1.5 0 0 1 3.5 19v-4A1.5 1.5 0 0 1 5 13.5zM15 13.5h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5z", 17, { stroke: 1.7 }));
   const tabReminders = h("button", { class: "tab", title: t("Reminders"), onclick: () => go("reminders") }, svg("M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM8.2 12.2l2.6 2.6 5-5.6", 17, { stroke: 1.7 }));
   const tabNotes = h("button", { class: "tab", title: t("Notes"), onclick: () => go("notes") }, svg("M6 3.5h12v17H6zM9.5 8.5h5M9.5 12h5M9.5 15.5h3", 17, { stroke: 1.7 }));
+  const tabFocus = h("button", { class: "tab", title: t("Focus"), onclick: () => go("focus") }, svg("M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z", 17, { stroke: 1.7 }));
   const tabClipboard = h("button", { class: "tab", title: t("Clipboard"), onclick: () => go("clipboard") }, svg("M7 5h10a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 17 21H7a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 7 5zM9.5 3.5h5v3h-5z", 17, { stroke: 1.7 }));
 
   const gearBtn = h("button", { title: tl("Settings"), onclick: () => go("settings") }, svg(ICONS.gearLine, 18, { stroke: 1.6 }));
@@ -164,7 +169,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabWidgets, tabReminders, tabNotes, tabClipboard),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabWidgets, tabReminders, tabNotes, tabClipboard, tabFocus),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn, closeBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
@@ -182,6 +187,9 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabReminders.classList.toggle("on", v === "reminders");
       tabNotes.classList.toggle("on", v === "notes");
       tabClipboard.classList.toggle("on", v === "clipboard");
+      tabFocus.classList.toggle("on", v === "focus");
+      // Focus mode: the prototype shows no tabs, only the session.
+      el.classList.toggle("gone", v === "focusing");
       gearBtn.classList.toggle("on", v === "settings");
       clear(gearBtn);
       gearBtn.append(v === "settings" ? svg(ICONS.gearFill, 18) : svg(ICONS.gearLine, 18, { stroke: 1.6 }));
@@ -997,6 +1005,16 @@ export function buildViews(
   map.set("reminders", buildReminders(pocket));
   map.set("notes", buildNotes(pocket));
   map.set("clipboard", buildClipboard(pocket));
+  const focusHost = {
+    setView: (x: IslandViewName) => actions.setView(x),
+    blip: () => actions.blip(),
+    resize: onChatHeightChange,
+    holdOpen: (on: boolean) => actions.holdOpen(on),
+    started: () => actions.focusStarted(),
+    ended: (done: boolean) => actions.focusEnded(done),
+  };
+  map.set("focus", buildFocusTab(focusHost));
+  map.set("focusing", buildFocusMode(focusHost));
   map.set("widgets", buildWidgets({ setView: (x) => actions.setView(x), blip: () => actions.blip(), resize: onChatHeightChange }));
   map.set("live", buildLive(actions, onChatHeightChange));
   // Not in the Windows v1: sending a file by email, window attach + web result.
