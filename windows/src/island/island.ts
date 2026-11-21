@@ -1444,7 +1444,8 @@ export class Island {
       ? hexToRGB(openPlanColor())
       : this.engine.showsUpdateHint
         ? UPDATE_BLUE_RGB
-        : focus?.isIntegration
+        // JARVIS: the main is white, his own body: he keeps it, and with it his glowing ring.
+        : focus?.isIntegration && focus.id !== State.mainPillId
           ? hexToRGB(focus.color)
           : null;
     this.engine.particleOverhang = BOT_OVERHANG;
