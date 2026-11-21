@@ -5,7 +5,6 @@
 import { h } from "../views/dom";
 import { t } from "../i18n/i18n";
 import { Bridge } from "../core/bridge";
-import { visor } from "../theme/theme";
 import type { HubContext } from "./shell";
 import type { Section } from "./sections";
 
@@ -91,15 +90,22 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
   );
   const askRow = h("div", { class: "jv-askrow" }, ask, mic);
   const dock = h("div", { class: "jv-dock" });
-  for (const d of DOCK) dock.append(h("span", { class: "jv-app" }, h("span", { class: "slot", "data-slot": d.id }), h("span", { text: d.name() })));
+  const names: HTMLElement[] = [];
+  for (const d of DOCK) {
+    const name = h("span", { class: "nm", text: d.name() });
+    names.push(name);
+    dock.append(h("span", { class: "jv-app" }, h("span", { class: "slot", "data-slot": d.id }), name));
+  }
 
+  const center = h("div", { class: "jv-center" },
+    h("p", { class: "jv-h1" }, document.createTextNode(`${greeting()} `), h("span", { text: t("sir.") })),
+    h("p", { class: "jv-sub", text: statusLine(ctx) }),
+    askRow,
+  );
   const hero = h("section", { class: "jv-hero" },
-    h("div", { class: "jv-top" }, h("span", { class: "jv-brand" }, visor(24), h("span", { text: "JARVIS" }))),
-    h("div", { class: "jv-center" },
-      h("p", { class: "jv-h1" }, document.createTextNode(`${greeting()} `), h("span", { text: t("sir.") })),
-      h("p", { class: "jv-sub", text: statusLine(ctx) }),
-      askRow,
-    ),
+    // The top-left corner belongs to his visor, the window's controls (winctl.ts).
+    h("div", { class: "jv-top" }),
+    center,
     dock,
     h("div", { class: "jv-chev", text: "⌄" }),
   );
@@ -110,7 +116,7 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
   const pins = h("span", { class: "jv-pins" });
   for (const d of DOCK) pins.append(h("span", { "data-pin": d.id }));
   const pinMic = h("button", { class: "jv-askmini", onclick: () => void Bridge.askOpen() }, h("span", { text: t("Ask") }));
-  const pinbar = h("div", { class: "jv-pinbar" }, h("div", { class: "in" }, h("span", { class: "jv-brand" }, visor(22), h("span", { text: "JARVIS" })), pins, pinMic));
+  const pinbar = h("div", { class: "jv-pinbar" }, h("div", { class: "in" }, h("span", { class: "jv-brand jv-pinbrand", text: "JARVIS" }), pins, pinMic));
   const flyers = h("div", { class: "jv-flyers" });
   const squares = DOCK.map((d) => {
     const b = h("button", { class: "jv-sq", title: d.name(), "aria-label": d.name(), style: `background:${d.color}`, onclick: () => go(d.to) });
@@ -147,6 +153,11 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
       b.style.transform = `translate(${f.x + (tt.x - f.x) * e}px, ${k === 0 ? natural : START + (tt.y - START) * e}px)`;
     });
     pinbar.classList.toggle("on", k > 0.55);
+    // The names under the squares stay behind as the squares lift off, and the
+    // greeting fades as it nears the bar, so nothing glides over text.
+    for (const n of names) n.style.opacity = String(Math.max(0, 1 - k * 3));
+    const top = (center.firstElementChild as HTMLElement | null)?.getBoundingClientRect?.().top ?? 999;
+    center.style.opacity = String(Math.min(1, Math.max(0, (top - 60) / 140)));
   }
   const onResize = () => layout();
   window.addEventListener?.("resize", onResize);

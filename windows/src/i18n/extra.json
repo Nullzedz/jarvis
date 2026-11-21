@@ -9329,6 +9329,36 @@
       "ru": "Голосовая модель не загружена",
       "tr": "Ses modeli indirilmedi",
       "zh-Hans": "语音模型未下载"
+    },
+    "Minimize": {
+      "ar": "تصغير",
+      "bn": "ছোট করুন",
+      "de": "Minimieren",
+      "es": "Minimizar",
+      "fr": "Réduire",
+      "hi": "छोटा करें",
+      "id": "Perkecil",
+      "ja": "最小化",
+      "ko": "최소화",
+      "pt-BR": "Minimizar",
+      "ru": "Свернуть",
+      "tr": "Simge durumuna küçült",
+      "zh-Hans": "最小化"
+    },
+    "Full screen": {
+      "ar": "ملء الشاشة",
+      "bn": "পূর্ণ স্ক্রিন",
+      "de": "Vollbild",
+      "es": "Pantalla completa",
+      "fr": "Plein écran",
+      "hi": "पूर्ण स्क्रीन",
+      "id": "Layar penuh",
+      "ja": "全画面",
+      "ko": "전체 화면",
+      "pt-BR": "Tela cheia",
+      "ru": "Во весь экран",
+      "tr": "Tam ekran",
+      "zh-Hans": "全屏"
     }
   }
 }

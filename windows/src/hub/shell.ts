@@ -5,9 +5,10 @@
 
 import "./hub.css";
 import "./redesign.css";
-import { initTheme, visor } from "../theme/theme";
+import { initTheme } from "../theme/theme";
 import { homePage, sectionIcon, type HomeHandle } from "./home";
 import { SECTIONS, sectionOf, type Section } from "./sections";
+import { windowControls } from "./winctl";
 import { h, clear } from "../views/dom";
 import { t, onLanguageChange } from "../i18n/i18n";
 import { onEvent } from "../core/bridge";
@@ -224,7 +225,8 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   // ── The sidebar: a slim pill of line icons that widens over the page on hover (SPEC §4) ──
   const rail = new Map<Section["id"], HTMLElement>();
   const side = h("nav", { class: "jv-rail", "aria-label": "JARVIS" });
-  side.append(h("div", { class: "jv-rlogo" }, visor(36), h("span", { class: "n", text: "JARVIS" })));
+  // His visor in this corner is the window's controls (winctl.ts); the sidebar keeps his name beside it.
+  side.append(h("div", { class: "jv-rlogo" }, h("span", { class: "jv-rlogo-slot" }), h("span", { class: "n", text: "JARVIS" })));
   const go = (id: Section["id"]) => {
     const sec = SECTIONS.find((x) => x.id === id) ?? SECTIONS[0];
     void show(sec.pages[0]);
@@ -356,7 +358,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   scroll.addEventListener("scroll", () => home?.onScroll(), { passive: true });
 
   clear(root);
-  root.append(side, h("main", { class: "hub-panel" }, scroll), searchVeil);
+  root.append(side, h("main", { class: "hub-panel" }, scroll), searchVeil, windowControls());
   drawStatus();
   await show(current);
 

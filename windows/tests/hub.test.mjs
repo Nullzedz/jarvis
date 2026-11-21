@@ -72,7 +72,7 @@ async function openHub() {
 test("language redraw relabels sidebar nodes and preserves selection and navigation", async () => {
   const { root, hub, off, buttons } = await openHub();
   try {
-    const logo = root.find(".jv-rlogo")[0].find(".jv-visor")[0];
+    const logo = root.find(".jv-wc")[0].find(".jv-visor")[0];
     const labels = buttons.map((button) => button.find(".n")[0]);
     const settingsButton = buttons[buttons.length - 1];
     settingsButton.fire("click");
@@ -88,7 +88,7 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
       assert.deepEqual(buttons.map((button) => button.find(".n")[0]), labels);
       assert.deepEqual(labels.map((label) => label.textContent), railSections.map((s) => s.name()));
       assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
-      assert.equal(root.find(".jv-rlogo")[0].find(".jv-visor")[0], logo);
+      assert.equal(root.find(".jv-wc")[0].find(".jv-visor")[0], logo);
       assert.equal(hub.current(), "general");
       assert.deepEqual(buttons.filter((button) => button.classList.contains("on")), [settingsButton]);
       assert.equal(root.find("H1")[0].textContent, t("General"));
