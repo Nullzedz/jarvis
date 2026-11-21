@@ -10,6 +10,13 @@ export type IdlePhase = "awake" | "playful" | "drowsy";
 
 export const PLAYFUL_AFTER_S = 30;
 export const DROWSY_AFTER_S = 240;
+/** Step 7 (design B): after 10 min of quiet the closed notch shrinks round him and he sleeps. */
+export const ASLEEP_AFTER_S = 600;
+
+/** Asleep: long enough without input, he's idle, and the island is closed with him in it. */
+export function fallsAsleep(idleSeconds: number, calm: boolean, closedWithHim: boolean): boolean {
+  return calm && closedWithHim && idleSeconds >= ASLEEP_AFTER_S;
+}
 
 export function idlePhase(idleSeconds: number): IdlePhase {
   if (idleSeconds >= DROWSY_AFTER_S) return "drowsy";
