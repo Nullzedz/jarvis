@@ -114,10 +114,11 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
   const version = await Bridge.boot().then((b) => b?.version ?? "").catch(() => "");
   const groups: Group[] = [
     { id: "general", name: t("General"), say: t("How JARVIS starts, its language and its updates."), body: gen },
-    { id: "island", name: t("Island"), say: t("The black island at the top of your screen."), body: [
-      ...island,
-      drill(t("Tabs in the notch"), t("Choose what the notch's tab bar shows, and in what order."), partNodes("tabs")),
-      drill(t("Active pills"), t("The pills shown in the island, their order and their colours."), partNodes("pills")),
+    // #80: everything you can customize about the notch, in one group and shown right here.
+    { id: "island", name: t("Notch"), say: t("Everything about the notch at the top of your screen: its tabs, its pills and how it behaves."), body: [
+      h("h4", { class: "jv-psub", text: t("Tabs in the notch") }), ...partNodes("tabs")(),
+      h("h4", { class: "jv-psub", text: t("Active pills") }), ...partNodes("pills")(),
+      h("h4", { class: "jv-psub", text: t("Behavior") }), ...island,
     ] },
     // Its own note already says how shortcuts work.
     { id: "shortcuts", name: t("Shortcuts"), say: "", body: rowsOf("shortcuts") },

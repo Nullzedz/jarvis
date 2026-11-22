@@ -132,6 +132,8 @@
 .fm .fm-until { margin: 0; }
 .fm .fm-sp { flex: 1; }
 .fm .fm-end { padding: 5px 13px; font-size: 12px; }
+/* #80: Focus mode never scrolls; the notch grows to fit it (island.ts syncDom). */
+.view.pk.fm { overflow: hidden; }
 .fm .fm-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; }
 .fm .fm-lefthalf { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .fm .ring { position: relative; width: 104px; height: 104px; flex: none; }
