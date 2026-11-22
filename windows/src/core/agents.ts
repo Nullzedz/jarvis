@@ -105,3 +105,11 @@ export function orbitRing(r: Pick<AgentRow, "state" | "ask">): 0 | 1 | 2 {
 export function orbitAngle(index: number, count: number, ring: number): number {
   return -Math.PI / 2 + ring * 0.9 + (index * 2 * Math.PI) / Math.max(1, count);
 }
+
+/**
+ * How big Home's Agents widget is: one row high (2 × 1) while two agents or fewer run and none
+ * asks you, so there's no empty space; two rows high (2 × 2) for more, or for the approval bar.
+ */
+export function agentsSize(rows: readonly Pick<AgentRow, "ask">[]): "wide" | "big" {
+  return rows.length <= 2 && !rows.some((r) => r.ask) ? "wide" : "big";
+}

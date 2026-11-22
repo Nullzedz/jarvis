@@ -53,3 +53,12 @@ test("the solar system: asking on the inner ring, working in the middle, done ou
   const a = [0, 1, 2].map((i) => orbitAngle(i, 3, 0));
   assert.ok(Math.abs(a[1] - a[0] - (2 * Math.PI) / 3) < 1e-9, "spread evenly");
 });
+
+test("the Agents widget is small with two agents or fewer, big with more or with one asking", async () => {
+  const { agentsSize } = await import("../src/core/agents.ts");
+  const r = (ask = null) => ({ ask });
+  assert.equal(agentsSize([]), "wide");
+  assert.equal(agentsSize([r(), r()]), "wide");
+  assert.equal(agentsSize([r(), r(), r()]), "big");
+  assert.equal(agentsSize([r({ requestId: "x", command: "y", question: false })]), "big");
+});

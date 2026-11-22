@@ -9,7 +9,7 @@ import { t } from "../i18n/i18n";
 import { emitToWindow, onEvent } from "../core/bridge";
 import { visor } from "../theme/theme";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, minutesBetween, orbitAngle, orbitRing, rankRows,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, agentsSize, minutesBetween, orbitAngle, orbitRing, rankRows,
   type AgentRow,
 } from "../core/agents";
 
@@ -28,8 +28,8 @@ function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, 
 }
 
 /** The solar system: rings, the planets on them, JARVIS in the middle. */
-function orbit(rows: readonly AgentRow[]): SVGSVGElement {
-  const svg = el("svg", { viewBox: "-120 -120 240 240", width: 180, height: 180, class: "jv-orbit", "aria-hidden": "true" });
+function orbit(rows: readonly AgentRow[], size: number): SVGSVGElement {
+  const svg = el("svg", { viewBox: "-120 -120 240 240", width: size, height: size, class: "jv-orbit", "aria-hidden": "true" });
   const defs = el("defs", {});
   const grad = el("linearGradient", { id: "jvOrbitBody", x1: 0, y1: 0, x2: 0, y2: 1 });
   for (const [o, c] of [["0", "#f6f7f9"], [".7", "#eceef1"], ["1", "#dcdfe4"]]) grad.append(el("stop", { offset: o, "stop-color": c }));
@@ -62,6 +62,11 @@ function orbit(rows: readonly AgentRow[]): SVGSVGElement {
 export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = Date.now()) {
   clear(box);
   const ranked = rankRows(rows);
+  // Small while little runs, bigger as more do (the card spans one row or two).
+  const big = agentsSize(ranked) === "big";
+  const card = box.closest(".jv-w");
+  card?.classList.toggle("big", big);
+  card?.classList.toggle("wide", !big);
   const asking = ranked.find((r) => r.ask) ?? null;
   const list = h("div", { class: "jv-aglist" });
 
@@ -87,7 +92,7 @@ export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = 
       h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: what })), side));
   }
   if (ranked.length > max) list.append(h("p", { class: "jv-ag-more", text: t("+ {n} more", { n: ranked.length - max }) }));
-  box.append(h("div", { class: "jv-agmain" }, orbit(ranked), list));
+  box.append(h("div", { class: "jv-agmain" }, orbit(ranked, big ? 180 : 120), list));
 
   // The approval bar: the one asking you, and your answer.
   if (asking?.ask) {
