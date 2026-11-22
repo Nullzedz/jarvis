@@ -45,6 +45,9 @@ export function windowControls(): HTMLElement {
       // At once: the same move that takes the pointer off the sidebar closes them both.
       wc.classList.remove("open");
       document.body.classList.remove("wc-open");
+      // The sidebar they kept open closes with them, unless the pointer is on it.
+      const r = rail();
+      if (r && !r.matches(":hover")) r.classList.remove("open");
     }
   };
   // Open near his corner only, not along the whole top edge; once open they stay while
@@ -66,6 +69,12 @@ export function windowControls(): HTMLElement {
       const keep = onFace(e.clientX, e.clientY) || wc.matches(":hover") || !!rail()?.matches(":hover");
       if (!keep) open(false);
       last = null;
+      return;
+    }
+    // Coming from the open sidebar: straight to the dots, nothing closes in between.
+    if (onFace(e.clientX, e.clientY) && rail()?.classList.contains("open")) {
+      window.clearTimeout(settle);
+      open(true);
       return;
     }
     if (!onFace(e.clientX, e.clientY)) {

@@ -263,7 +263,13 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
     last = { x: e.clientX, y: e.clientY, t: now };
   });
-  side.addEventListener("pointerleave", () => { window.clearTimeout(settle); last = null; side.classList.remove("open"); });
+  side.addEventListener("pointerleave", (e) => {
+    window.clearTimeout(settle);
+    last = null;
+    // Up into his visor and the window's dots: the sidebar stays open (winctl.ts closes it with them).
+    if ((e.relatedTarget as Element | null)?.closest?.(".jv-winctl")) return;
+    side.classList.remove("open");
+  });
   side.addEventListener("focusin", () => side.classList.add("open"));
   side.addEventListener("focusout", () => { if (!side.matches(":focus-within")) side.classList.remove("open"); });
 
