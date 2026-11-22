@@ -163,6 +163,15 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-jw-said { margin: 10px 0 0; font-size: 17px; line-height: 1.35; color: #e5e5ea; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .jv-jw-said.none { color: var(--jv-t2); font-size: 15px; }
 .jv-jw-voice { margin: 4px 0 0; font-size: 12.5px; color: var(--jv-t2); }
+/* Claude plan (step 4 of #57): the demo's two rings, the percentages, when the session resets. */
+.jv-plan { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; }
+.jv-plan svg { flex: none; }
+.jv-plan svg circle { transition: stroke-dashoffset .6s var(--jv-ease); }
+.jv-plan .nums { min-width: 0; font-size: 13px; color: var(--jv-t1); }
+.jv-plan .nums p { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-plan .nums p + p { margin-top: 4px; }
+.jv-plan .nums b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.jv-plan .when { font-size: 11.5px; color: var(--jv-t2); }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }
