@@ -21,3 +21,15 @@ test("a dragged tab lands past the centres it has crossed", () => {
   assert.equal(dropIndex(others, 60), 2);
   assert.equal(dropIndex(others, 200), 3);
 });
+
+test("hiding a tab keeps its place; showing it again puts it after the shown ones", async () => {
+  const { setShown, shownTabs } = await import("../src/core/taborder.ts");
+  const order = ["ask", "drop", "focus", "agents"];
+  const hid = setShown(order, [], "drop", false);
+  assert.deepEqual(shownTabs(hid.order, hid.hidden), ["ask", "focus", "agents"]);
+  const back = setShown(hid.order, hid.hidden, "drop", true);
+  assert.deepEqual(back.hidden, []);
+  assert.deepEqual(shownTabs(back.order, back.hidden), ["ask", "focus", "agents", "drop"]);
+  const twoHidden = setShown(order, ["agents"], "ask", true);
+  assert.deepEqual(twoHidden.order, ["drop", "focus", "ask", "agents"], "after the last shown, before the hidden");
+});

@@ -35,7 +35,7 @@ import { buildClipboard, buildNotes, buildReminders } from "./pocket";
 import { buildWidgets } from "./widgets";
 import { buildFocusMode, buildFocusTab } from "./focus";
 import { buildAgents } from "./agents";
-import { dropIndex, loadTabOrder, moveItem, orderTabs, saveTabOrder } from "../core/taborder";
+import { TABS_EVENT, dropIndex, loadHiddenTabs, loadTabOrder, moveItem, orderTabs, saveTabOrder, shownTabs } from "../core/taborder";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
@@ -265,8 +265,21 @@ export function buildHeader(actions: ViewActions): ViewHost {
     ["reminders", tabReminders], ["notes", tabNotes], ["clipboard", tabClipboard], ["focus", tabFocus], ["agents", tabAgents],
   ]);
   let order = orderTabs([...movable.keys()], loadTabOrder());
-  const tabsBar = h("div", { class: "tabs" }, tabHome, ...order.map((id) => movable.get(id)!));
-  dragTabs(tabsBar, movable, () => order, (next) => { order = next; saveTabOrder(next); }, (on) => actions.holdOpen(on));
+  let hidden = loadHiddenTabs();
+  const tabsBar = h("div", { class: "tabs" }, tabHome, ...shownTabs(order, hidden).map((id) => movable.get(id)!));
+  // Dragging reorders the shown tabs; the hidden ones keep their places after them.
+  dragTabs(tabsBar, movable, () => shownTabs(order, hidden), (next) => {
+    order = [...next, ...order.filter((id) => hidden.includes(id))];
+    saveTabOrder(order);
+  }, (on) => actions.holdOpen(on));
+  // Settings → Tabs in the notch: shown, hidden or moved there, the bar follows at once.
+  const relayout = () => {
+    order = orderTabs([...movable.keys()], loadTabOrder());
+    hidden = loadHiddenTabs();
+    tabsBar.replaceChildren(tabHome, ...shownTabs(order, hidden).map((id) => movable.get(id)!));
+  };
+  void onEvent(TABS_EVENT, relayout);
+  window.addEventListener("storage", (e) => { if (e.key?.startsWith("jarvis.tabs.")) relayout(); });
 
   const el = h(
     "div",

@@ -431,3 +431,21 @@ html[dir="rtl"] :is(.diff, .path, .keycap, input[type="password"], input[type="t
 /* Settings → Android phone: the pairing QR code (an SVG from Rust, black on white). */
 .qr { width: 220px; max-width: 100%; background: #fff; border-radius: 8px; padding: 4px; }
 .qr svg { display: block; width: 100%; height: auto; }
+
+/* JARVIS: Settings → Tabs in the notch (settings/notch-tabs.ts), as iPhone's Control Center settings. */
+.nt-cap { margin: 14px 0 6px; font-size: 11px; color: #8e8e93; text-transform: none; }
+.nt-list { background: #1c1c1e; border-radius: 12px; overflow: hidden; }
+.nt-row { position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 14px; background: #1c1c1e; border-top: 1px solid #2c2c2e; }
+.nt-list > .nt-row:first-child { border-top: 0; }
+.nt-row.dragging { z-index: 2; background: #2c2c2e; box-shadow: 0 6px 18px rgba(0, 0, 0, .4); transition: none; }
+.nt-pm { width: 20px; height: 20px; flex: none; border: 0; border-radius: 50%; color: #fff; font: 600 14px/20px var(--font, system-ui); text-align: center; padding: 0; cursor: pointer; transition: filter .15s; }
+.nt-pm:hover { filter: brightness(1.15); }
+.nt-pm.minus { background: #ff453a; }
+.nt-pm.plus { background: #30d158; }
+.nt-pm.none { background: #3a3a3c; cursor: default; }
+.nt-icon { width: 26px; height: 26px; flex: none; border-radius: 7px; display: grid; place-items: center; color: #fff; }
+.nt-icon svg { display: block; }
+.nt-name { flex: 1; min-width: 0; font-size: 13px; color: #f5f5f7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nt-note { font-size: 12px; color: #8e8e93; }
+.nt-handle { color: #636366; font-size: 18px; line-height: 1; padding: 2px 4px; cursor: grab; touch-action: none; user-select: none; }
+.nt-row.dragging .nt-handle { cursor: grabbing; }
