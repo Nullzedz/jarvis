@@ -20,7 +20,7 @@ export const SECTIONS: Section[] = [
   { id: "jarvis", name: () => "JARVIS", color: "#bf5af2", pages: ["talk"] },
   { id: "agents", name: () => t("Agents"), color: "#30d158", pages: ["sessions"] },
   { id: "notes", name: () => t("Notes"), color: "#ff9f0a", pages: ["notes", "dictation"] },
-  { id: "mail", name: () => "Mail", color: "#0a84ff", pages: ["mailOverview", "mailRules", "mailBanned", "mailVIP"], windowsOnly: true },
+  { id: "mail", name: () => "Mail", color: "#0a84ff", pages: ["mail", "mailOverview", "mailRules", "mailBanned", "mailVIP"], windowsOnly: true },
   { id: "connections", name: () => t("Connections"), color: "#64d2ff", pages: ["integrations"] },
   { id: "settings", name: () => t("Settings"), color: "#3a3a3c", pages: ["prefs"] },
 ];

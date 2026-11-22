@@ -284,22 +284,77 @@ pub async fn mail_more(app: AppHandle) {
     poll(&app).await;
 }
 
-/// JARVIS: Home's Mail widget: this month's counts (outlook::month_script), asked at most
-/// every five minutes. None without a running Outlook.
-#[tauri::command]
-pub async fn mail_month() -> Option<Value> {
-    static LAST: Mutex<Option<(std::time::Instant, Value)>> = Mutex::new(None);
-    if let Some((at, v)) = LAST.lock().ok().and_then(|l| l.clone()) {
-        if at.elapsed() < Duration::from_secs(300) {
-            return Some(v);
+/// A VIP sender (the Mail section's VIP list).
+fn is_vip(address: &str, vip: &[String]) -> bool {
+    let f = Facts { sender_name: String::new(), address: address.to_string(), subject: String::new(), account: String::new(), text: None };
+    triage::vip_hit(&f, vip).is_some()
+}
+
+/// The month script's answer as the page wants it: each day's senders turn into its VIP count.
+fn month_view(mut v: Value, vip: &[String]) -> Value {
+    if let Some(marks) = v.get_mut("marks").and_then(Value::as_object_mut) {
+        for m in marks.values_mut() {
+            let vips = m
+                .get("senders")
+                .and_then(Value::as_object)
+                .map(|s| s.iter().filter(|(a, _)| is_vip(a, vip)).map(|(_, n)| n.as_i64().unwrap_or(0)).sum::<i64>())
+                .unwrap_or(0);
+            if let Some(o) = m.as_object_mut() {
+                o.remove("senders");
+                o.insert("vip".into(), json!(vips));
+            }
         }
     }
-    let v = outlook::run(outlook::month_script(), TIMEOUT).await.ok()?;
+    v
+}
+
+/// JARVIS: the month `offset` months from this one (outlook::month_script), each asked at most
+/// every five minutes. None without a running Outlook.
+#[tauri::command]
+pub async fn mail_month_at(offset: i32) -> Option<Value> {
+    static LAST: Mutex<Vec<(i32, std::time::Instant, Value)>> = Mutex::new(Vec::new());
+    if let Some(v) = LAST.lock().ok().and_then(|l| l.iter().find(|(o, at, _)| *o == offset && at.elapsed() < Duration::from_secs(300)).map(|x| x.2.clone())) {
+        return Some(v);
+    }
+    let v = outlook::run(outlook::month_script(offset), TIMEOUT).await.ok()?;
     if v.get("error").is_some() {
         return None;
     }
+    let vip = rt().store.settings.vip.clone();
+    let v = month_view(v, &vip);
     if let Ok(mut l) = LAST.lock() {
-        *l = Some((std::time::Instant::now(), v.clone()));
+        l.retain(|(o, _, _)| *o != offset);
+        l.push((offset, std::time::Instant::now(), v.clone()));
+    }
+    Some(v)
+}
+
+/// JARVIS: Home's Mail widget: this month.
+#[tauri::command]
+pub async fn mail_month() -> Option<Value> {
+    mail_month_at(0).await
+}
+
+/// JARVIS: one day's messages for the Mail page ("yyyy-MM-dd"), newest first, each with its
+/// files and whether it comes from a VIP. None without a running Outlook.
+#[tauri::command]
+pub async fn mail_day(date: String) -> Option<Value> {
+    if date.len() != 10 || !date.chars().all(|c| c.is_ascii_digit() || c == '-') {
+        return None;
+    }
+    let mut v = outlook::run(outlook::day_script(&date), TIMEOUT).await.ok()?;
+    if v.get("error").is_some() {
+        return None;
+    }
+    let vip = rt().store.settings.vip.clone();
+    if let Some(list) = v.get_mut("messages").and_then(Value::as_array_mut) {
+        for m in list.iter_mut() {
+            let hit = is_vip(m.get("address").and_then(Value::as_str).unwrap_or(""), &vip);
+            if let Some(o) = m.as_object_mut() {
+                o.insert("vip".into(), json!(hit));
+            }
+        }
+        list.sort_by_key(|m| std::cmp::Reverse(m.get("date").and_then(Value::as_i64).unwrap_or(0)));
     }
     Some(v)
 }
@@ -858,5 +913,25 @@ async fn execute(app: &AppHandle, id: &str, run: PlanRun) {
     set_phase(app, id, Phase::Done { ok, failed });
     if pill_on(app) {
         emit_card(app, true);
+    }
+}
+
+#[cfg(test)]
+mod jarvis_tests {
+    use super::*;
+
+    #[test]
+    fn month_view_counts_vips_and_drops_the_senders() {
+        let v = json!({ "days": { "3": 4 }, "marks": { "3": { "flagged": 1, "files": 2, "senders": { "paul@client.com": 2, "ann@shop.com": 1, "x@client.com": 1 } } } });
+        let out = month_view(v, &["@client.com".to_string()]);
+        assert_eq!(out["marks"]["3"]["vip"], json!(3));
+        assert!(out["marks"]["3"].get("senders").is_none());
+        assert_eq!(out["marks"]["3"]["files"], json!(2));
+    }
+
+    #[test]
+    fn day_script_quotes_the_date() {
+        assert!(outlook::day_script("2026-11-22").contains("ParseExact('2026-11-22'"));
+        assert!(outlook::month_script(-1).contains("AddMonths(-1)"));
     }
 }

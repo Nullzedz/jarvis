@@ -95,32 +95,63 @@ fn script(body: &str) -> String {
     format!("{PRELUDE}\n{body}\n")
 }
 
-/// JARVIS: Home's Mail widget (step 6 of #57): how many messages each inbox received each day
-/// of this month, today's per hour, the flagged ones still waiting this month, and today's with
-/// files. Counts only: no sender, no subject.
-pub fn month_script() -> String {
-    script(
-        r#"$start = (Get-Date -Day 1).Date
+/// JARVIS: the Mail page's month and Home's Mail widget: for the month `offset` months from
+/// this one, how many messages every inbox received each day, how many of them are flagged or
+/// carry files, and who sent them (address: count, so Rust can find the VIPs); today's per hour;
+/// this month's flagged and today's with files. No subject, no text.
+pub fn month_script(offset: i32) -> String {
+    script(&format!(
+        r#"$start = (Get-Date -Day 1).Date.AddMonths({offset})
+$end = $start.AddMonths(1)
 $today = (Get-Date).Date
-$filter = "[ReceivedTime] >= '" + $start.ToString('g') + "'"
-$days = @{}; $hours = @(0) * 24; $flagged = 0; $files = 0
-foreach ($b in (Coucou-Inboxes)) {
-  try {
-    foreach ($i in $b.inbox.Items.Restrict($filter)) {
-      if ($i.Class -ne 43) { continue }
+$filter = "[ReceivedTime] >= '" + $start.ToString('g') + "' AND [ReceivedTime] < '" + $end.ToString('g') + "'"
+$days = @{{}}; $marks = @{{}}; $hours = @(0) * 24; $flagged = 0; $files = 0
+foreach ($b in (Coucou-Inboxes)) {{
+  try {{
+    foreach ($i in $b.inbox.Items.Restrict($filter)) {{
+      if ($i.Class -ne 43) {{ continue }}
       $t = $i.ReceivedTime
       $d = [string]$t.Day
-      if ($days.ContainsKey($d)) { $days[$d]++ } else { $days[$d] = 1 }
-      if ($i.FlagStatus -eq 2) { $flagged++ }
-      if ($t.Date -eq $today) {
+      if ($days.ContainsKey($d)) {{ $days[$d]++ }} else {{ $days[$d] = 1; $marks[$d] = @{{ flagged = 0; files = 0; senders = @{{}} }} }}
+      $m = $marks[$d]
+      $a = ([string](Coucou-Address $i)).ToLower()
+      if ($m.senders.ContainsKey($a)) {{ $m.senders[$a]++ }} else {{ $m.senders[$a] = 1 }}
+      $f = $i.Attachments.Count -gt 0
+      if ($i.FlagStatus -eq 2) {{ $flagged++; $m.flagged++ }}
+      if ($f) {{ $m.files++ }}
+      if ($t.Date -eq $today) {{
         $hours[$t.Hour]++
-        if ($i.Attachments.Count -gt 0) { $files++ }
-      }
-    }
-  } catch {}
+        if ($f) {{ $files++ }}
+      }}
+    }}
+  }} catch {{}}
+}}
+[pscustomobject]@{{ year = $start.Year; month = $start.Month; first = [int]$start.DayOfWeek; length = [DateTime]::DaysInMonth($start.Year, $start.Month); today = $(if ($today -ge $start -and $today -lt $end) {{ $today.Day }} else {{ 0 }}); days = $days; marks = $marks; hours = $hours; flagged = $flagged; files = $files }} | ConvertTo-Json -Depth 5 -Compress"#
+    ))
 }
-[pscustomobject]@{ days = $days; hours = $hours; flagged = $flagged; files = $files } | ConvertTo-Json -Depth 3 -Compress"#,
-    )
+
+/// JARVIS: one day's messages for the Mail page (`date` is "yyyy-MM-dd"), with the names of
+/// their files, newest first.
+pub fn day_script(date: &str) -> String {
+    script(&format!(
+        r#"$day = [DateTime]::ParseExact({date}, 'yyyy-MM-dd', $null)
+$filter = "[ReceivedTime] >= '" + $day.ToString('g') + "' AND [ReceivedTime] < '" + $day.AddDays(1).ToString('g') + "'"
+$rows = @()
+foreach ($b in (Coucou-Inboxes)) {{
+  try {{
+    foreach ($i in $b.inbox.Items.Restrict($filter)) {{
+      if ($i.Class -ne 43) {{ continue }}
+      $r = Coucou-Row $i $b.store
+      $names = @(); try {{ foreach ($x in $i.Attachments) {{ $names += [string]$x.FileName }} }} catch {{}}
+      $r | Add-Member -NotePropertyName files -NotePropertyValue @($names)
+      $r | Add-Member -NotePropertyName hour -NotePropertyValue $i.ReceivedTime.Hour
+      $rows += $r
+    }}
+  }} catch {{}}
+}}
+[pscustomobject]@{{ messages = @($rows) }} | ConvertTo-Json -Depth 4 -Compress"#,
+        date = ps(date)
+    ))
 }
 
 /// The unread count and the newest `per_inbox` messages of every account's inbox.
