@@ -74,6 +74,8 @@ const MOVED: Partial<Record<PageId, [PageId, string]>> = {
   agents: ["prefs", "group-agents"], chat: ["prefs", "group-accounts"], phone: ["prefs", "group-phone"],
   voice: ["prefs", "group-voice"], flowsettings: ["prefs", "group-dictation"],
   // Notes (#72): Statistics, Dictionary, Snippets and Styles are on the Dictation page now.
+  // Mail (#74): the rules, banned words and VIPs are rows of the Sorting tab now.
+  mailRules: ["mailOverview", "mail.rules"], mailBanned: ["mailOverview", "mail.banned"], mailVIP: ["mailOverview", "mail.vip"],
   insights: ["dictation", ""], dictionary: ["dictation", ""], snippets: ["dictation", ""], styles: ["dictation", ""],
 };
 

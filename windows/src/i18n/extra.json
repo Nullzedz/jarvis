@@ -12270,6 +12270,21 @@
       "zh-Hans": {
         "other": "封 今天"
       }
+    },
+    "Nothing sent yet.": {
+      "ar": "لم يُرسل شيء بعد.",
+      "bn": "এখনো কিছু পাঠানো হয়নি।",
+      "de": "Noch nichts gesendet.",
+      "es": "Aún no se ha enviado nada.",
+      "fr": "Rien envoyé pour l’instant.",
+      "hi": "अभी तक कुछ नहीं भेजा गया।",
+      "id": "Belum ada yang dikirim.",
+      "ja": "まだ何も送信していません。",
+      "ko": "아직 보낸 메일이 없어요.",
+      "pt-BR": "Nada enviado ainda.",
+      "ru": "Пока ничего не отправлено.",
+      "tr": "Henüz bir şey gönderilmedi.",
+      "zh-Hans": "还没有发送任何邮件。"
     }
   }
 }

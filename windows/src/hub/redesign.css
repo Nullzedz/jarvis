@@ -669,3 +669,42 @@ span.jv-mrb { opacity: .9; }
 .jv-mfcard .meta { padding: 10px 12px; }
 .jv-mfcard .nm { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .jv-mselbar { background: var(--jv-s1); border-radius: 14px; padding: 10px 14px; }
+
+/* ── Mail · Sorting (#74, design A): a switch, three counts, four rows, the journal ── */
+.jv-msort { max-width: 860px; display: flex; flex-direction: column; gap: 12px; padding-bottom: 40px; }
+.jv-msort p { margin: 0; }
+.jv-msort .cap { font-size: 12px; color: var(--jv-t2); }
+.jv-msort .grow { flex: 1; min-width: 0; }
+.jv-msort > .back, .jv-msort > .back:hover:not(:disabled), .jv-msort > .back:active:not(:disabled) { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--jv-blue); font: 14px var(--font); cursor: pointer; border-radius: 0; transform: none; }
+.jv-msort .jv-ptitle { margin: 0; } .jv-msort .jv-psay { margin: 0 0 6px; }
+.jv-scard { background: var(--jv-s1); border-radius: 18px; padding: 6px 18px; }
+.jv-srow { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.jv-srow + .jv-srow { border-top: 1px solid var(--jv-s2); }
+.jv-srow .lbl b { display: block; font-size: 14px; font-weight: 600; color: var(--jv-t1); }
+.jv-srow .lbl span { display: block; font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
+.jv-srow.head { padding-bottom: 6px; }
+.jv-srow.line { font-size: 13px; }
+.jv-srow.line .dim { color: var(--jv-t2); }
+.jv-snote { font-size: 12.5px; color: var(--jv-orange); padding: 0 0 12px; }
+.jv-sstats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.jv-sstat { background: var(--jv-s1); border-radius: 18px; padding: 14px 18px; display: flex; align-items: baseline; gap: 8px; }
+.jv-sstat .n { font-size: 26px; font-weight: 600; }
+.jv-sdrill, .jv-sdrill:hover:not(:disabled), .jv-sdrill:active:not(:disabled) { display: flex; width: 100%; justify-content: space-between; align-items: center; background: none; border: 0; border-radius: 0; padding: 14px 0; color: var(--jv-t1); font: 14px var(--font); cursor: pointer; text-align: left; transform: none; }
+.jv-sdrill + .jv-sdrill { border-top: 1px solid var(--jv-s2); }
+.jv-sdrill b { font-weight: 600; }
+.jv-sdrill:hover:not(:disabled) .cap { color: var(--jv-t1); }
+.jv-sswitch .jv-switch { display: block; }
+.jv-sswitch, .jv-sswitch:hover:not(:disabled), .jv-sswitch:active:not(:disabled) { background: none; border: 0; padding: 0; cursor: pointer; transform: none; border-radius: 999px; flex: none; }
+.jv-slink, .jv-slink:hover:not(:disabled), .jv-slink:active:not(:disabled) { background: none; border: 0; padding: 0; color: var(--jv-blue); font: 13px var(--font); cursor: pointer; transform: none; border-radius: 0; }
+.jv-sempty { color: var(--jv-t2); font-size: 13px; padding: 14px 0; }
+.jv-sadd { display: flex; align-items: center; gap: 10px; padding: 12px 0; flex-wrap: wrap; }
+.jv-sadd + .jv-sadd { border-top: 1px solid var(--jv-s2); }
+.jv-sadd .if { width: 36px; color: var(--jv-blue); font-weight: 600; font-size: 13px; }
+.jv-sinput { flex: 1; min-width: 160px; background: var(--jv-s2); border: 0; border-radius: 10px; padding: 8px 12px; color: var(--jv-t1); font: 13px var(--font); outline: none; }
+.jv-sinput:focus { box-shadow: 0 0 0 2px rgba(10,132,255,.5); }
+.jv-sselect { background: var(--jv-s2); border: 0; border-radius: 10px; padding: 7px 10px; color: var(--jv-t1); font: 13px var(--font); }
+.jv-schips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 14px; }
+.jv-schip { display: inline-flex; align-items: center; gap: 4px; background: var(--jv-s2); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 13px; }
+.jv-schip button, .jv-schip button:hover:not(:disabled), .jv-schip button:active:not(:disabled) { background: none; border: 0; padding: 0 4px; color: var(--jv-t2); font-size: 15px; cursor: pointer; border-radius: 50%; transform: none; }
+.jv-schip button:hover:not(:disabled) { color: var(--jv-t1); }
+.jv-chipbtn.primary, .jv-chipbtn.primary:hover:not(:disabled) { background: var(--jv-blue); color: #fff; }
