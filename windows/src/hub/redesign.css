@@ -513,6 +513,7 @@ button.jv-ntrow { cursor: pointer; }
 .jv-recbtn, .jv-recbtn:hover:not(:disabled), .jv-ntrec .stop, .jv-ntrec .stop:hover:not(:disabled),
 .jv-dict-full .back, .jv-dict-full .back:hover:not(:disabled), .jv-sub .back, .jv-sub .back:hover:not(:disabled),
 .jv-prefs .srow.drill, .jv-prefs .srow.drill:hover:not(:disabled) { background: none; border-radius: 0; }
+.jv-ntrec .stop, .jv-ntrec .stop:hover:not(:disabled) { border-radius: 50%; }
 .jv-lyr .ly:active:not(:disabled) { transform: none; }
 .jv-lyr .ly:not(.on):active:not(:disabled) { transform: scale(.94); }
 .jv-ntrow:active:not(:disabled), .jv-prefs .srow.drill:active:not(:disabled) { transform: none; }
