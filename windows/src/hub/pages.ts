@@ -2,7 +2,6 @@
 // from the island's settings).
 
 import type { FlowPageRenderer, PageId } from "./shell";
-import { notesPage } from "./pages/notes";
 import { insightsPage } from "./pages/insights";
 import { dictionaryPage, snippetsPage } from "./pages/words";
 import { stylesPage } from "./pages/styles";
@@ -13,11 +12,12 @@ import { mailBannedPage, mailOverviewPage, mailRulesPage, mailVIPPage } from "./
 import { sessionsPage } from "./pages/sessions";
 import { talkPage } from "./pages/talk";
 import { dictationHomePage } from "./pages/dictation-home";
+import { notetakerPage } from "./pages/notetaker";
 import { prefsPage } from "./pages/prefs";
 
 export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   dictation: dictationHomePage,
-  notes: notesPage,
+  notes: notetakerPage,
   insights: insightsPage,
   dictionary: dictionaryPage,
   snippets: snippetsPage,
