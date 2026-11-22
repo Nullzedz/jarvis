@@ -56,9 +56,9 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
 
     const lined = h("div", { class: "jv-lined" }, h("div", { class: "margin" }),
       h("p", { class: "cap", text: now.toLocaleDateString(language(), { weekday: "long", day: "numeric", month: "long" }) }));
-    // Only the two latest calls are written on the page, one short line each: a new one pushes the oldest off
+    // Only the two latest calls are written on the page, newest first, one short line each: a new one pushes the oldest off
     // (they're all in Today below).
-    for (const n of today.slice(0, 2).reverse()) {
+    for (const n of today.slice(0, 2)) {
       const todos = n.todos.filter((x) => !x.done).length;
       const what = n.status === "ready" ? n.title : n.status === "failed" ? t("couldn't be written") : t("Writing the note…");
       lined.append(h("p", { class: "ln serif" },
@@ -82,7 +82,7 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
 
     // Today: the calls written, and the ones still to come.
     const rows: HTMLElement[] = [];
-    for (const n of today.slice().reverse()) {
+    for (const n of today) {
       const ready = n.status === "ready";
       const todos = n.todos.filter((x) => !x.done).length;
       rows.push(h("button", { class: "jv-ntrow", onclick: () => go({ kind: "note", id: n.id }) },
