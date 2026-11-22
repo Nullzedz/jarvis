@@ -297,6 +297,63 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 @keyframes jv-mic { 50% { box-shadow: 0 0 0 6px rgba(255, 69, 58, .25); } }
 .jv-talkask .talk:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .jv-glow { animation: none; } }
+/* ── Settings (#70): the demo's layout; the old parts' rows and controls in its look ── */
+.hub-page.jv-prefs { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 36px; align-items: start; max-width: 1060px; }
+.jv-snav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.jv-snav .search { display: flex; align-items: center; gap: 8px; background: #1c1c1e; border-radius: 10px; padding: 8px 10px; margin-bottom: 16px; color: var(--jv-t2); font-size: 13px; }
+.jv-snav .search .q { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--jv-t1); font: inherit; padding: 0; }
+.jv-snav .lnk { display: flex; align-items: center; color: #aeaeb2; font: 13.5px var(--font); padding: 7px 10px; border-radius: 9px; text-align: left; background: none; border: 0; cursor: pointer; }
+.jv-snav .lnk:hover { background: #1c1c1e; color: #fff; }
+.jv-snav .lnk.on { background: #2c2c2e; color: #fff; }
+.jv-prefs-body { min-width: 0; padding-bottom: 80px; }
+.jv-ptitle { margin: 0 0 22px; font-size: 26px; font-weight: 600; color: var(--jv-t1); }
+.jv-psay { margin: -16px 0 18px; font-size: 13px; color: var(--jv-t2); }
+.jv-pnote { margin: 0; font-size: 13px; color: var(--jv-t2); }
+.jv-sgroup { padding: 0 0 14px !important; scroll-margin-top: 12px; background: none !important; border: 0 !important; box-shadow: none !important; margin: 0 !important; max-width: none !important; border-radius: 0 !important; }
+.jv-prefs .srow .ctl .line { flex-basis: 100%; display: flex; align-items: center; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+.jv-sgroup + .jv-sgroup { border-top: 1px solid #1c1c1e !important; padding-top: 30px !important; }
+.jv-sgroup h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; color: var(--jv-t1); }
+.jv-sgroup > .say { margin: 0 0 18px; font-size: 13px; color: var(--jv-t2); }
+.jv-sub .back { background: none; border: 0; padding: 0; margin-bottom: 14px; color: var(--jv-blue); font: 14px var(--font); cursor: pointer; }
+/* One row per setting: its name and description on the left, the control on the right. */
+.jv-prefs .srow { display: grid; grid-template-columns: 1fr 1.25fr; gap: 28px; align-items: start; padding: 16px 0; width: 100%; }
+.jv-prefs .srow + .srow { border-top: 1px solid #141416; }
+.jv-prefs .srow .lbl b { display: block; font-weight: 600; font-size: 14px; color: var(--jv-t1); }
+.jv-prefs .srow .lbl span, .jv-prefs .srow .lbl .hint { display: block; font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
+.jv-prefs .srow .ctl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.jv-prefs .srow.bare { grid-template-columns: 1fr; }
+.jv-prefs .srow.bare .lbl { display: none; }
+.jv-prefs .srow.bare .ctl { justify-content: flex-start; }
+.jv-prefs .srow.drill { background: none; border: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; border-radius: 0; }
+.jv-prefs .srow.drill:hover .lbl b { color: #fff; }
+.jv-prefs .srow.drill .go { color: var(--jv-t3); font-size: 18px; }
+.jv-prefs .srow.drill:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; border-radius: 10px; }
+/* The old parts' pieces, in the demo's look */
+.jv-prefs section:not(.jv-sgroup) { background: none; border: 0; box-shadow: none; padding: 0; margin: 0 0 18px; max-width: none; }
+.jv-prefs h2 { font-size: 15px; font-weight: 600; color: var(--jv-t1); margin: 18px 0 8px; }
+.jv-prefs .hint { font-size: 12.5px; color: var(--jv-t2); line-height: 1.45; }
+.jv-prefs .switch { width: 46px; height: 28px; border-radius: 999px; background: #3a3a3c; flex: 0 0 46px; border: 0; padding: 0; }
+.jv-prefs .switch::after { top: 3px; left: 3px; width: 22px; height: 22px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+.jv-prefs .switch.on { background: #30d158; }
+.jv-prefs .switch.on::after { transform: translateX(18px); }
+.jv-prefs select, .jv-prefs .hub-select, .jv-prefs input[type="text"], .jv-prefs input[type="password"], .jv-prefs input[type="number"], .jv-prefs input[type="url"] {
+  background: #1c1c1e; border: 1px solid transparent; border-radius: 10px; color: var(--jv-t1); font: 13.5px var(--font); padding: 8px 12px; min-height: 36px; box-sizing: border-box; }
+.jv-prefs select:focus, .jv-prefs input:focus { border-color: var(--jv-blue); outline: none; }
+.jv-prefs .hub-segmented { display: inline-flex; background: #1c1c1e; border-radius: 10px; padding: 3px; flex-wrap: wrap; }
+.jv-prefs .hub-segmented button { font: 13px var(--font); padding: 6px 12px; border-radius: 8px; color: #aeaeb2; background: none; border: 0; }
+.jv-prefs .hub-segmented button.on { background: #3a3a3c; color: #fff; }
+.jv-prefs .srow .ctl > button:not(.switch), .jv-prefs .hub-btn { font: 13px var(--font); padding: 7px 14px; border-radius: 9px; background: #2c2c2e; color: #e5e5ea; border: 0; }
+.jv-prefs .hub-btn.primary { background: var(--jv-blue); color: #fff; }
+.jv-prefs .hub-btn.danger { background: rgba(255,69,58,.15); color: #ff453a; }
+/* The Voice and Dictation pages' cards become plain rows */
+.jv-prefs .jv-flowpart .hub-label { font-size: 12px; color: var(--jv-t2); text-transform: none; letter-spacing: 0; margin: 18px 0 2px; font-weight: 600; }
+.jv-prefs .jv-flowpart .hub-card { background: none; border: 0; box-shadow: none; padding: 0; border-radius: 0; }
+.jv-prefs .jv-flowpart .hub-divider { height: 1px; background: #141416; margin: 0; }
+.jv-prefs .jv-flowpart .hub-row { display: grid; grid-template-columns: 1fr 1.25fr; gap: 28px; align-items: start; padding: 16px 0; }
+.jv-prefs .jv-flowpart .hub-row > :not(.text) { justify-self: end; }
+.jv-prefs .jv-flowpart .hub-row .title { font-weight: 600; font-size: 14px; color: var(--jv-t1); }
+.jv-prefs .jv-flowpart .hub-row .detail { font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
+@media (max-width: 860px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }

@@ -1545,6 +1545,18 @@ async function render() {
     integrations: () => [integrationsSection(present), ...whatsappSections()],
     phone: () => [phoneSection(settings.phoneLink ?? false, toggle, settings)],
     shortcuts: () => [shortcutsSection(shortcutReport)],
+    // JARVIS (#70): the new Settings page takes every part and puts each in its group.
+    prefs: () => {
+      const tag = (part: string, el: HTMLElement) => { el.dataset.part = part; return el; };
+      return [
+        tag("general", generalSection()), tag("tabs", notchTabsSection()), tag("pills", activePillsSection(connected)),
+        tag("shortcuts", shortcutsSection(shortcutReport)),
+        tag("claude", claudeSection(status)), tag("agents", agentsSection(agents)), tag("plan", planSection(status)),
+        tag("subs", subscriptionsSection()), tag("api", apiSection(hasKey, claudeRelay)),
+        tag("providers", chatProvidersSection(chatKeys, keyChanged)), tag("local", localSection(customKey)),
+        tag("phone", phoneSection(settings.phoneLink ?? false, toggle, settings)),
+      ];
+    },
   };
   root.append(...(sections[notchPage]?.() ?? []));
   if (notchPage === "general") {

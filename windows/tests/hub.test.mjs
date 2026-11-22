@@ -77,8 +77,8 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
     const settingsButton = buttons[buttons.length - 1];
     settingsButton.fire("click");
     await settle();
-    assert.equal(hub.current(), "general");
-    assert.equal(root.find("H1")[0].textContent, "General");
+    assert.equal(hub.current(), "prefs");
+    assert.equal(root.find("H1")[0].textContent, "Settings");
     calls.length = 0;
 
     for (const language of ["fr", "ar", "en"]) {
@@ -89,9 +89,9 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
       assert.deepEqual(labels.map((label) => label.textContent), railSections.map((s) => s.name()));
       assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
       assert.equal(root.find(".jv-wc")[0].find(".jv-visor")[0], logo);
-      assert.equal(hub.current(), "general");
+      assert.equal(hub.current(), "prefs");
       assert.deepEqual(buttons.filter((button) => button.classList.contains("on")), [settingsButton]);
-      assert.equal(root.find("H1")[0].textContent, t("General"));
+      assert.equal(root.find("H1")[0].textContent, t("Settings"));
       assert.equal(document.documentElement.dataset.dir, language === "ar" ? "rtl" : "ltr");
     }
     assert.deepEqual(calls, [], "redrawing must not save settings or request data");
