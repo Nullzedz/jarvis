@@ -946,6 +946,8 @@ pub fn run() {
             hub_window,
             clipboard_history::clipboard_history,
             last_answer::last_answer,
+            last_answer::conversation,
+            voice::voice_level_watch,
             his_windows::his_windows,
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,

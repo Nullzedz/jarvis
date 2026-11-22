@@ -127,6 +127,14 @@ fn show(app: &AppHandle, view: Option<VoiceView>) {
     pill::update(app, |s| s.voice = view);
 }
 
+/// The JARVIS page is open: send your voice's level (`voice-level`) for its waveform (#67).
+static LEVEL_WATCHED: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn voice_level_watch(on: bool) {
+    LEVEL_WATCHED.store(on, Ordering::Relaxed);
+}
+
 // ── JARVIS: push-to-talk (talk.rs) ─────────────────────────────────────────────
 
 /// Audio kept from just before the keys went down, so the first word isn't clipped (s).
@@ -338,7 +346,7 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                         t.voice_at = Some(now);
                     }
                 }
-                if print::training_active() && level_emit.elapsed() > Duration::from_millis(100) {
+                if (print::training_active() || LEVEL_WATCHED.load(Ordering::Relaxed)) && level_emit.elapsed() > Duration::from_millis(100) {
                     let level = (rms / (vad.threshold() * 4.0)).min(1.0);
                     let _ = app.emit("voice-level", level);
                     level_emit = Instant::now();
@@ -532,6 +540,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         explain::close_all(app);
     }
     show(app, Some(VoiceView { phase: "thinking".into(), heard: question.to_string(), ..Default::default() }));
+    crate::last_answer::heard(app, question);
     let watching = watch_for_stop(app);
     let asked = Instant::now();
     let speech = Speech::start(app, question, asked);
@@ -556,7 +565,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         explain::show(app, question, &brain::spoken_text(&line), &w, seen, false);
     }
     let said = speech.finish();
-    crate::last_answer::set(app, &said);
+    crate::last_answer::set(app, question, &said);
     watching.store(true, Ordering::Relaxed);
     if STOPPED.load(Ordering::Relaxed) {
         return (said, true);
