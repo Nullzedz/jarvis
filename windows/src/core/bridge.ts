@@ -294,6 +294,8 @@ export const Bridge = {
   conversation: () => call<{ you: string; him: string; at: number }[]>("conversation"),
   /** JARVIS: send your voice's level (`voice-level`) while the JARVIS page shows its waveform. */
   voiceLevelWatch: (on: boolean) => call<void>("voice_level_watch", { on }),
+  /** JARVIS: the JARVIS page's microphone: a tap of the talk keys (hands-free; again, it stops). False when his voice is off. */
+  voiceTap: () => call<boolean>("voice_tap"),
   /** JARVIS: the windows he drew (his_windows.rs), in memory only. */
   hisWindows: () => call<HisWindows>("his_windows"),
   /** JARVIS: this month's mail counts for Home (mail_month): per day, today per hour; null without Outlook. */

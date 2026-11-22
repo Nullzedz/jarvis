@@ -948,6 +948,7 @@ pub fn run() {
             last_answer::last_answer,
             last_answer::conversation,
             voice::voice_level_watch,
+            voice::voice_tap,
             his_windows::his_windows,
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,

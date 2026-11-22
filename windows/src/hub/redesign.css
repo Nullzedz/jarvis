@@ -289,7 +289,12 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-talkask { display: flex; align-items: center; gap: 12px; background: #1c1c1e; border-radius: 999px; padding: 8px 8px 8px 20px; margin-top: 14px; }
 .jv-talkask .q { flex: 1; background: none; border: 0; outline: none; color: var(--jv-t1); font: 15px var(--font); }
 .jv-talkask .talk { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--jv-blue); display: grid; place-items: center; cursor: pointer; }
-.jv-talkask .talk i { width: 10px; height: 10px; border-radius: 50%; background: #fff; }
+.jv-talkask .talk { color: #fff; transition: background .2s ease, transform .15s var(--jv-ease); }
+.jv-talkask .talk svg { width: 17px; height: 17px; fill: currentColor; }
+.jv-talkask .talk:active { transform: scale(.92); }
+.jv-talkask .talk.on { background: #ff453a; animation: jv-mic 1.4s ease-in-out infinite; }
+@keyframes jv-mic { 50% { box-shadow: 0 0 0 6px rgba(255, 69, 58, .25); } }
+.jv-talkask .talk:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .jv-glow { animation: none; } }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */

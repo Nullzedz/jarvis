@@ -130,6 +130,19 @@ fn show(app: &AppHandle, view: Option<VoiceView>) {
 /// The JARVIS page is open: send your voice's level (`voice-level`) for its waveform (#67).
 static LEVEL_WATCHED: AtomicBool = AtomicBool::new(false);
 
+/// The JARVIS page's microphone button: a tap of the talk keys (hands-free; again, it stops).
+static MIC_TAP: AtomicBool = AtomicBool::new(false);
+
+/// False when his voice is off (nothing listens): the page says how to turn it on.
+#[tauri::command]
+pub fn voice_tap() -> bool {
+    if RUNNING.lock().map(|r| r.is_none()).unwrap_or(true) {
+        return false;
+    }
+    MIC_TAP.store(true, Ordering::Relaxed);
+    true
+}
+
 #[tauri::command]
 pub fn voice_level_watch(on: bool) {
     LEVEL_WATCHED.store(on, Ordering::Relaxed);
@@ -266,12 +279,16 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             continue;
         }
 
-        // The keys.
-        let (chord, other) = talk::keys();
+        // The keys (or the JARVIS page's microphone button: one tap, so hands-free).
+        let (mut chord, other) = talk::keys();
+        let tapped = MIC_TAP.swap(false, Ordering::Relaxed);
+        if tapped {
+            chord = true;
+        }
         match talk.step(now, chord, other) {
             Some(talk::Event::Begin) => {
                 // A held Win or Alt, let go, would open the Start menu or the app's menu bar.
-                if shortcut::needs_mask(shortcut::Which::Talk) {
+                if !tapped && shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
                 trail = Some(ink::Trail::start(&app));

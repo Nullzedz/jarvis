@@ -105,8 +105,33 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
     void Bridge.askSend(q);
   };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
-  const ask = h("div", { class: "jv-talkask" }, input,
-    h("button", { class: "talk", "aria-label": t("Ask JARVIS anything"), onclick: () => void Bridge.askOpen() }, h("i")));
+  // The microphone: talk to him (a tap of the talk keys: he listens until you pause, then answers
+  // out loud, and the exchange joins the conversation). Pressed again, he stops listening.
+  const micIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  micIcon.setAttribute("viewBox", "0 0 24 24");
+  micIcon.setAttribute("aria-hidden", "true");
+  const micPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  micPath.setAttribute("d", "M12 2a3.5 3.5 0 0 1 3.5 3.5v6a3.5 3.5 0 0 1-7 0v-6A3.5 3.5 0 0 1 12 2zM5.5 10.5a1 1 0 0 1 1 1 5.5 5.5 0 0 0 11 0 1 1 0 1 1 2 0 7.5 7.5 0 0 1-6.5 7.4V21a1 1 0 1 1-2 0v-2.1a7.5 7.5 0 0 1-6.5-7.4 1 1 0 0 1 1-1z");
+  micIcon.append(micPath);
+  const mic = h("button", { class: "talk", title: t("Talk to JARVIS"), "aria-label": t("Talk to JARVIS"), "aria-pressed": "false" }, micIcon);
+  const listening = (on: boolean) => {
+    mic.classList.toggle("on", on);
+    mic.setAttribute("aria-pressed", String(on));
+    if (on) heard.textContent = t("Listening…");
+  };
+  mic.addEventListener("click", async () => {
+    const was = mic.classList.contains("on");
+    if (!(await Bridge.voiceTap())) {
+      heard.textContent = t("Turn on listening on the Hey JARVIS tab to talk to him.");
+      return;
+    }
+    listening(!was);
+    // He stops on his own after a long silence: so does the button.
+    window.clearTimeout(quietAt);
+    if (!was) quietAt = window.setTimeout(() => { if (mic.classList.contains("on")) { listening(false); heard.textContent = t("Say “Hey JARVIS”, or type to him."); } }, 20_000);
+  });
+  let quietAt = 0;
+  const ask = h("div", { class: "jv-talkask" }, input, mic);
 
   page.append(h("div", { class: "jv-talk" }, glow,
     h("div", { class: "right" },
@@ -118,8 +143,8 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   void Bridge.conversation().then((c) => { if (Array.isArray(c)) { turns.splice(0, turns.length, ...c); paint(); } });
   void Bridge.hisWindows().then((w) => { drawn = w?.last ?? []; paint(); });
   const offs = [
-    onEvent<Turn>("jarvis-turn", (x) => { turns.push(x); waiting = null; paint(); }),
-    onEvent<string>("jarvis-heard", (q) => { heard.textContent = `“${q}”`; }),
+    onEvent<Turn>("jarvis-turn", (x) => { turns.push(x); waiting = null; listening(false); paint(); }),
+    onEvent<string>("jarvis-heard", (q) => { listening(false); heard.textContent = `“${q}”`; }),
     onEvent<{ last: HisWindow[] }>("his-windows", (w) => { drawn = w.last ?? []; paint(); }),
     onEvent<number>("voice-level", (level) => {
       const v = Math.max(0, Math.min(1, level));

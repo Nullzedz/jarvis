@@ -10653,6 +10653,36 @@
       "ru": "Напишите JARVIS",
       "tr": "JARVIS'e yazın",
       "zh-Hans": "输入给 JARVIS"
+    },
+    "Talk to JARVIS": {
+      "ar": "تحدث إلى JARVIS",
+      "bn": "JARVIS-এর সাথে কথা বলুন",
+      "de": "Mit JARVIS sprechen",
+      "es": "Hablar con JARVIS",
+      "fr": "Parler à JARVIS",
+      "hi": "JARVIS से बात करें",
+      "id": "Bicara dengan JARVIS",
+      "ja": "JARVIS に話しかける",
+      "ko": "JARVIS에게 말하기",
+      "pt-BR": "Falar com o JARVIS",
+      "ru": "Говорить с JARVIS",
+      "tr": "JARVIS ile konuş",
+      "zh-Hans": "和 JARVIS 说话"
+    },
+    "Turn on listening on the Hey JARVIS tab to talk to him.": {
+      "ar": "فعّل الاستماع في تبويب Hey JARVIS للتحدث إليه.",
+      "bn": "তার সাথে কথা বলতে Hey JARVIS ট্যাবে শোনা চালু করুন।",
+      "de": "Schalte das Zuhören im Tab Hey JARVIS ein, um mit ihm zu sprechen.",
+      "es": "Activa la escucha en la pestaña Hey JARVIS para hablar con él.",
+      "fr": "Activez l'écoute dans l'onglet Hey JARVIS pour lui parler.",
+      "hi": "उससे बात करने के लिए Hey JARVIS टैब में सुनना चालू करें।",
+      "id": "Aktifkan mendengarkan di tab Hey JARVIS untuk berbicara dengannya.",
+      "ja": "話しかけるには Hey JARVIS タブで聞き取りをオンにしてください。",
+      "ko": "대화하려면 Hey JARVIS 탭에서 듣기를 켜세요.",
+      "pt-BR": "Ative a escuta na aba Hey JARVIS para falar com ele.",
+      "ru": "Включите прослушивание на вкладке Hey JARVIS, чтобы говорить с ним.",
+      "tr": "Onunla konuşmak için Hey JARVIS sekmesinde dinlemeyi açın.",
+      "zh-Hans": "在 Hey JARVIS 标签页打开聆听，才能和他说话。"
     }
   }
 }
