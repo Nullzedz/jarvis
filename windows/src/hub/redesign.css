@@ -416,7 +416,12 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-lined { position: relative; min-height: 560px; background: repeating-linear-gradient(#000 0 39px, #151517 39px 40px); background-position: 0 22px; border-radius: 16px; padding: 30px 40px 110px 110px; }
 .jv-lined .margin { position: absolute; left: 88px; top: 0; bottom: 0; width: 1px; background: rgba(255,69,58,.55); }
 .jv-lined > .cap { font-size: 13px; }
-.jv-lined .ln { margin: 2px 0 0; font-size: 18px; line-height: 40px; color: var(--jv-t2); }
+.jv-lined .ln { margin: 2px 0 0; font-size: 18px; line-height: 40px; color: var(--jv-t2); display: flex; align-items: baseline; gap: 10px; white-space: nowrap; min-width: 0;
+  animation: jv-ln-in .5s var(--jv-ease) both; }
+@keyframes jv-ln-in { from { opacity: 0; transform: translateY(8px); } }
+.jv-lined .ln .tm { flex: none; }
+.jv-lined .ln .hi { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.jv-lined .ln .td, .jv-lined .ln .open { flex: none; }
 .jv-lined .ln .hi { color: #e5e5ea; }
 .jv-lined .ln .open { background: none; border: 0; padding: 0; color: var(--jv-blue); font: inherit; cursor: pointer; }
 .jv-lined .big { margin: 0; font-size: 32px; line-height: 40px; color: var(--jv-t1); }

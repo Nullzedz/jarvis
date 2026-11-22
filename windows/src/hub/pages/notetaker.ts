@@ -56,12 +56,14 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
 
     const lined = h("div", { class: "jv-lined" }, h("div", { class: "margin" }),
       h("p", { class: "cap", text: now.toLocaleDateString(language(), { weekday: "long", day: "numeric", month: "long" }) }));
-    for (const n of today.slice().reverse()) {
-      const [first, rest] = splitSummary(n.summary ?? (n.status === "ready" ? n.title : t("Writing the note…")));
+    // Only the two latest calls are written on the page, one short line each: a new one pushes the oldest off
+    // (they're all in Today below).
+    for (const n of today.slice(0, 2).reverse()) {
       const todos = n.todos.filter((x) => !x.done).length;
+      const what = n.status === "ready" ? n.title : n.status === "failed" ? t("couldn't be written") : t("Writing the note…");
       lined.append(h("p", { class: "ln serif" },
-        document.createTextNode(`${hm(n.start)}  `), h("span", { class: "hi", text: first }),
-        document.createTextNode(` ${todos ? t("{n} to-dos.", { n: todos }) : rest.split(/(?<=[.!?])\s/)[0] ?? ""} `),
+        h("span", { class: "tm", text: hm(n.start) }), h("span", { class: "hi", text: what }),
+        ...(todos ? [h("span", { class: "td", text: t("{n} to-dos.", { n: todos }) })] : []),
         h("button", { class: "open", text: `${t("Open note")} ›`, onclick: () => go({ kind: "note", id: n.id }) })));
     }
     lined.append(
