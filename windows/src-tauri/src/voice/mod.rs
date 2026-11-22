@@ -80,7 +80,10 @@ pub fn requirements_met() -> bool {
 /// Starts or stops listening to follow the preference.
 pub fn sync(app: &AppHandle) {
     // JARVIS: voice training listens too, even with « Hey JARVIS » off.
-    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice) || print::training_active();
+    // And the JARVIS page's microphone, while that page is open, even with background listening off.
+    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice)
+        || print::training_active()
+        || IN_APP.load(Ordering::Relaxed);
     let mut running = RUNNING.lock().unwrap();
     match (wanted && requirements_met(), running.is_some()) {
         (true, false) => {
@@ -133,19 +136,31 @@ static LEVEL_WATCHED: AtomicBool = AtomicBool::new(false);
 /// The JARVIS page's microphone button: a tap of the talk keys (hands-free; again, it stops).
 static MIC_TAP: AtomicBool = AtomicBool::new(false);
 
-/// False when his voice is off (nothing listens): the page says how to turn it on.
+/// The JARVIS page is open and you pressed its microphone: his voice runs while it stays open,
+/// even with background listening (« Hey JARVIS ») off.
+static IN_APP: AtomicBool = AtomicBool::new(false);
+
+/// "ok", or "model" when the voice model isn't downloaded yet (nothing can hear you).
 #[tauri::command]
-pub fn voice_tap() -> bool {
-    if RUNNING.lock().map(|r| r.is_none()).unwrap_or(true) {
-        return false;
+pub fn voice_tap(app: AppHandle) -> String {
+    if !requirements_met() {
+        return "model".into();
+    }
+    if !IN_APP.swap(true, Ordering::Relaxed) {
+        sync(&app);
     }
     MIC_TAP.store(true, Ordering::Relaxed);
-    true
+    "ok".into()
 }
 
+/// The JARVIS page shows (`on`) or is left: your voice's level for its waveform; leaving it, the
+/// microphone it opened closes again unless background listening is on.
 #[tauri::command]
-pub fn voice_level_watch(on: bool) {
+pub fn voice_level_watch(app: AppHandle, on: bool) {
     LEVEL_WATCHED.store(on, Ordering::Relaxed);
+    if !on && IN_APP.swap(false, Ordering::Relaxed) {
+        sync(&app);
+    }
 }
 
 // ── JARVIS: push-to-talk (talk.rs) ─────────────────────────────────────────────

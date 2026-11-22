@@ -121,8 +121,8 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   };
   mic.addEventListener("click", async () => {
     const was = mic.classList.contains("on");
-    if (!(await Bridge.voiceTap())) {
-      heard.textContent = t("Turn on listening on the Hey JARVIS tab to talk to him.");
+    if ((await Bridge.voiceTap()) !== "ok") {
+      heard.textContent = t("He can't hear you yet: set up his voice on the Hey JARVIS tab.");
       return;
     }
     listening(!was);

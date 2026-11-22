@@ -10669,20 +10669,20 @@
       "tr": "JARVIS ile konuş",
       "zh-Hans": "和 JARVIS 说话"
     },
-    "Turn on listening on the Hey JARVIS tab to talk to him.": {
-      "ar": "فعّل الاستماع في تبويب Hey JARVIS للتحدث إليه.",
-      "bn": "তার সাথে কথা বলতে Hey JARVIS ট্যাবে শোনা চালু করুন।",
-      "de": "Schalte das Zuhören im Tab Hey JARVIS ein, um mit ihm zu sprechen.",
-      "es": "Activa la escucha en la pestaña Hey JARVIS para hablar con él.",
-      "fr": "Activez l'écoute dans l'onglet Hey JARVIS pour lui parler.",
-      "hi": "उससे बात करने के लिए Hey JARVIS टैब में सुनना चालू करें।",
-      "id": "Aktifkan mendengarkan di tab Hey JARVIS untuk berbicara dengannya.",
-      "ja": "話しかけるには Hey JARVIS タブで聞き取りをオンにしてください。",
-      "ko": "대화하려면 Hey JARVIS 탭에서 듣기를 켜세요.",
-      "pt-BR": "Ative a escuta na aba Hey JARVIS para falar com ele.",
-      "ru": "Включите прослушивание на вкладке Hey JARVIS, чтобы говорить с ним.",
-      "tr": "Onunla konuşmak için Hey JARVIS sekmesinde dinlemeyi açın.",
-      "zh-Hans": "在 Hey JARVIS 标签页打开聆听，才能和他说话。"
+    "He can't hear you yet: set up his voice on the Hey JARVIS tab.": {
+      "ar": "لا يستطيع سماعك بعد: اضبط صوته في تبويب Hey JARVIS.",
+      "bn": "সে এখনও আপনাকে শুনতে পায় না: Hey JARVIS ট্যাবে তার ভয়েস সেট করুন।",
+      "de": "Er kann dich noch nicht hören: Richte seine Stimme im Tab Hey JARVIS ein.",
+      "es": "Aún no puede oírte: configura su voz en la pestaña Hey JARVIS.",
+      "fr": "Il ne vous entend pas encore : configurez sa voix dans l'onglet Hey JARVIS.",
+      "hi": "वह अभी आपको सुन नहीं सकता: Hey JARVIS टैब में उसकी आवाज़ सेट करें।",
+      "id": "Ia belum bisa mendengar Anda: atur suaranya di tab Hey JARVIS.",
+      "ja": "まだ聞き取れません。Hey JARVIS タブで音声を設定してください。",
+      "ko": "아직 들을 수 없습니다. Hey JARVIS 탭에서 음성을 설정하세요.",
+      "pt-BR": "Ele ainda não consegue ouvir você: configure a voz dele na aba Hey JARVIS.",
+      "ru": "Он вас пока не слышит: настройте его голос на вкладке Hey JARVIS.",
+      "tr": "Henüz sizi duyamıyor: Hey JARVIS sekmesinde sesini ayarlayın.",
+      "zh-Hans": "他还听不到你：请在 Hey JARVIS 标签页设置他的语音。"
     }
   }
 }

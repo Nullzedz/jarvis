@@ -263,13 +263,14 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-heard { margin: 16px 0 0; font-size: 15px; color: #e5e5ea; text-align: center; max-width: 34ch; }
 .jv-glow .foot { width: 100%; }
 .jv-glow .foot > .cap { margin: 0 0 8px; }
-.jv-voicecard { width: 100%; display: flex; align-items: center; gap: 10px; background: #1c1c1e; border: 0; border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 2px var(--jv-blue);
+.jv-talk .jv-voicecard { width: 100%; display: flex; align-items: center; gap: 10px; background: #1c1c1e; border: 0; border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 2px var(--jv-blue);
   text-align: left; color: var(--jv-t1); font: inherit; cursor: pointer; }
 .jv-voicecard .play { width: 28px; height: 28px; border-radius: 50%; background: #2c2c2e; display: grid; place-items: center; font-size: 10px; flex: none; }
 .jv-voicecard .x { flex: 1; min-width: 0; }
 .jv-voicecard .nm { margin: 0; font-weight: 500; }
 .jv-voicecard .cap, .jv-glow .cap { margin: 0; font-size: 12px; color: var(--jv-t2); }
-.jv-onlyme { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 12px 2px 0; border: 0; background: none; color: var(--jv-t1); font: 14px var(--font); cursor: pointer; }
+.jv-talk .jv-onlyme { width: 100%; border-radius: 0; box-shadow: none; display: flex; align-items: center; justify-content: space-between; padding: 12px 2px 0; border: 0; background: none; color: var(--jv-t1); font: 14px var(--font); cursor: pointer; }
+.jv-talk .jv-onlyme:hover, .jv-talk .jv-onlyme:active { background: none; box-shadow: none; }
 .jv-switch { width: 40px; height: 24px; border-radius: 999px; background: #3a3a3c; position: relative; transition: background .2s ease; flex: none; }
 .jv-switch i { position: absolute; left: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s var(--jv-ease); }
 .jv-switch.on { background: #30d158; }
@@ -289,7 +290,7 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-talkask { display: flex; align-items: center; gap: 12px; background: #1c1c1e; border-radius: 999px; padding: 8px 8px 8px 20px; margin-top: 14px; }
 .jv-talkask .q { flex: 1; background: none; border: 0; outline: none; color: var(--jv-t1); font: 15px var(--font); }
 .jv-talkask .talk { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--jv-blue); display: grid; place-items: center; cursor: pointer; }
-.jv-talkask .talk { color: #fff; transition: background .2s ease, transform .15s var(--jv-ease); }
+.jv-talkask .talk { padding: 0; color: #fff; transition: background .2s ease, transform .15s var(--jv-ease); }
 .jv-talkask .talk svg { width: 17px; height: 17px; fill: currentColor; }
 .jv-talkask .talk:active { transform: scale(.92); }
 .jv-talkask .talk.on { background: #ff453a; animation: jv-mic 1.4s ease-in-out infinite; }
