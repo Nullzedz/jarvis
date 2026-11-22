@@ -8,8 +8,10 @@ import { t } from "../i18n/i18n";
 import { Bridge } from "../core/bridge";
 import { visor } from "../theme/theme";
 
-const NEAR_TOP = 56; // px from the top where the dots come out
-const CORNER_W = 240; // and from the left: his corner, not the whole top edge
+// Where the dots come out: his visor itself (28 px in, 36 px wide), with a little margin, so the
+// section tabs just right of it (Sessions…) never open them on the way past.
+const NEAR_TOP = 64; // px from the top
+const CORNER_W = 76; // px from the left
 
 export function windowControls(): HTMLElement {
   const face = visor(36);

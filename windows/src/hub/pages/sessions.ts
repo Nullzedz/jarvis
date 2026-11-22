@@ -72,7 +72,18 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
   const eye = el("rect", { x: C.x - 16, y: C.y - 2.5, width: 32, height: 5, rx: 2.5, fill: "#0a84ff" });
   eye.append(el("animateTransform", { attributeName: "transform", type: "translate", values: "0 0;0 0;-4 0;-4 0;4 0;4 0;0 0", keyTimes: "0;.18;.24;.4;.46;.62;.68", dur: "7s", repeatCount: "indefinite" }));
   const planets = el("g");
-  svg.append(rings[2], rings[1], rings[0], ...labels, hint, defs,
+  // Space: little white specks, a few of them twinkling (the same sky every time).
+  const sky = el("g", { class: "jv-stars", "aria-hidden": "true" });
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  for (let i = 0; i < 110; i++) {
+    const x = rnd() * 900, y = rnd() * 420;
+    if (Math.hypot(x - C.x, (y - C.y) / SQ) < 60) continue; // none on him
+    const star = el("circle", { cx: x.toFixed(1), cy: y.toFixed(1), r: (0.4 + rnd() * 0.9).toFixed(2), fill: "#fff", opacity: (0.15 + rnd() * 0.55).toFixed(2) });
+    if (i % 9 === 0) star.append(el("animate", { attributeName: "opacity", values: "0.15;0.9;0.15", dur: `${(3 + rnd() * 4).toFixed(1)}s`, begin: `${(rnd() * 4).toFixed(1)}s`, repeatCount: "indefinite" }));
+    sky.append(star);
+  }
+  svg.append(sky, rings[2], rings[1], rings[0], ...labels, hint, defs,
     el("rect", { x: C.x - 36, y: C.y - 25, width: 72, height: 50, rx: 17, fill: "url(#jvAoBody)" }),
     el("path", { d: `M${C.x - 18} ${C.y - 24.5} H${C.x + 18}`, stroke: "#fff", "stroke-width": 1.2, "stroke-linecap": "round" }),
     el("rect", { x: C.x - 22.5, y: C.y - 5, width: 45, height: 10, rx: 5, fill: "url(#jvAoSlot)", stroke: "#c9cdd4", "stroke-width": 0.8 }),
@@ -305,7 +316,10 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
   const off = onEvent<AgentRow[]>(AGENTS_SNAPSHOT, (r) => { rows = Array.isArray(r) ? r : []; paint(); });
   void off.then(() => emitToWindow("island", AGENTS_WANTED));
   const tick = window.setInterval(paint, 30_000);
+  // Space is black, as in the demo: the whole panel, while this page shows.
+  document.body.classList.add("jv-space");
   ctx.onLeave = () => {
+    document.body.classList.remove("jv-space");
     cancelAnimationFrame(raf);
     window.clearInterval(tick);
     void off.then((f) => f());

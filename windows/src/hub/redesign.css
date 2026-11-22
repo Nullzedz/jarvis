@@ -11,7 +11,7 @@ body.hub-window { background: var(--jv-bg); color: var(--jv-t1); }
   /* Closing is quicker than opening (the open states below set .32s). */
   transition: width .2s var(--jv-ease), box-shadow .2s ease, transform .45s var(--jv-ease), opacity .3s ease;
 }
-.jv-rail:hover { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
+.jv-rail.open { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
 body.at-home .jv-rail { transform: translateX(-110px); opacity: 0; pointer-events: none; }
 .jv-rlogo { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 4px; margin-bottom: 8px; white-space: nowrap; font-weight: 600; font-size: 14px; }
 .jv-ri {
@@ -22,14 +22,14 @@ body.at-home .jv-rail { transform: translateX(-110px); opacity: 0; pointer-event
 .jv-ri.on { background: var(--jv-s2); color: var(--jv-t1); }
 /* Colour fades in as the sidebar opens, and is gone at once when it closes: nothing to flicker. */
 .jv-ri .g { width: 32px; height: 32px; flex: none; border-radius: 9px; display: grid; place-items: center; transition: none; }
-.jv-rail:hover .jv-ri .g, body.wc-open:not(.at-home) .jv-rail .jv-ri .g { transition: background .2s ease, color .2s ease; }
+.jv-rail.open .jv-ri .g, body.wc-open:not(.at-home) .jv-rail .jv-ri .g { transition: background .2s ease, color .2s ease; }
 .jv-ri .g svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.jv-rail:hover .jv-ri .g { background: var(--c); color: #fff; }
+.jv-rail.open .jv-ri .g { background: var(--c); color: #fff; }
 .jv-rail .n { font-size: 13px; opacity: 0; transform: translateX(-6px); transition: none; }
-.jv-rail:hover .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
+.jv-rail.open .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
 .jv-rail .spacer { flex: 1 1 auto; }
 .jv-rail .hub-status { padding: 4px 8px; white-space: nowrap; overflow: hidden; }
-.jv-rail:not(:hover) .hub-status span { opacity: 0; }
+.jv-rail:not(.open) .hub-status span { opacity: 0; }
 
 /* The panel sits beside the closed sidebar; the front page takes the whole window. */
 body.hub-window #hub .hub-panel { margin-left: 92px; transition: margin .45s var(--jv-ease), background .3s ease; }
@@ -213,6 +213,8 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-hometile b.warn { color: #ff9f0a; }
 .jv-conn .n { margin-left: auto; text-align: right; flex: none; }
 /* ── Agents · Sessions (#65): the demo's orbit, approval bar and card stack ── */
+body.hub-window.jv-space #hub .hub-panel { background: #000; }
+@media (prefers-reduced-motion: reduce) { .jv-stars animate { display: none; } }
 .jv-ahero { height: calc(100vh - 110px); min-height: 520px; display: flex; flex-direction: column; }
 .jv-ahero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .jv-atitle { margin: 0; font-size: 24px; font-weight: 600; color: var(--jv-t1); }
