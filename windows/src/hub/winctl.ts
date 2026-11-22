@@ -50,48 +50,26 @@ export function windowControls(): HTMLElement {
       if (r && !r.matches(":hover")) r.classList.remove("open");
     }
   };
-  // Open near his corner only, not along the whole top edge; once open they stay while
-  // the pointer is on him, the dots or the sidebar they opened, and close as soon as it leaves.
   const rail = () => document.querySelector(".jv-rail");
-  // To open, the pointer has to settle on his visor itself (not just pass the corner):
-  // 150 ms there, or a slow move on it. Once open, the dots, him or the sidebar keep them.
-  const SETTLE_MS = 150, SLOW = 0.4; // px per ms
-  let settle = 0;
-  let last: { x: number; y: number; t: number } | null = null;
+  // They open the moment the pointer is on his visor itself (only there: the corner around him
+  // and the tabs beside it never open them). Once open, the dots, him or the sidebar keep them.
   const onFace = (x: number, y: number) => {
     const r = face.getBoundingClientRect();
     return x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 4 && y <= r.bottom + 4 && y < NEAR_TOP && x < CORNER_W;
   };
   window.addEventListener?.("mousemove", (e) => {
-    const now = performance.now();
     const isOpen = wc.classList.contains("open");
     if (isOpen) {
       const keep = onFace(e.clientX, e.clientY) || wc.matches(":hover") || !!rail()?.matches(":hover");
       if (!keep) open(false);
-      last = null;
       return;
     }
-    // Coming from the open sidebar: straight to the dots, nothing closes in between.
-    if (onFace(e.clientX, e.clientY) && rail()?.classList.contains("open")) {
-      window.clearTimeout(settle);
-      open(true);
-      return;
-    }
-    if (!onFace(e.clientX, e.clientY)) {
-      window.clearTimeout(settle);
-      settle = 0;
-      last = null;
-      return;
-    }
-    const slow = last && now > last.t && Math.hypot(e.clientX - last.x, e.clientY - last.y) / (now - last.t) < SLOW;
-    last = { x: e.clientX, y: e.clientY, t: now };
-    if (slow) { window.clearTimeout(settle); open(true); return; }
-    window.clearTimeout(settle);
-    settle = window.setTimeout(() => open(true), SETTLE_MS);
+    if (!onFace(e.clientX, e.clientY)) return;
+    open(true);
   });
   // Leaving the window (towards its edge, say) sends no more moves: close then too.
-  document.addEventListener?.("mouseout", (e) => { if (!(e as MouseEvent).relatedTarget) { window.clearTimeout(settle); open(false); } });
-  window.addEventListener?.("blur", () => { window.clearTimeout(settle); open(false); });
+  document.addEventListener?.("mouseout", (e) => { if (!(e as MouseEvent).relatedTarget) open(false); });
+  window.addEventListener?.("blur", () => open(false));
 
   return h("div", { class: "jv-winctl" }, edge, wc);
 }
