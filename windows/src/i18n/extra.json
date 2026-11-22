@@ -12420,6 +12420,396 @@
       "ru": "Её значок на острове",
       "tr": "Adadaki hapı",
       "zh-Hans": "它在灵动岛中的胶囊"
+    },
+    "Always spelled this way": {
+      "ar": "تُكتب دائمًا هكذا",
+      "bn": "সবসময় এভাবে বানান হয়",
+      "de": "Immer so geschrieben",
+      "es": "Siempre se escribe así",
+      "fr": "Toujours écrit ainsi",
+      "hi": "हमेशा ऐसे लिखा जाता है",
+      "id": "Selalu ditulis begini",
+      "ja": "常にこの表記",
+      "ko": "항상 이렇게 표기",
+      "pt-BR": "Sempre escrito assim",
+      "ru": "Всегда пишется так",
+      "tr": "Her zaman böyle yazılır",
+      "zh-Hans": "始终这样拼写"
+    },
+    "Heard": {
+      "ar": "مسموع",
+      "bn": "শোনা",
+      "de": "Gehört",
+      "es": "Oído",
+      "fr": "Entendu",
+      "hi": "सुना गया",
+      "id": "Terdengar",
+      "ja": "聞こえた語",
+      "ko": "들린 말",
+      "pt-BR": "Ouvido",
+      "ru": "Услышано",
+      "tr": "Duyulan",
+      "zh-Hans": "听到的"
+    },
+    "Heard as “{0}”": {
+      "ar": "يُسمع كـ “{0}”",
+      "bn": "“{0}” হিসেবে শোনা যায়",
+      "de": "Gehört als „{0}“",
+      "es": "Se oye como “{0}”",
+      "fr": "Entendu comme « {0} »",
+      "hi": "“{0}” सुना जाता है",
+      "id": "Terdengar sebagai “{0}”",
+      "ja": "「{0}」と聞こえる",
+      "ko": "“{0}”(으)로 들림",
+      "pt-BR": "Ouvido como “{0}”",
+      "ru": "Слышится как «{0}»",
+      "tr": "“{0}” olarak duyuluyor",
+      "zh-Hans": "听成“{0}”"
+    },
+    "No app uses it yet": {
+      "ar": "لا يستخدمه أي تطبيق بعد",
+      "bn": "এখনো কোনো অ্যাপ এটি ব্যবহার করে না",
+      "de": "Noch keine App nutzt ihn",
+      "es": "Ninguna app lo usa todavía",
+      "fr": "Aucune app ne l'utilise encore",
+      "hi": "अभी कोई ऐप इसका उपयोग नहीं करता",
+      "id": "Belum ada aplikasi yang memakainya",
+      "ja": "まだ使っているアプリはありません",
+      "ko": "아직 사용하는 앱이 없어요",
+      "pt-BR": "Nenhum app usa ainda",
+      "ru": "Пока ни одно приложение",
+      "tr": "Henüz kullanan uygulama yok",
+      "zh-Hans": "还没有应用使用"
+    },
+    "No match. Press + to add “{0}”.": {
+      "ar": "لا تطابق. اضغط + لإضافة “{0}”.",
+      "bn": "মিল নেই। “{0}” যোগ করতে + চাপুন।",
+      "de": "Kein Treffer. Drück +, um „{0}“ hinzuzufügen.",
+      "es": "Sin resultados. Pulsa + para añadir “{0}”.",
+      "fr": "Aucun résultat. Appuyez sur + pour ajouter « {0} ».",
+      "hi": "कोई मेल नहीं। “{0}” जोड़ने के लिए + दबाएँ।",
+      "id": "Tidak ada. Tekan + untuk menambah “{0}”.",
+      "ja": "一致なし。+ で「{0}」を追加。",
+      "ko": "일치 항목 없음. +를 눌러 “{0}” 추가.",
+      "pt-BR": "Nada encontrado. Pressione + para adicionar “{0}”.",
+      "ru": "Нет совпадений. Нажмите +, чтобы добавить «{0}».",
+      "tr": "Eşleşme yok. “{0}” eklemek için + basın.",
+      "zh-Hans": "无匹配。按 + 添加“{0}”。"
+    },
+    "Search a style": {
+      "ar": "ابحث عن نمط",
+      "bn": "একটি স্টাইল খুঁজুন",
+      "de": "Stil suchen",
+      "es": "Buscar un estilo",
+      "fr": "Chercher un style",
+      "hi": "स्टाइल खोजें",
+      "id": "Cari gaya",
+      "ja": "スタイルを検索",
+      "ko": "스타일 검색",
+      "pt-BR": "Buscar um estilo",
+      "ru": "Найти стиль",
+      "tr": "Stil ara",
+      "zh-Hans": "搜索风格"
+    },
+    "Search or add a snippet": {
+      "ar": "ابحث أو أضف مقتطفًا",
+      "bn": "স্নিপেট খুঁজুন বা যোগ করুন",
+      "de": "Snippet suchen oder hinzufügen",
+      "es": "Buscar o añadir un fragmento",
+      "fr": "Chercher ou ajouter un raccourci",
+      "hi": "स्निपेट खोजें या जोड़ें",
+      "id": "Cari atau tambah cuplikan",
+      "ja": "スニペットを検索・追加",
+      "ko": "스니펫 검색 또는 추가",
+      "pt-BR": "Buscar ou adicionar um trecho",
+      "ru": "Найти или добавить сниппет",
+      "tr": "Parçacık ara veya ekle",
+      "zh-Hans": "搜索或添加片段"
+    },
+    "Search or add a word (heard → written)": {
+      "ar": "ابحث أو أضف كلمة (مسموع → مكتوب)",
+      "bn": "শব্দ খুঁজুন বা যোগ করুন (শোনা → লেখা)",
+      "de": "Wort suchen oder hinzufügen (gehört → geschrieben)",
+      "es": "Buscar o añadir una palabra (oído → escrito)",
+      "fr": "Chercher ou ajouter un mot (entendu → écrit)",
+      "hi": "शब्द खोजें या जोड़ें (सुना → लिखा)",
+      "id": "Cari atau tambah kata (terdengar → ditulis)",
+      "ja": "単語を検索・追加（聞こえた語 → 表記）",
+      "ko": "단어 검색 또는 추가 (들린 말 → 표기)",
+      "pt-BR": "Buscar ou adicionar uma palavra (ouvido → escrito)",
+      "ru": "Найти или добавить слово (услышано → написано)",
+      "tr": "Kelime ara veya ekle (duyulan → yazılan)",
+      "zh-Hans": "搜索或添加词（听到 → 写成）"
+    },
+    "Use this style": {
+      "ar": "استخدم هذا النمط",
+      "bn": "এই স্টাইল ব্যবহার করুন",
+      "de": "Diesen Stil nutzen",
+      "es": "Usar este estilo",
+      "fr": "Utiliser ce style",
+      "hi": "यह स्टाइल इस्तेमाल करें",
+      "id": "Pakai gaya ini",
+      "ja": "このスタイルを使う",
+      "ko": "이 스타일 사용",
+      "pt-BR": "Usar este estilo",
+      "ru": "Использовать этот стиль",
+      "tr": "Bu stili kullan",
+      "zh-Hans": "使用此风格"
+    },
+    "Used in": {
+      "ar": "مستخدم في",
+      "bn": "যেখানে ব্যবহৃত",
+      "de": "Genutzt in",
+      "es": "Se usa en",
+      "fr": "Utilisé dans",
+      "hi": "इसमें इस्तेमाल",
+      "id": "Dipakai di",
+      "ja": "使用中のアプリ",
+      "ko": "사용 중인 앱",
+      "pt-BR": "Usado em",
+      "ru": "Используется в",
+      "tr": "Kullanıldığı yer",
+      "zh-Hans": "用于"
+    },
+    "Used in every other app": {
+      "ar": "مستخدم في كل التطبيقات الأخرى",
+      "bn": "অন্য সব অ্যাপে ব্যবহৃত",
+      "de": "In allen anderen Apps genutzt",
+      "es": "Se usa en todas las demás apps",
+      "fr": "Utilisé dans toutes les autres apps",
+      "hi": "बाकी सभी ऐप में इस्तेमाल",
+      "id": "Dipakai di semua aplikasi lain",
+      "ja": "ほかのすべてのアプリで使用",
+      "ko": "다른 모든 앱에서 사용",
+      "pt-BR": "Usado em todos os outros apps",
+      "ru": "Используется во всех остальных приложениях",
+      "tr": "Diğer tüm uygulamalarda kullanılır",
+      "zh-Hans": "用于其他所有应用"
+    },
+    "When JARVIS hears “{0}”, he writes “{1}”.": {
+      "ar": "عندما يسمع JARVIS “{0}” يكتب “{1}”.",
+      "bn": "JARVIS “{0}” শুনলে “{1}” লেখে।",
+      "de": "Wenn JARVIS „{0}“ hört, schreibt er „{1}“.",
+      "es": "Cuando JARVIS oye “{0}”, escribe “{1}”.",
+      "fr": "Quand JARVIS entend « {0} », il écrit « {1} ».",
+      "hi": "जब JARVIS “{0}” सुनता है, वह “{1}” लिखता है।",
+      "id": "Saat JARVIS mendengar “{0}”, ia menulis “{1}”.",
+      "ja": "JARVIS は「{0}」を聞くと「{1}」と書きます。",
+      "ko": "JARVIS는 “{0}”을(를) 들으면 “{1}”(이)라고 써요.",
+      "pt-BR": "Quando o JARVIS ouve “{0}”, escreve “{1}”.",
+      "ru": "Когда JARVIS слышит «{0}», он пишет «{1}».",
+      "tr": "JARVIS “{0}” duyunca “{1}” yazar.",
+      "zh-Hans": "JARVIS 听到“{0}”时会写成“{1}”。"
+    },
+    "You say: “{0}”": {
+      "ar": "تقول: “{0}”",
+      "bn": "আপনি বলেন: “{0}”",
+      "de": "Du sagst: „{0}“",
+      "es": "Dices: “{0}”",
+      "fr": "Vous dites : « {0} »",
+      "hi": "आप कहते हैं: “{0}”",
+      "id": "Anda bilang: “{0}”",
+      "ja": "あなたの発話：「{0}」",
+      "ko": "말한 내용: “{0}”",
+      "pt-BR": "Você diz: “{0}”",
+      "ru": "Вы говорите: «{0}»",
+      "tr": "Söylediğiniz: “{0}”",
+      "zh-Hans": "你说：“{0}”"
+    },
+    "types": {
+      "ar": "يكتب",
+      "bn": "লেখে",
+      "de": "tippt",
+      "es": "escribe",
+      "fr": "tape",
+      "hi": "लिखता है",
+      "id": "mengetik",
+      "ja": "を入力",
+      "ko": "입력",
+      "pt-BR": "digita",
+      "ru": "печатает",
+      "tr": "yazar",
+      "zh-Hans": "输入"
+    },
+    "{count} snippets": {
+      "ar": {
+        "other": "{count} مقتطف"
+      },
+      "bn": {
+        "other": "{count}টি স্নিপেট"
+      },
+      "de": {
+        "one": "{count} Snippet",
+        "other": "{count} Snippets"
+      },
+      "es": {
+        "one": "{count} fragmento",
+        "other": "{count} fragmentos"
+      },
+      "fr": {
+        "one": "{count} raccourci",
+        "other": "{count} raccourcis"
+      },
+      "hi": {
+        "other": "{count} स्निपेट"
+      },
+      "id": {
+        "other": "{count} cuplikan"
+      },
+      "ja": {
+        "other": "{count} 件のスニペット"
+      },
+      "ko": {
+        "other": "스니펫 {count}개"
+      },
+      "pt-BR": {
+        "one": "{count} trecho",
+        "other": "{count} trechos"
+      },
+      "ru": {
+        "other": "Сниппетов: {count}"
+      },
+      "tr": {
+        "other": "{count} parçacık"
+      },
+      "zh-Hans": {
+        "other": "{count} 个片段"
+      }
+    },
+    "{count} styles": {
+      "ar": {
+        "other": "{count} أنماط"
+      },
+      "bn": {
+        "other": "{count}টি স্টাইল"
+      },
+      "de": {
+        "one": "{count} Stil",
+        "other": "{count} Stile"
+      },
+      "es": {
+        "one": "{count} estilo",
+        "other": "{count} estilos"
+      },
+      "fr": {
+        "one": "{count} style",
+        "other": "{count} styles"
+      },
+      "hi": {
+        "other": "{count} स्टाइल"
+      },
+      "id": {
+        "other": "{count} gaya"
+      },
+      "ja": {
+        "other": "{count} 個のスタイル"
+      },
+      "ko": {
+        "other": "스타일 {count}개"
+      },
+      "pt-BR": {
+        "one": "{count} estilo",
+        "other": "{count} estilos"
+      },
+      "ru": {
+        "other": "Стилей: {count}"
+      },
+      "tr": {
+        "other": "{count} stil"
+      },
+      "zh-Hans": {
+        "other": "{count} 种风格"
+      }
+    },
+    "{count} times": {
+      "ar": {
+        "other": "{count} مرة"
+      },
+      "bn": {
+        "other": "{count} বার"
+      },
+      "de": {
+        "one": "{count}-mal",
+        "other": "{count}-mal"
+      },
+      "es": {
+        "one": "{count} vez",
+        "other": "{count} veces"
+      },
+      "fr": {
+        "one": "{count} fois",
+        "other": "{count} fois"
+      },
+      "hi": {
+        "other": "{count} बार"
+      },
+      "id": {
+        "other": "{count} kali"
+      },
+      "ja": {
+        "other": "{count} 回"
+      },
+      "ko": {
+        "other": "{count}번"
+      },
+      "pt-BR": {
+        "one": "{count} vez",
+        "other": "{count} vezes"
+      },
+      "ru": {
+        "other": "Раз: {count}"
+      },
+      "tr": {
+        "other": "{count} kez"
+      },
+      "zh-Hans": {
+        "other": "{count} 次"
+      }
+    },
+    "{count} words": {
+      "ar": {
+        "other": "{count} كلمة"
+      },
+      "bn": {
+        "other": "{count}টি শব্দ"
+      },
+      "de": {
+        "one": "{count} Wort",
+        "other": "{count} Wörter"
+      },
+      "es": {
+        "one": "{count} palabra",
+        "other": "{count} palabras"
+      },
+      "fr": {
+        "one": "{count} mot",
+        "other": "{count} mots"
+      },
+      "hi": {
+        "other": "{count} शब्द"
+      },
+      "id": {
+        "other": "{count} kata"
+      },
+      "ja": {
+        "other": "{count} 語"
+      },
+      "ko": {
+        "other": "단어 {count}개"
+      },
+      "pt-BR": {
+        "one": "{count} palavra",
+        "other": "{count} palavras"
+      },
+      "ru": {
+        "other": "Слов: {count}"
+      },
+      "tr": {
+        "other": "{count} kelime"
+      },
+      "zh-Hans": {
+        "other": "{count} 个词"
+      }
     }
   }
 }
