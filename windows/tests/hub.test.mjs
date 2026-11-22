@@ -97,7 +97,7 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
     assert.deepEqual(calls, [], "redrawing must not save settings or request data");
     buttons[railSections.findIndex((s) => s.id === "notes")].fire("click");
     await settle();
-    assert.equal(hub.current(), "dictation", "existing click listeners still work");
+    assert.equal(hub.current(), "notes", "existing click listeners still work (Notes opens on the Notetaker)");
   } finally {
     off();
   }
