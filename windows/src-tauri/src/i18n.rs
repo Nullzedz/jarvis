@@ -118,6 +118,26 @@ pub fn set_system(languages: Vec<String>) -> bool {
     std::mem::replace(&mut s.resolved, next) != next
 }
 
+/// The language shown now, by its English name ("English", "French"…), for instructions to a model.
+pub fn current_name() -> &'static str {
+    match current() {
+        "zh-Hans" => "Simplified Chinese",
+        "hi" => "Hindi",
+        "es" => "Spanish",
+        "ar" => "Arabic",
+        "fr" => "French",
+        "bn" => "Bengali",
+        "pt-BR" => "Brazilian Portuguese",
+        "ru" => "Russian",
+        "id" => "Indonesian",
+        "de" => "German",
+        "tr" => "Turkish",
+        "ko" => "Korean",
+        "ja" => "Japanese",
+        _ => "English",
+    }
+}
+
 /// The language shown now.
 pub fn current() -> &'static str {
     #[cfg(test)]
@@ -135,7 +155,13 @@ thread_local! {
 
 /// JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS.
 pub fn brand(text: &str) -> String {
-    text.replace("OK Coucou", "Hey JARVIS").replace("Coucou", "JARVIS").replace("Mochi", "JARVIS")
+    let out = text.replace("OK Coucou", "Hey JARVIS").replace("Coucou", "JARVIS").replace("Mochi", "JARVIS");
+    // coucou's English keys quote with French « »: English shows “ ”.
+    if current() == "en" {
+        out.replace("« ", "“").replace('«', "“").replace(" »", "”").replace('»', "”")
+    } else {
+        out
+    }
 }
 
 fn interpolate(text: &str, vars: &[(&str, &str)]) -> String {

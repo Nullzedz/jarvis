@@ -442,7 +442,7 @@ pub async fn decorate(query: &str) -> String {
     }
     let mut list = match outlook::run(outlook::list_script(20), TIMEOUT).await {
         Ok(v) => serde_json::from_value::<outlook::Listing>(v).unwrap_or_default().messages,
-        Err(e) => return format!("{query}\n\n<mail>Coucou could not read Outlook ({e}).</mail>"),
+        Err(e) => return format!("{query}\n\n<mail>JARVIS could not read Outlook ({e}).</mail>"),
     };
     list.sort_by(|a, b| b.date.cmp(&a.date));
     list.truncate(40);

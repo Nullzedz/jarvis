@@ -33,7 +33,7 @@ const CHAT_TIMEOUT: Duration = Duration::from_secs(180);
 const MAX_INLINE_TEXT: u64 = 200_000;
 
 /// The Gemini CLI policy that keeps a run off the web while it reads a file.
-const NO_WEB_POLICY: &str = "[[rule]]\ntoolName = [\"google_web_search\", \"web_fetch\"]\ndecision = \"deny\"\npriority = 900\ndenyMessage = \"No web while Coucou reads a file.\"\n";
+const NO_WEB_POLICY: &str = "[[rule]]\ntoolName = [\"google_web_search\", \"web_fetch\"]\ndecision = \"deny\"\npriority = 900\ndenyMessage = \"No web while JARVIS reads a file.\"\n";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cli {

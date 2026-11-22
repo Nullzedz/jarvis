@@ -115,7 +115,7 @@ pub fn agy_approvals_set_enabled(
     enabled: bool,
 ) -> Result<AgyApprovalsStatus, String> {
     if window.label() != crate::HUB_LABEL {
-        return Err("only the Coucou window may change this".into());
+        return Err("only the JARVIS window may change this".into());
     }
     let updated = {
         let mut current = shared.settings.lock().unwrap();
