@@ -504,6 +504,26 @@ button.jv-ntrow { cursor: pointer; }
 .jv-txbar .scrub i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: #f5f5f7; }
 .jv-txnote { margin: 10px 0 60px !important; text-align: center; }
 @media (prefers-reduced-motion: reduce) { .jv-lined .caret, .jv-recbtn .recdot.on, .jv-ntrec .live .dot { animation: none; } }
+/* The settings window's plain `button` rule (grey pill, lighter on hover, shrinks when pressed)
+   must not leak into the redesign's own buttons: each keeps its own look. */
+.jv-lyr .ly, .jv-lyr .ly:hover:not(:disabled), .jv-lyr .ly:active:not(:disabled),
+.jv-ntrow, .jv-ntrow:hover:not(:disabled), .jv-ntrow:active:not(:disabled),
+.jv-ntback, .jv-ntback:hover:not(:disabled), .jv-nttitle, .jv-nttitle:hover:not(:disabled),
+.jv-ntfoot .link, .jv-ntfoot .link:hover:not(:disabled), .jv-lined .ln .open, .jv-lined .ln .open:hover:not(:disabled),
+.jv-recbtn, .jv-recbtn:hover:not(:disabled), .jv-ntrec .stop, .jv-ntrec .stop:hover:not(:disabled),
+.jv-dict-full .back, .jv-dict-full .back:hover:not(:disabled), .jv-sub .back, .jv-sub .back:hover:not(:disabled),
+.jv-prefs .srow.drill, .jv-prefs .srow.drill:hover:not(:disabled) { background: none; border-radius: 0; }
+.jv-lyr .ly:active:not(:disabled) { transform: none; }
+.jv-lyr .ly:not(.on):active:not(:disabled) { transform: scale(.94); }
+.jv-ntrow:active:not(:disabled), .jv-prefs .srow.drill:active:not(:disabled) { transform: none; }
+button.jv-nttile:hover:not(:disabled) { background: #232325; }
+button.jv-nttile:active:not(:disabled) { transform: scale(.99); }
+.jv-dcol:hover:not(:disabled) { background: #1f1f22; }
+.jv-dhist:hover:not(:disabled) { background: #232325; }
+.jv-chipbtn:hover:not(:disabled) { background: #3a3a3c; }
+.jv-ntrow, .jv-lyr .ly { padding-left: 0; padding-right: 0; }
+.jv-lyr .ly { padding-top: 12px; padding-bottom: 12px; }
+.jv-ntrow { padding-top: 10px; padding-bottom: 10px; }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }

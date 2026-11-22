@@ -112,6 +112,9 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
   // ── Recording ──
   function drawRec() {
     const n = state.recording ? noteOf(state.recording) : null;
+    const recId = state.recording;
+    // When the call ends (here or anywhere else), its note opens: the transcript as it's written.
+    const ended = () => go(recId ? { kind: "note", id: recId } : { kind: "home" });
     const time = h("span", { text: "00:00" });
     const bars = Array.from({ length: 18 }, () => h("i"));
     const prev = h("p", { class: "prev serif" });
@@ -119,7 +122,7 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
     const who = h("p", { class: "cap who" });
     const fill = () => {
       const cur = state.recording ? noteOf(state.recording) : null;
-      if (!cur) { go({ kind: "home" }); return; }
+      if (!cur) { ended(); return; }
       time.textContent = clock((Date.now() - cur.start) / 1000);
       const lines = cur.lines;
       const last = lines[lines.length - 1], before = lines[lines.length - 2];
@@ -133,7 +136,7 @@ export async function notetakerPage(page: HTMLElement, ctx: HubContext) {
       h("div", { class: "top" }, back(t("Notetaker"), { kind: "home" }), h("span", { class: "live" }, h("span", { class: "dot" }), time)),
       h("p", { class: "cap meta", text: [n?.title, n ? people(n) : ""].filter(Boolean).join(" · ") }),
       h("div", { class: "wv" }, ...bars), prev, nowLine, who,
-      h("button", { class: "stop", "aria-label": t("Stop recording"), onclick: () => { void FlowBridge.stopNote(); window.setTimeout(() => go({ kind: "home" }), 300); } }, h("i"))));
+      h("button", { class: "stop", "aria-label": t("Stop recording"), onclick: () => { void FlowBridge.stopNote(); ended(); } }, h("i"))));
     fill();
     timer = window.setInterval(fill, 140);
   }
