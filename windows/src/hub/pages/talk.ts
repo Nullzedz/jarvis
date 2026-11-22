@@ -144,7 +144,17 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   void Bridge.hisWindows().then((w) => { drawn = w?.last ?? []; paint(); });
   const offs = [
     onEvent<Turn>("jarvis-turn", (x) => { turns.push(x); waiting = null; listening(false); paint(); }),
-    onEvent<string>("jarvis-heard", (q) => { listening(false); heard.textContent = `“${q}”`; }),
+    // What he heard: your bubble, and his "…" until he answers (the pill stays hidden for this).
+    onEvent<string>("jarvis-heard", (q) => {
+      listening(false);
+      heard.textContent = `“${q}”`;
+      waiting = h("div", { class: "jv-waiting" }, bubble("you", q), h("div", { class: "jv-bub him typing", text: "…" }));
+      paint();
+    }),
+    onEvent<string>("jarvis-missed", (why) => {
+      listening(false);
+      heard.textContent = why === "unclear" ? t("I didn't catch that. Try again, a little closer to the microphone.") : t("Say “Hey JARVIS”, or type to him.");
+    }),
     onEvent<{ last: HisWindow[] }>("his-windows", (w) => { drawn = w.last ?? []; paint(); }),
     onEvent<number>("voice-level", (level) => {
       const v = Math.max(0, Math.min(1, level));

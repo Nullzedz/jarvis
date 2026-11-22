@@ -127,6 +127,11 @@ pub fn restart(app: &AppHandle) {
 }
 
 fn show(app: &AppHandle, view: Option<VoiceView>) {
+    // Talking from the JARVIS page: the page shows it all, so the pill stays out of sight
+    // (it still speaks his answer).
+    if view.is_some() && PAGE_TAKE.load(Ordering::Relaxed) {
+        return;
+    }
     pill::update(app, |s| s.voice = view);
 }
 
@@ -135,6 +140,8 @@ static LEVEL_WATCHED: AtomicBool = AtomicBool::new(false);
 
 /// The JARVIS page's microphone button: a tap of the talk keys (hands-free; again, it stops).
 static MIC_TAP: AtomicBool = AtomicBool::new(false);
+/// The take (and its answer) began from the JARVIS page's microphone: the pill isn't shown.
+static PAGE_TAKE: AtomicBool = AtomicBool::new(false);
 
 /// The JARVIS page is open and you pressed its microphone: his voice runs while it stays open,
 /// even with background listening (« Hey JARVIS ») off.
@@ -214,7 +221,12 @@ fn reader() -> (mpsc::Sender<(u64, Vec<f32>, bool)>, mpsc::Receiver<(u64, String
         .spawn(move || {
             for (id, audio, last) in job_rx {
                 // As dictation reads it: the take as recorded, not amplified.
-                let text = speech::transcribe(&audio).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                let mut text = speech::transcribe(&audio).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                // A quiet microphone: Parakeet hears nothing in the take as recorded, so the
+                // question is read once more, louder (as voice training does).
+                if last && text.is_empty() && !audio.is_empty() {
+                    text = speech::transcribe(&wake::boost(&audio)).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                }
                 if out.send((id, text, last)).is_err() {
                     break;
                 }
@@ -303,6 +315,7 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         match talk.step(now, chord, other) {
             Some(talk::Event::Begin) => {
                 // A held Win or Alt, let go, would open the Start menu or the app's menu bar.
+                PAGE_TAKE.store(tapped, Ordering::Relaxed);
                 if !tapped && shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
@@ -460,6 +473,9 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         if why == "nothing said" {
             // Parakeet makes words up from silence: a take with no voice in it is dropped.
             crate::log::line(if done.follow_up { "voice: no follow-up" } else { "voice: talk keys, nothing said" });
+            if PAGE_TAKE.load(Ordering::Relaxed) && !done.follow_up {
+                let _ = app.emit_to("settings", "jarvis-missed", "nothing");
+            }
             // After an answer, the answer stays and fades on its own (hide_at).
             if !done.follow_up {
                 show(&app, None);
@@ -478,6 +494,9 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         let question = question.filter(|q| q.chars().any(char::is_alphanumeric));
         let Some(question) = question else {
             crate::log::line(format!("voice: talk keys ({why}), nothing understood"));
+            if PAGE_TAKE.load(Ordering::Relaxed) {
+                let _ = app.emit_to("settings", "jarvis-missed", "unclear");
+            }
             show(&app, None);
             continue;
         };
