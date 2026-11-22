@@ -95,6 +95,8 @@ export class Island {
   private bitLook: number | null = null;
   /** Step 7: the closed notch has shrunk round him and he sleeps (core/idle.ts fallsAsleep). */
   private asleep = false;
+  /** Sent to sleep with the shortcut (#82): he stays asleep, whatever runs, until woken. */
+  private sleepAsked = false;
   /** His z while asleep: inside the pill, in the room to his right, so it never hangs outside it. */
   private sleepZ = h("span", { id: "sleep-z", text: "z", "aria-hidden": "true" });
   private closedLife: number | null = null;
@@ -513,7 +515,7 @@ export class Island {
     if (mode === "hidden") this.updateClosed();
     else this.closedEl.classList.remove("on");
     // Opening wakes him at once.
-    if (mode !== "hidden") this.setAsleep(false);
+    if (mode !== "hidden") { this.sleepAsked = false; this.setAsleep(false); }
     this.scheduleClosedLife();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
@@ -1068,7 +1070,7 @@ export class Island {
     const withHim = State.mode === "hidden" && this.closedShows && closedIsland(State.settings.closedIsland) === "mochi";
     // A minute after the notch was last touched (hovered, clicked, opened or folded); music wakes
     // him too: he'd rather dance.
-    this.setAsleep(fallsAsleep((t - State.lastActivity) / 1000, calm, withHim));
+    this.setAsleep(this.sleepAsked || fallsAsleep((t - State.lastActivity) / 1000, calm, withHim));
     const phase: IdlePhase = calm ? idlePhase(life.seconds) : "awake";
     if (phase !== life.phase) {
       life.phase = phase;
@@ -1189,6 +1191,21 @@ export class Island {
   /** What the engine shows: asleep, his Sleeping; otherwise what's going on. */
   private engineState() {
     return this.asleep ? "sleeping" : State.effectiveState;
+  }
+
+  /** The Sleep shortcut (#82): asleep now, the island folded, until it's pressed again or opened. */
+  sleepToggle() {
+    if (this.asleep || this.sleepAsked) {
+      this.sleepAsked = false;
+      State.lastActivity = performance.now();
+      this.setAsleep(false);
+      return;
+    }
+    this.sleepAsked = true;
+    if (State.mode === "expanded") this.collapse();
+    this.engine.triggerEmote("yawn", 2.4);
+    this.wakeFor(2400);
+    window.setTimeout(() => { if (this.sleepAsked) this.setAsleep(true); }, 900);
   }
 
   /** Falls asleep or wakes: the closed pill shrinks round him or grows back, on the notch's curve. */

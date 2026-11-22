@@ -108,10 +108,17 @@ fn generic(vk: u32) -> Option<u32> {
 /// The key JARVIS presses himself so a held Win or Alt, let go, opens no menu.
 pub const MASK: u32 = 0xE8;
 
+/// The browser, volume, media and launch keys (0xA6–0xB7): never part of a shortcut, and some
+/// headsets and keyboard drivers leave one « held » for good (#82: Play/Pause, 0xB3, blocked Ask).
+fn is_media(vk: u32) -> bool {
+    (0xA6..=0xB7).contains(&vk)
+}
+
 /// Whether `vk` counts as « another key » for this shortcut: not one of its keys,
-/// not the generic twin of one of its modifiers, not a mouse button, not the mask.
+/// not the generic twin of one of its modifiers, not a mouse button, not the mask,
+/// not a media key.
 fn is_other(s: &Shortcut, vk: u32) -> bool {
-    vk >= 0x07 && vk != MASK && !s.vks.contains(&vk) && !s.vks.iter().any(|&k| generic(k) == Some(vk))
+    vk >= 0x07 && vk != MASK && !is_media(vk) && !s.vks.contains(&vk) && !s.vks.iter().any(|&k| generic(k) == Some(vk))
 }
 
 /// The shortcut held (every key down), and whether any other key is.
@@ -286,6 +293,15 @@ mod tests {
         }
         for vk in [0xA3, 0x12, 0x5B, 0x41] {
             assert!(is_other(&ask, vk), "{vk:#x}");
+        }
+    }
+
+    #[test]
+    fn a_media_key_left_held_never_blocks_a_shortcut() {
+        let ask = s(&[0xA2, 0xA0, 0x5A], &[true, true, false]);
+        // Play/Pause, Next, Volume up, Browser back.
+        for vk in [0xB3, 0xB0, 0xAF, 0xA6] {
+            assert!(!is_other(&ask, vk), "{vk:#x}");
         }
     }
 }

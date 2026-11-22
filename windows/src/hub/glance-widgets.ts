@@ -197,7 +197,7 @@ export function renderConnections(box: HTMLElement, rows: readonly ConnectionRow
   clear(box);
   const ranked = rankConnections(rows);
   const live = ranked.filter((r) => r.live).length;
-  const tiles = h("div", { class: "jv-tiles" });
+  const tiles = h("div", { class: "jv-hometiles" });
   for (const r of ranked.slice(0, 4)) {
     tiles.append(h("div", { class: `jv-hometile${r.live ? "" : " off"}` },
       h("span", { class: "dot", style: `background:${r.live ? r.color : "#636366"}` }),
