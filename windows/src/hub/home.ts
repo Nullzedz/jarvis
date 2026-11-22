@@ -135,7 +135,7 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
       h("p", { class: "jv-sub", text: date })),
   );
   const below = h("section", { class: "jv-below" }, glance(go));
-  const el = h("div", { class: "jv-home" }, h("div", { class: "jv-dots", "aria-hidden": "true" }), hero, below);
+  const el = h("div", { class: "jv-home" }, h("div", { class: "jv-texture", "aria-hidden": "true" }), hero, below);
 
   // The control layer, floating over the page (fixed, so it stays while you scroll).
   const tabs = h("nav", { class: "jv-tabbar", "aria-label": t("Home") });

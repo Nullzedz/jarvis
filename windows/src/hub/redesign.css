@@ -48,11 +48,14 @@ body.at-home .hub-scroll { padding: 0; }
 /* The page's column; .jv-home itself spans the window so the dots start on a whole pixel. */
 .jv-home > .jv-hero, .jv-home > .jv-below { max-width: 980px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
 /* The first screen is not flat black: a faint lift at the top, and printed dots that stay clear of him. No light. */
-.jv-home::before, .jv-dots { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100vh; pointer-events: none; }
+.jv-home::before, .jv-texture { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100vh; pointer-events: none; }
 .jv-home::before { background: linear-gradient(180deg, #0c0c0e 0%, #000 55%); }
-.jv-dots { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Crect x='13' y='13' width='2.4' height='2.4' rx='1.2' fill='%23fff' fill-opacity='.16'/%3E%3C/svg%3E") 0 0 / 28px 28px;
-  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 42%, transparent 18%, #000 75%);
-  mask-image: radial-gradient(ellipse 75% 70% at 50% 42%, transparent 18%, #000 75%); }
+.jv-texture { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28'%3E%3Crect x='13' y='13' width='2.4' height='2.4' rx='1.2' fill='%23fff' fill-opacity='.16'/%3E%3C/svg%3E") 0 0 / 28px 28px;
+  /* Clear around him, and fading into the black before the widgets below. */
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 42%, transparent 18%, #000 75%), linear-gradient(180deg, #000 55%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 42%, transparent 18%, #000 75%), linear-gradient(180deg, #000 55%, transparent 100%);
+  mask-composite: intersect; }
 .jv-hero { position: relative; height: 100vh; min-height: 560px; display: flex; flex-direction: column; padding: 0 0 120px; box-sizing: border-box; }
 .jv-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 /* Him, as Apple shows a product: alone, with a soft shadow on the floor. */
