@@ -82,7 +82,7 @@ export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = 
       : r.state === "finished" ? t("done {n} min ago", { n: mins }) : r.doing ?? (r.state === "idle" ? t("Ready") : t("Working"));
     const side = r.ask
       ? h("span", { class: "s ask", text: t("Needs you") })
-      : h("span", { class: "s", text: done ? t("Done") : mins < 1 ? t("just now") : t("{n} min", { n: mins }) });
+      : h("span", { class: "s", text: r.state === "idle" ? "" : done ? t("Done") : mins < 1 ? t("just now") : t("{n} min", { n: mins }) });
     list.append(h("div", { class: "jv-agrow" }, v,
       h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: what })), side));
   }
