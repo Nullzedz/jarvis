@@ -708,3 +708,45 @@ span.jv-mrb { opacity: .9; }
 .jv-schip button, .jv-schip button:hover:not(:disabled), .jv-schip button:active:not(:disabled) { background: none; border: 0; padding: 0 4px; color: var(--jv-t2); font-size: 15px; cursor: pointer; border-radius: 50%; transform: none; }
 .jv-schip button:hover:not(:disabled) { color: var(--jv-t1); }
 .jv-chipbtn.primary, .jv-chipbtn.primary:hover:not(:disabled) { background: var(--jv-blue); color: #fff; }
+
+/* ── Connections (#76): the demo's Apple Home tiles, one to one ── */
+.jv-connpg { padding-bottom: 60px; }
+.jv-connpg p { margin: 0; }
+.jv-connpg .cap { font-size: 13px; color: var(--jv-t2); }
+.jv-connpg .title { font-size: 26px; font-weight: 600; letter-spacing: -.01em; }
+.jv-ctop { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
+.jv-ctop .cap { margin-top: 4px; }
+.jv-rooms { display: flex; gap: 8px; margin-bottom: 22px; }
+.jv-rooms button, .jv-rooms button:hover:not(:disabled), .jv-rooms button:active:not(:disabled) { font: 13px var(--font); padding: 6px 15px; border-radius: 999px; background: var(--jv-s1); color: #aeaeb2; border: 0; cursor: pointer; transform: none; }
+.jv-rooms button.on, .jv-rooms button.on:hover:not(:disabled) { background: #f5f5f7; color: #000; font-weight: 500; }
+.jv-ctiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.jv-croom { grid-column: 1 / -1; font-size: 17px; font-weight: 600; margin: 14px 0 0 !important; }
+.jv-croom:first-child { margin-top: 0 !important; }
+.jv-croom .cap { font-weight: 400; font-size: 13px; }
+.jv-ht, .jv-ht:hover:not(:disabled), .jv-ht:active:not(:disabled) { border: 0; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 10px; min-height: 128px; background: #f2f2f7; color: #1c1c1e; text-align: left; font: 14px var(--font); cursor: pointer; transition: transform .12s ease; }
+.jv-ht:active:not(:disabled) { transform: scale(.97); }
+.jv-ht.off, .jv-ht.off:hover:not(:disabled), .jv-ht.off:active:not(:disabled) { background: var(--jv-s1); color: #f5f5f7; }
+.jv-ht:hover:not(:disabled) { filter: brightness(.96); } .jv-ht.off:hover:not(:disabled) { filter: brightness(1.15); }
+.jv-ht .ic, .jv-chead .ic { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 16px; font-weight: 600; flex: none; }
+.jv-ht .n { font-weight: 600; font-size: 15px; }
+.jv-ht .v { font-size: 13px; color: #6e6e73; margin-top: 2px !important; }
+.jv-ht.off .v { color: var(--jv-t2); } .jv-ht .v.act { color: var(--jv-orange); }
+.jv-connpg > .back, .jv-connpg > .back:hover:not(:disabled), .jv-connpg > .back:active:not(:disabled) { background: none; border: 0; padding: 0; margin-bottom: 14px; color: var(--jv-blue); font: 14px var(--font); cursor: pointer; border-radius: 0; transform: none; }
+.jv-chead { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.jv-chead .jv-ptitle { margin: 0; }
+.jv-csetup { max-width: 760px; background: var(--jv-s1); border-radius: 18px; padding: 18px 20px; }
+.jv-csetup > [data-int] { display: flex !important; flex-direction: column; gap: 14px !important; }
+.jv-csetup > [data-int] > div:first-child { min-width: 0 !important; padding: 0 0 14px !important; border-bottom: 1px solid var(--jv-s2); }
+.jv-csetup > section[data-int] { background: none; border: 0; padding: 0; margin: 0; }
+.jv-csetup .row { display: flex; align-items: center; gap: 10px; }
+.jv-csetup label { color: var(--jv-t2); font-size: 13px; }
+.jv-csetup input[type="text"], .jv-csetup input[type="password"], .jv-csetup input:not([type]) { background: var(--jv-s2); border: 0; border-radius: 10px; padding: 8px 12px; color: var(--jv-t1); font: 13px var(--font); outline: none; }
+.jv-csetup input:focus { box-shadow: 0 0 0 2px rgba(10,132,255,.5); }
+.jv-csetup button:not(.switch):not(.jv-sswitch) { font: 12.5px var(--font); color: #e5e5ea; background: #2c2c2e; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.jv-csetup button:not(.switch):hover:not(:disabled) { background: #3a3a3c; }
+.jv-csetup .switch { width: 40px; height: 24px; border-radius: 999px; flex: 0 0 40px; background: #3a3a3c; padding: 0; }
+.jv-csetup .switch::after { width: 20px; height: 20px; }
+.jv-csetup .switch.on { background: #30d158; }
+.jv-csetup .hint { font-size: 12.5px; color: var(--jv-t2); line-height: 1.45; }
+.jv-csetup h2 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+.jv-cnote { max-width: 760px; font-size: 12.5px; color: var(--jv-t2); margin-top: 12px !important; }

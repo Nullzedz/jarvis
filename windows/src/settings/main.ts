@@ -966,8 +966,9 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       });
     }
 
+    // JARVIS (#76): the Connections page takes each block into its tile's setup.
     list.append(
-      h("div", { style: "display:flex;gap:12px;align-items:flex-start" },
+      h("div", { style: "display:flex;gap:12px;align-items:flex-start", "data-int": def.id, "data-name": def.name, "data-color": def.color },
         h("div", { style: "display:flex;align-items:center;gap:8px;min-width:132px;padding-top:4px" },
           sw,
           colorDot(def, "", () => settings.pillColors, pickColor),
@@ -979,13 +980,14 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   }
 
   updateNote();
+  note.dataset.int = "note";
   return h("section", {}, h("h2", {}, h("span", { text: t("Integrations") })), note, list);
 }
 
 /** WhatsApp (experimental), under the other integrations: its pill is turned on from its own switch. */
 function whatsappSections(): HTMLElement[] {
   if (!availablePills().some((p) => p.id === WHATSAPP_ID)) return [];
-  return [whatsappSection({
+  const wa = whatsappSection({
     toggle,
     maxPills: MAX_ACTIVE,
     pillActive: () => settings.activeIntegrations.includes(WHATSAPP_ID),
@@ -1000,7 +1002,11 @@ function whatsappSections(): HTMLElement[] {
       }
       declaredChanged();
     },
-  })];
+  });
+  wa.dataset.int = WHATSAPP_ID;
+  wa.dataset.name = "WhatsApp";
+  wa.dataset.color = "#25D366";
+  return [wa];
 }
 
 // ── General section ───────────────────────────────────────────────────────────
