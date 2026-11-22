@@ -18,6 +18,9 @@ const DOCK_ICONS: Record<string, string> = {
   connections: "M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-10 0zM12 16v5",
   settings: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1",
   home: "M4 11l8-7 8 7M6 10v10h12V10",
+  // At a glance's own (jarvis-home.html): the plan's half-filled circle, the Notetaker's record dot.
+  plan: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 4a8 8 0 0 1 8 8h-8z",
+  notetaker: "M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z",
 };
 
 export function sectionIcon(id: string, size = 24): SVGSVGElement {
@@ -43,6 +46,48 @@ const DOCK: { id: string; name: () => string; color: string; to: Section["id"] }
   { id: "connections", name: () => t("Connections"), color: "#64d2ff", to: "connections" },
   { id: "settings", name: () => t("Settings"), color: "#3a3a3c", to: "settings" },
 ];
+
+/**
+ * "At a glance, sir." (step 1 of #57): one Apple-style widget per section under the front page,
+ * one to one with jarvis-home.html's bento: 4 columns, 190 px rows, 16 px gaps, radius 26; each
+ * headed by its coloured icon, its name and ›, and opening its section. Their insides come one by
+ * one in the next steps.
+ */
+const GLANCE: { id: string; name: () => string; color: string; to: Section["id"] | null; size: "wide" | "big" | "small" }[] = [
+  { id: "agents", name: () => t("Agents"), color: "#30d158", to: "agents", size: "big" },
+  { id: "jarvis", name: () => "JARVIS", color: "#bf5af2", to: "jarvis", size: "wide" },
+  { id: "plan", name: () => t("Claude plan"), color: "#3a3a3c", to: null, size: "small" },
+  { id: "notetaker", name: () => t("Notetaker"), color: "#ff453a", to: "notes", size: "small" },
+  { id: "mail", name: () => "Mail", color: "#0a84ff", to: "mail", size: "wide" },
+  { id: "notes", name: () => t("Dictation"), color: "#ff9f0a", to: "notes", size: "wide" },
+  { id: "windows", name: () => t("His windows"), color: "#5e5ce6", to: "jarvis", size: "wide" },
+  { id: "connections", name: () => t("Connections"), color: "#64d2ff", to: "connections", size: "wide" },
+];
+
+/** The widgets, each with an empty body (`data-body`) for its step to fill. */
+export function glance(go: (section: Section["id"]) => void): HTMLElement {
+  const bento = h("div", { class: "jv-bento" });
+  for (const w of GLANCE) {
+    const ic = h("span", { class: "ic" }, sectionIcon(w.id, 14));
+    ic.style.background = w.color;
+    const head = h("div", { class: "jv-wh" }, ic, h("span", { text: w.name() }), ...(w.to ? [h("span", { class: "go", text: "›" })] : []));
+    const card = h("div", { class: `jv-w ${w.size}`, "data-widget": w.id }, head, h("div", { class: "jv-wbody", "data-body": w.id }));
+    if (w.to) {
+      const to = w.to;
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.classList.add("opens");
+      card.addEventListener("click", () => go(to));
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter") go(to); });
+    }
+    bento.append(card);
+  }
+  return h("div", { class: "jv-glance" },
+    h("div", { class: "jv-glance-h" },
+      h("p", { class: "t" }, document.createTextNode(`${t("At a glance,")} `), h("span", { text: t("sir.") })),
+      h("p", { class: "s", text: t("Everything in one place. Press a widget to open it.") })),
+    bento);
+}
 
 const KEY_NAMES: Record<string, string> = { Control: "Ctrl", Shift: "⇧", Meta: "Win", Alt: "Alt" };
 /** ["ControlLeft", "ShiftLeft", "KeyZ"] → "Ctrl ⇧ Z". */
@@ -108,7 +153,7 @@ export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: S
     dock,
     h("div", { class: "jv-chev", text: "⌄" }),
   );
-  const below = h("section", { class: "jv-below" });
+  const below = h("section", { class: "jv-below" }, glance(go));
   const el = h("div", { class: "jv-home" }, hero, below);
 
   // The pinned bar, and the seven squares in one fixed layer that glide between the dock and it.

@@ -10038,6 +10038,36 @@
       "ru": "Выберите, что показывает панель вкладок выреза и в каком порядке. «Главная» всегда первая; скрытая вкладка по-прежнему открывается из обзора.",
       "tr": "Çentiğin sekme çubuğunun neyi hangi sırayla göstereceğini seçin. Ana sayfa her zaman ilktir; gizli bir sekme Genel bakış'tan yine açılır.",
       "zh-Hans": "选择刘海的标签栏显示哪些内容以及顺序。主页始终在最前；隐藏的标签页仍可从概览中打开。"
+    },
+    "At a glance,": {
+      "ar": "نظرة سريعة،",
+      "bn": "এক নজরে,",
+      "de": "Auf einen Blick,",
+      "es": "De un vistazo,",
+      "fr": "En un coup d'œil,",
+      "hi": "एक नज़र में,",
+      "id": "Sekilas,",
+      "ja": "ひと目で、",
+      "ko": "한눈에,",
+      "pt-BR": "Num relance,",
+      "ru": "Коротко,",
+      "tr": "Bir bakışta,",
+      "zh-Hans": "一览，"
+    },
+    "Everything in one place. Press a widget to open it.": {
+      "ar": "كل شيء في مكان واحد. اضغط على أداة لفتحها.",
+      "bn": "সবকিছু এক জায়গায়। খুলতে একটি উইজেটে চাপুন।",
+      "de": "Alles an einem Ort. Drück auf ein Widget, um es zu öffnen.",
+      "es": "Todo en un sitio. Pulsa un widget para abrirlo.",
+      "fr": "Tout au même endroit. Appuyez sur un widget pour l'ouvrir.",
+      "hi": "सब कुछ एक जगह। खोलने के लिए किसी विजेट को दबाएँ।",
+      "id": "Semua di satu tempat. Tekan widget untuk membukanya.",
+      "ja": "すべてを一か所に。ウィジェットを押すと開きます。",
+      "ko": "모든 것을 한곳에. 위젯을 누르면 열립니다.",
+      "pt-BR": "Tudo em um só lugar. Toque em um widget para abri-lo.",
+      "ru": "Всё в одном месте. Нажмите на виджет, чтобы открыть его.",
+      "tr": "Her şey tek yerde. Açmak için bir widget'a basın.",
+      "zh-Hans": "一切尽在一处。按下小组件即可打开。"
     }
   }
 }
