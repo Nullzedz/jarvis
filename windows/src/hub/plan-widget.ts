@@ -17,7 +17,8 @@ const NS = "http://www.w3.org/2000/svg";
 const OUTER = { r: 29, track: "#3a1420", color: "#ff375f" };
 const INNER = { r: 17, track: "#0f3318", color: "#30d158" };
 
-function stored(): PlanUsage | null {
+/** The notch's last Claude plan numbers, kept in the shared storage. */
+export function storedPlan(): PlanUsage | null {
   try {
     const v = JSON.parse(window.localStorage?.getItem(STORE_KEY) ?? "null");
     return v && typeof v === "object" ? (v as PlanUsage) : null;
@@ -73,14 +74,14 @@ export function planWidget(body: HTMLElement): () => void {
   const box = h("div", { class: "jv-plan" });
   body.append(box);
   const draw = (u: PlanUsage | null) => renderPlan(box, u);
-  draw(stored());
+  draw(storedPlan());
   // The island saved new numbers (another window, same storage).
-  const onStore = (e: StorageEvent) => { if (e.key === STORE_KEY) draw(stored()); };
+  const onStore = (e: StorageEvent) => { if (e.key === STORE_KEY) draw(storedPlan()); };
   window.addEventListener("storage", onStore);
   // JARVIS's own Claude Code pushed numbers (voice/warm.rs).
   const off = onEvent<unknown>("claude-plan", (raw) => { const u = parseClaudePlan(raw); if (u) draw(u); });
   const now = Date.now();
-  const u = stored();
+  const u = storedPlan();
   if ((!u || now - u.updatedAt > STALE_MS) && now - askedAt > STALE_MS) {
     askedAt = now;
     void Bridge.claudePlanUsage().then((raw) => { const v = parseClaudePlan(raw); if (v) draw(v); }).catch(() => {});

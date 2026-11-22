@@ -212,6 +212,42 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-hometile.off { background: #2c2c2e; color: #8e8e93; }
 .jv-hometile b.warn { color: #ff9f0a; }
 .jv-conn .n { margin-left: auto; text-align: right; flex: none; }
+/* ── Agents · Sessions (#65): the demo's orbit, approval bar and card stack ── */
+.jv-ahero { height: calc(100vh - 110px); min-height: 520px; display: flex; flex-direction: column; }
+.jv-ahero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.jv-atitle { margin: 0; font-size: 24px; font-weight: 600; color: var(--jv-t1); }
+.jv-atitle span { color: var(--jv-t3); font-weight: 400; font-size: 16px; margin-left: 8px; }
+.jv-aorbit { flex: 1; width: 100%; min-height: 0; font-family: var(--font); }
+.jv-planet { cursor: grab; touch-action: none; }
+.jv-planet text { user-select: none; }
+.jv-approve { display: flex; align-items: center; gap: 10px; background: #1c1c1e; border-radius: 999px; padding: 8px 8px 8px 18px; font-size: 14px; color: var(--jv-t1);
+  transition: opacity .3s ease, transform .3s ease; }
+.jv-approve.gone { opacity: 0; transform: translateY(10px); pointer-events: none; }
+.jv-approve .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.jv-approve .x { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-approve .mono, .jv-code { font-family: "Cascadia Mono", Consolas, monospace; }
+.jv-approve .mono { color: #e5e5ea; }
+.jv-greet-sm { margin: 26px 0 0; font-size: 15px; font-weight: 600; color: var(--jv-t2); }
+.jv-stack { position: relative; margin: 14px 0 80px; min-height: 60px; }
+.jv-card { position: absolute; left: 0; right: 0; top: 0; border-radius: 18px; cursor: pointer; transform-origin: top center;
+  transition: transform .45s cubic-bezier(.2,.8,.2,1), background .3s ease; }
+.jv-card .peek { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; font-size: 13px; color: var(--jv-t2); }
+.jv-card .peek .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.jv-card .peek .pk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-card .body { display: none; padding: 18px 20px; }
+.jv-card.front { cursor: default; }
+.jv-card.front .peek { display: none; }
+.jv-card.front .body { display: block; animation: jv-fade .25s ease .1s both; }
+@keyframes jv-fade { from { opacity: 0; } }
+.jv-card .head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.jv-card .head .x { flex: 1; min-width: 0; }
+.jv-card .t { margin: 0; font-size: 16px; font-weight: 600; color: var(--jv-t1); }
+.jv-card .d { margin: 2px 0 0; font-size: 12.5px; color: var(--jv-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-code { background: #0e0f11; border-radius: 12px; padding: 11px 13px; font-size: 12px; line-height: 1.7; color: #aeaeb2; margin-bottom: 14px; overflow: hidden; }
+.jv-code div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-code .p { color: #636366; }
+.jv-card .foot { display: flex; justify-content: flex-end; }
+.jv-stack-empty { margin: 0; color: var(--jv-t2); font-size: 14px; }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }

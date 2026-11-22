@@ -20,7 +20,7 @@ import { searchSettings, type SettingsSearchHit } from "./search";
 export type PageId =
   | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
-  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP";
+  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions";
 
 interface PageDef {
   id: PageId;
@@ -60,7 +60,9 @@ export const MAIL_PAGES: PageDef[] = [
 ];
 
 const HOME_PAGE: PageDef = { id: "home", icon: "grid", title: () => t("Home") };
-const ALL = [HOME_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+/** The Agents section's first tab: his orbit and the sessions (#65). */
+const SESSIONS_PAGE: PageDef = { id: "sessions", icon: "terminal", title: () => t("Sessions") };
+const ALL = [HOME_PAGE, SESSIONS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
 
 /** What a page gets to draw itself and reach the rest of the window. */
 export interface HubContext {

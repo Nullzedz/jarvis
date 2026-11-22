@@ -62,3 +62,14 @@ test("the Agents widget is small with two agents or fewer, big with more or with
   assert.equal(agentsSize([r(), r(), r()]), "big");
   assert.equal(agentsSize([r({ requestId: "x", command: "y", question: false })]), "big");
 });
+
+test("a planet dropped between rings lands on the nearest one; your ring beats its state's", async () => {
+  const { ringAt, watchOf } = await import("../src/core/agents.ts");
+  const R = [92, 140, 186];
+  assert.equal(ringAt(0, R), 0);
+  assert.equal(ringAt(120, R), 1);
+  assert.equal(ringAt(170, R), 2);
+  assert.equal(ringAt(400, R), 2);
+  assert.equal(watchOf({}, { id: "a", state: "finished", ask: null }), 2);
+  assert.equal(watchOf({ a: 0 }, { id: "a", state: "finished", ask: null }), 0);
+});
