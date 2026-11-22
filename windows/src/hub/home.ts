@@ -1,11 +1,14 @@
-// The front page (docs/jarvis/design/SPEC.md §5): "Good evening, sir.", the date and
-// status line, the "Ask JARVIS anything" pill and the dock of seven coloured squares.
-// Scrolling, the squares glide up and shrink into the pinned top bar.
+// The front page (#59, prototypes/jarvis-front.html: design A, dots 2, bar 2), by Apple's rules:
+// JARVIS large and alone on a faint dot texture, the greeting and the date under him; at the
+// bottom a floating glass tab bar (five tabs or fewer, filled symbols, one-word labels, the page
+// you are on in a tinted pill) with "Ask JARVIS" docked beside it, as iOS places Search;
+// Connections and Settings as two round glass buttons at the top right.
 
 import { h } from "../views/dom";
 import { t } from "../i18n/i18n";
 import { Bridge } from "../core/bridge";
 import type { HubContext } from "./shell";
+import { visor } from "../theme/theme";
 import type { Section } from "./sections";
 
 /** The squares' line icons, on a 24×24 grid. */
@@ -35,16 +38,40 @@ export function sectionIcon(id: string, size = 24): SVGSVGElement {
   return svg;
 }
 
-/** The dock: the six sections and Settings, with Windows between Agents and Dictation. */
-const DOCK: { id: string; name: () => string; color: string; to: Section["id"] }[] = [
-  { id: "jarvis", name: () => t("Voice"), color: "#bf5af2", to: "jarvis" },
-  { id: "agents", name: () => t("Agents"), color: "#30d158", to: "agents" },
-  // "Windows" alone would read as the operating system: his explanation windows.
-  { id: "windows", name: () => t("His windows"), color: "#5e5ce6", to: "jarvis" },
-  { id: "notes", name: () => t("Dictation"), color: "#ff9f0a", to: "notes" },
-  { id: "mail", name: () => "Mail", color: "#0a84ff", to: "mail" },
-  { id: "connections", name: () => t("Connections"), color: "#64d2ff", to: "connections" },
-  { id: "settings", name: () => t("Settings"), color: "#3a3a3c", to: "settings" },
+/** Filled symbols for the tab bar and the toolbar (HIG: "prefer filled symbols"), on a 24×24 grid, even-odd cut-outs. */
+const FILLED: Record<string, string> = {
+  home: "M12 3.2 2.8 11a1 1 0 0 0 1.3 1.5L5 11.8V19a2 2 0 0 0 2 2h3.2v-5.2a1.8 1.8 0 0 1 3.6 0V21H17a2 2 0 0 0 2-2v-7.2l.9.7A1 1 0 0 0 21.2 11z",
+  jarvis: "M6.5 5h11A4.5 4.5 0 0 1 22 9.5v5a4.5 4.5 0 0 1-4.5 4.5h-11A4.5 4.5 0 0 1 2 14.5v-5A4.5 4.5 0 0 1 6.5 5zM8 10.6a1.4 1.4 0 0 0 0 2.8h8a1.4 1.4 0 0 0 0-2.8z",
+  agents: "M5 3h14a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm1.7 5.3a1 1 0 0 0-.4 1.4L8.4 12l-2.1 2.3a1 1 0 0 0 1.4 1.4l2.8-3a1 1 0 0 0 0-1.4l-2.8-3a1 1 0 0 0-1 0zM12 14.5a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2z",
+  notes: "M12 2a3.5 3.5 0 0 1 3.5 3.5v6a3.5 3.5 0 0 1-7 0v-6A3.5 3.5 0 0 1 12 2zM5.5 10.5a1 1 0 0 1 1 1 5.5 5.5 0 0 0 11 0 1 1 0 1 1 2 0 7.5 7.5 0 0 1-6.5 7.4V21a1 1 0 1 1-2 0v-2.1a7.5 7.5 0 0 1-6.5-7.4 1 1 0 0 1 1-1z",
+  mail: "M4 5h16a2 2 0 0 1 2 2v.4l-10 6.1L2 7.4V7a2 2 0 0 1 2-2zm-2 4.7 9.5 5.8a1 1 0 0 0 1 0L22 9.7V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z",
+  connections: "M8.5 2.5a1 1 0 0 1 1 1V7h5V3.5a1 1 0 1 1 2 0V7H18a1 1 0 0 1 1 1v3.5a6 6 0 0 1-6 6v3a1 1 0 1 1-2 0v-3a6 6 0 0 1-6-6V8a1 1 0 0 1 1-1h1.5V3.5a1 1 0 0 1 1-1z",
+  settings: "M10.3 2h3.4l.5 2.6a7.6 7.6 0 0 1 1.8 1l2.5-.9 1.7 2.9-2 1.8a7.7 7.7 0 0 1 0 2.1l2 1.8-1.7 2.9-2.5-.9a7.6 7.6 0 0 1-1.8 1l-.5 2.7h-3.4l-.5-2.7a7.6 7.6 0 0 1-1.8-1l-2.5.9-1.7-2.9 2-1.8a7.7 7.7 0 0 1 0-2.1l-2-1.8 1.7-2.9 2.5.9a7.6 7.6 0 0 1 1.8-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
+};
+
+function filledIcon(id: string, size: number): SVGSVGElement {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(size));
+  svg.setAttribute("height", String(size));
+  svg.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  p.setAttribute("d", FILLED[id] ?? "");
+  p.setAttribute("fill-rule", "evenodd");
+  svg.append(p);
+  return svg;
+}
+
+/**
+ * The tab bar: five tabs (HIG: "a default list of five or fewer"). Voice and His windows are
+ * both him, so one JARVIS tab; Connections and Settings sit at the top right instead.
+ */
+const TABS: { id: Section["id"]; name: () => string }[] = [
+  { id: "home", name: () => t("Home") },
+  { id: "jarvis", name: () => "JARVIS" },
+  { id: "agents", name: () => t("Agents") },
+  { id: "notes", name: () => t("Dictation") },
+  { id: "mail", name: () => "Mail" },
 ];
 
 /**
@@ -89,140 +116,49 @@ export function glance(go: (section: Section["id"]) => void): HTMLElement {
     bento);
 }
 
-const KEY_NAMES: Record<string, string> = { Control: "Ctrl", Shift: "⇧", Meta: "Win", Alt: "Alt" };
-/** ["ControlLeft", "ShiftLeft", "KeyZ"] → "Ctrl ⇧ Z". */
-export function chordLabel(codes: string[] | undefined): string {
-  return (codes ?? [])
-    .map((c) => {
-      const side = c.replace(/(Left|Right)$/, "");
-      if (KEY_NAMES[side]) return KEY_NAMES[side];
-      if (c.startsWith("Key")) return c.slice(3);
-      if (c.startsWith("Digit")) return c.slice(5);
-      return c;
-    })
-    .join(" ");
-}
-
 function greeting(now = new Date()): string {
   const hr = now.getHours();
   return hr < 12 ? t("Good morning,") : hr < 18 ? t("Good afternoon,") : t("Good evening,");
 }
 
-/** What the line under the greeting says: today, and how dictation is. */
-function statusLine(ctx: HubContext): string {
-  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
-  const s = ctx.status;
-  const flow = !s.prefs.enabled ? t("Dictation is off") : s.models.parakeet.state === "ready" ? t("Dictation ready") : t("Voice model not downloaded");
-  return `${date} · ${flow}`;
-}
-
 export interface HomeHandle {
   el: HTMLElement;
-  /** Places the squares again (after a resize, or when the page is shown). */
-  layout(): void;
-  /** The squares follow the page's scroll. */
-  onScroll(): void;
   destroy(): void;
 }
 
-export function homePage(ctx: HubContext, scroller: HTMLElement, go: (section: Section["id"]) => void): HomeHandle {
-  const mic = h("button", { class: "jv-mic", "aria-label": t("Ask JARVIS anything"), onclick: () => void Bridge.askOpen() });
-  mic.append(sectionIcon("jarvis", 18));
-  const ask = h("button", { class: "jv-ask", onclick: () => void Bridge.askOpen() },
-    h("span", { class: "jv-spark", text: "✦" }),
-    h("span", { class: "q", text: t("Ask JARVIS anything") }),
-    h("span", { class: "jv-kc", text: chordLabel(ctx.status.prefs.askKeys) }),
-  );
-  const askRow = h("div", { class: "jv-askrow" }, ask, mic);
-  const dock = h("div", { class: "jv-dock" });
-  for (const d of DOCK) {
-    // The name here only holds the dock's spacing; the visible one rides with its square.
-    const name = h("span", { class: "nm", text: d.name() });
-    dock.append(h("span", { class: "jv-app" }, h("span", { class: "slot", "data-slot": d.id }), name));
-  }
-
-  const center = h("div", { class: "jv-center" },
-    h("p", { class: "jv-h1" }, document.createTextNode(`${greeting()} `), h("span", { text: t("sir.") })),
-    h("p", { class: "jv-sub", text: statusLine(ctx) }),
-    askRow,
-  );
+export function homePage(ctx: HubContext, go: (section: Section["id"]) => void): HomeHandle {
+  const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
   const hero = h("section", { class: "jv-hero" },
-    // The top-left corner belongs to his visor, the window's controls (winctl.ts).
-    h("div", { class: "jv-top" }),
-    center,
-    dock,
-    h("div", { class: "jv-chev", text: "⌄" }),
+    h("div", { class: "jv-center" },
+      h("span", { class: "jv-him" }, visor(190)),
+      h("p", { class: "jv-h1" }, document.createTextNode(`${greeting()} `), h("span", { text: t("sir.") })),
+      h("p", { class: "jv-sub", text: date })),
   );
   const below = h("section", { class: "jv-below" }, glance(go));
-  const el = h("div", { class: "jv-home" }, hero, below);
+  const el = h("div", { class: "jv-home" }, h("div", { class: "jv-dots", "aria-hidden": "true" }), hero, below);
 
-  // The pinned bar, and the seven squares in one fixed layer that glide between the dock and it.
-  const pins = h("span", { class: "jv-pins" });
-  for (const d of DOCK) pins.append(h("span", { "data-pin": d.id }));
-  const pinMic = h("button", { class: "jv-askmini", onclick: () => void Bridge.askOpen() }, h("span", { text: t("Ask") }));
-  const pinbar = h("div", { class: "jv-pinbar" }, h("div", { class: "in" }, h("span", { class: "jv-brand jv-pinbrand", text: "JARVIS" }), pins, pinMic));
-  const flyers = h("div", { class: "jv-flyers" });
-  // Each name rides under its own square, so the squares never glide over text.
-  const riders: HTMLElement[] = [];
-  const squares = DOCK.map((d) => {
-    const b = h("button", { class: "jv-sq", title: d.name(), "aria-label": d.name(), style: `background:${d.color}`, onclick: () => go(d.to) });
-    const name = h("span", { class: "jv-sqname", text: d.name() });
-    riders.push(name);
-    b.append(sectionIcon(d.id), name);
-    flyers.append(b);
-    return b;
-  });
-  document.body.append(pinbar, flyers);
-
-  let from: { x: number; y: number; s: number }[] = [];
-  let to: { x: number; y: number; s: number }[] = [];
-  const START = 150, RUN = 170; // the glide starts 150 px from the top and takes 170 px of scrolling
-  const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
-
-  function layout() {
-    const y = scroller.scrollTop;
-    const box = (q: Element | null) => q?.getBoundingClientRect?.();
-    from = DOCK.map((d) => { const r = box(el.querySelector(`[data-slot="${d.id}"]`)); return r ? { x: r.left, y: r.top + y, s: r.width } : null; }).filter((r) => r !== null);
-    to = DOCK.map((d) => { const r = box(pins.querySelector(`[data-pin="${d.id}"]`)); return r ? { x: r.left, y: r.top, s: r.width } : null; }).filter((r) => r !== null);
-    if (from.length !== DOCK.length || to.length !== DOCK.length) return;
-    onScroll();
+  // The control layer, floating over the page (fixed, so it stays while you scroll).
+  const tabs = h("nav", { class: "jv-tabbar", "aria-label": t("Home") });
+  for (const tab of TABS) {
+    if (tab.id === "mail" && ctx.status.platform !== "windows") continue;
+    const on = tab.id === "home";
+    const b = h("button", { class: `jv-tab${on ? " on" : ""}`, "aria-current": on ? "page" : "false", onclick: () => { if (!on) go(tab.id); } },
+      filledIcon(tab.id, 24), h("span", { text: tab.name() }));
+    tabs.append(b);
   }
-  function onScroll() {
-    const y = scroller.scrollTop;
-    let k = 0;
-    squares.forEach((b, i) => {
-      const f = from[i], tt = to[i];
-      if (!f || !tt) return;
-      const natural = f.y - y;
-      k = Math.min(1, Math.max(0, (START - natural) / RUN));
-      const e = ease(k);
-      const size = f.s + (tt.s - f.s) * e;
-      b.style.width = b.style.height = `${size}px`;
-      b.style.transform = `translate(${f.x + (tt.x - f.x) * e}px, ${k === 0 ? natural : START + (tt.y - START) * e}px)`;
-    });
-    pinbar.classList.toggle("on", k > 0.55);
-    // Each name fades as its square lifts off and shrinks into the bar, and the
-    // greeting fades as it nears the bar, so nothing glides over text.
-    for (const n of riders) n.style.opacity = String(Math.max(0, 1 - k * 3));
-    const top = (center.firstElementChild as HTMLElement | null)?.getBoundingClientRect?.().top ?? 999;
-    center.style.opacity = String(Math.min(1, Math.max(0, (top - 60) / 140)));
-  }
-  const onResize = () => layout();
-  window.addEventListener?.("resize", onResize);
-  // The first measure can come before the window has its size or its fonts: measure again whenever the page moves.
-  const watch = typeof ResizeObserver === "function" ? new ResizeObserver(() => layout()) : null;
-  watch?.observe(el);
-  void document.fonts?.ready.then(() => layout());
+  const talk = h("span", { class: "talk" }, sectionIcon("jarvis", 20));
+  const ask = h("button", { class: "jv-askdock", onclick: () => void Bridge.askOpen() }, h("span", { class: "q", text: t("Ask JARVIS anything") }), talk);
+  const bottom = h("div", { class: "jv-bottom" }, tabs, ask);
+  const tool = (id: "connections" | "settings", name: string) =>
+    h("button", { class: "jv-tool", title: name, "aria-label": name, onclick: () => go(id) }, filledIcon(id, 17));
+  const tools = h("div", { class: "jv-tools" }, tool("connections", t("Connections")), tool("settings", t("Settings")));
+  document.body.append(bottom, tools);
+
   return {
     el,
-    layout,
-    onScroll,
     destroy() {
-      window.removeEventListener?.("resize", onResize);
-      watch?.disconnect();
-      pinbar.remove();
-      flyers.remove();
+      bottom.remove();
+      tools.remove();
     },
   };
 }
-

@@ -9169,36 +9169,6 @@
       "tr": "efendim.",
       "zh-Hans": "先生。"
     },
-    "Dictation ready": {
-      "ar": "الإملاء جاهز",
-      "bn": "ডিক্টেশন প্রস্তুত",
-      "de": "Diktieren bereit",
-      "es": "Dictado listo",
-      "fr": "Dictée prête",
-      "hi": "डिक्टेशन तैयार",
-      "id": "Dikte siap",
-      "ja": "音声入力の準備完了",
-      "ko": "받아쓰기 준비됨",
-      "pt-BR": "Ditado pronto",
-      "ru": "Диктовка готова",
-      "tr": "Dikte hazır",
-      "zh-Hans": "听写已就绪"
-    },
-    "Voice model not downloaded": {
-      "ar": "نموذج الصوت غير مُنزَّل",
-      "bn": "ভয়েস মডেল ডাউনলোড হয়নি",
-      "de": "Sprachmodell nicht geladen",
-      "es": "Modelo de voz no descargado",
-      "fr": "Modèle vocal non téléchargé",
-      "hi": "वॉइस मॉडल डाउनलोड नहीं हुआ",
-      "id": "Model suara belum diunduh",
-      "ja": "音声モデル未ダウンロード",
-      "ko": "음성 모델이 다운로드되지 않음",
-      "pt-BR": "Modelo de voz não baixado",
-      "ru": "Голосовая модель не загружена",
-      "tr": "Ses modeli indirilmedi",
-      "zh-Hans": "语音模型未下载"
-    },
     "Minimize": {
       "ar": "تصغير",
       "bn": "ছোট করুন",

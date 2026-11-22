@@ -181,7 +181,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     const page_ = h("div", { class: "hub-page" });
     const renderer = opts.flowPages[def.id];
     if (def.id === "home") {
-      home = homePage(ctx, scroll, (id) => go(id));
+      home = homePage(ctx, (id) => go(id));
       page_.classList.add("jv-homepage");
       page_.append(home.el);
     } else if (renderer) {
@@ -205,17 +205,6 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       scroll.append(tabs);
     }
     scroll.append(page_);
-    // Measured again once the sidebar has slid away and the panel has widened.
-    if (home) {
-      // Coming back from a section the panel slides wider (about half a second):
-      // the squares follow it frame by frame until it has settled.
-      let frames = 55; // about 900 ms; counted, not timed, so a test's instant frames still end
-      const follow = () => {
-        home?.layout();
-        if (home && --frames > 0) requestAnimationFrame(follow);
-      };
-      requestAnimationFrame(follow);
-    }
     if (targetAnchor) {
       const el = page_.querySelector(`[data-anchor="${targetAnchor}"]`) as HTMLElement | null;
       if (el) {
@@ -364,12 +353,9 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   });
 
   statusLine.title = `JARVIS ${opts.version}`;
-  scroll.addEventListener("scroll", () => home?.onScroll(), { passive: true });
 
   clear(root);
   const panel = h("main", { class: "hub-panel" }, scroll);
-  // And once more when the slide ends, wherever the window is.
-  panel.addEventListener("transitionend", () => home?.layout());
   root.append(side, panel, searchVeil, windowControls());
   drawStatus();
   await show(current);
