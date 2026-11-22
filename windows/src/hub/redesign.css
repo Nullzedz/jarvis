@@ -204,7 +204,7 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-thumbs .th img { width: 100%; height: 100%; object-fit: contain; }
 .jv-thumbs .th .form { font-size: 11px; color: var(--jv-t2); text-transform: capitalize; padding: 0 6px; text-align: center; }
 .jv-conn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
-.jv-tiles { display: flex; gap: 10px; min-width: 0; overflow: hidden; }
+.jv-dtiles { display: flex; gap: 10px; min-width: 0; overflow: hidden; }
 .jv-hometile { width: 64px; height: 64px; border-radius: 16px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; font-size: 10.5px; line-height: 1.2;
   flex: none; background: #f2f2f7; color: #1c1c1e; box-sizing: border-box; overflow: hidden; }
 .jv-hometile .dot { width: 12px; height: 12px; border-radius: 50%; }
@@ -354,6 +354,61 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-prefs .jv-flowpart .hub-row .title { font-weight: 600; font-size: 14px; color: var(--jv-t1); }
 .jv-prefs .jv-flowpart .hub-row .detail { font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
 @media (max-width: 860px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } }
+/* ── Notes · Dictation (#72): the demo's page ── */
+.jv-tabs { background: none; gap: 6px; padding: 0; }
+.jv-tabs button { background: #2c2c2e; color: #e5e5ea; font: 13px var(--font); padding: 6px 15px; border-radius: 999px; }
+.jv-tabs button.on { background: #f5f5f7; color: #000; font-weight: 500; }
+.hub-page.jv-dictpage { position: relative; max-width: 980px; text-align: left; }
+.jv-dictpage .row { flex-direction: row; }
+.jv-dictpage .jv-dtile, .jv-dictpage .jv-dtile p { text-align: left; }
+.jv-dictpage .jv-dtile:not(.row) { display: block; }
+.jv-dictpage .jv-dtile.cloud .words { display: flex; }
+.jv-dict-full .hub-label { display: block; margin: 22px 0 8px; position: static; }
+.jv-dict-full .jv-flowpart > * + * { margin-top: 10px; }
+.jv-dright { position: absolute; right: 0; top: -52px; display: flex; align-items: center; gap: 10px; }
+.jv-dright .cap, .jv-dictpage .cap { font-size: 12px; color: var(--jv-t2); margin: 0; }
+.jv-dictpage .row { display: flex; align-items: center; gap: 10px; }
+.jv-dictpage .row.between { justify-content: space-between; }
+.jv-dictpage .row.end { align-items: flex-end; margin-bottom: 16px; }
+.jv-dbig { margin: 2px 0 0; font-size: 44px; font-weight: 600; line-height: 1.05; color: var(--jv-t1); font-variant-numeric: tabular-nums; }
+.jv-dbig span { font-size: 18px; font-weight: 400; color: var(--jv-t2); }
+.jv-dictpage .jv-dbig + .cap { margin-top: 6px; }
+.jv-tabs2 { display: inline-flex; gap: 6px; }
+.jv-tabs2.wrap { flex-wrap: wrap; }
+.jv-tabs2 button { font: 13px var(--font); padding: 6px 15px; border-radius: 999px; background: #2c2c2e; color: #e5e5ea; border: 0; cursor: pointer; }
+.jv-tabs2 button.on { background: #f5f5f7; color: #000; font-weight: 500; }
+.jv-dchart { width: 100%; display: block; font-family: var(--font); }
+.jv-dcap { margin: 22px 0 10px; font-size: 13px; color: var(--jv-t2); }
+.jv-where { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 36px; }
+.jv-where .r { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--jv-t1); min-width: 0; }
+.jv-where .sq { width: 22px; height: 22px; border-radius: 6px; flex: none; }
+.jv-where .nm { width: 96px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-where .bar { flex: 1; height: 4px; border-radius: 2px; background: #2c2c2e; overflow: hidden; }
+.jv-where .bar i { display: block; height: 100%; background: #ff9f0a; border-radius: 2px; }
+.jv-where .n { width: 44px; text-align: right; }
+.jv-dtile { background: #1c1c1e; border-radius: 18px; padding: 16px; min-width: 0; }
+.jv-dtile.row { display: flex; flex-direction: row; align-items: center; gap: 16px; }
+.jv-dtile .big { margin: 10px 0 4px; font-size: 30px; font-weight: 600; line-height: 1.1; color: var(--jv-t1); }
+.jv-dtile .mid { margin: 0; font-size: 24px; font-weight: 600; color: var(--jv-t1); }
+.jv-dtile .jv-tabs2 { margin-top: 10px; }
+.jv-dglance { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.jv-dtile.cloud { margin-bottom: 12px; }
+.jv-dtile.cloud .words { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: center; gap: 8px 22px; padding: 14px 10px 4px; }
+.jv-dtile.cloud .empty { text-align: center; padding: 18px 0 8px; }
+.jv-dcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.jv-dcol { background: #18181a; border-radius: 16px; padding: 14px; text-align: left; color: var(--jv-t1); font: 14px var(--font); border: 0; cursor: pointer; min-width: 0;
+  transition: background .2s ease, transform .3s var(--jv-ease); }
+.jv-dcol:hover { background: #1f1f22; transform: translateY(-2px); }
+.jv-dcol .hd { margin: 0 0 8px; font-weight: 600; }
+.jv-dcol .plus { color: var(--jv-blue); font-weight: 400; }
+.jv-dcol .it { margin: 0; padding: 7px 9px; border-radius: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-dcol .it.sel { background: #2c2c2e; }
+.jv-dcol .none { margin: 0; padding: 7px 9px; font-size: 12.5px; color: var(--jv-t3); }
+.jv-dcol .it.use { box-shadow: inset 0 0 0 1.5px var(--jv-blue); }
+.jv-dhist { width: 100%; display: flex; align-items: center; gap: 12px; margin: 12px 0 60px; padding: 14px 16px; border: 0; border-radius: 16px; background: #1c1c1e; color: var(--jv-t1); font: 14px var(--font); cursor: pointer; text-align: left; }
+.jv-dhist .cap { margin-left: auto; }
+.jv-dhist .go { color: var(--jv-t3); font-size: 18px; }
+.jv-dict-full .back { background: none; border: 0; padding: 0; margin-bottom: 14px; color: var(--jv-blue); font: 14px var(--font); cursor: pointer; }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }
