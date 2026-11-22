@@ -89,3 +89,19 @@ export function rowCounts(rows: readonly Pick<AgentRow, "state" | "ask">[]): { a
   }
   return { asking, working, done };
 }
+
+/**
+ * Its ring in the widget's solar system (jarvis-home.html #gOrbit): 0, the inner one, for an
+ * agent asking you (or stopped on an error); 1 for one at work; 2, the dashed outer one, for one
+ * done or waiting. (The Agents page will let you move them later.)
+ */
+export function orbitRing(r: Pick<AgentRow, "state" | "ask">): 0 | 1 | 2 {
+  if (r.ask || r.state === "approval" || r.state === "question" || r.state === "error") return 0;
+  if (r.state === "finished" || r.state === "idle") return 2;
+  return 1;
+}
+
+/** Where on its ring: spread evenly among that ring's planets, turned a little per ring. */
+export function orbitAngle(index: number, count: number, ring: number): number {
+  return -Math.PI / 2 + ring * 0.9 + (index * 2 * Math.PI) / Math.max(1, count);
+}

@@ -1,95 +1,115 @@
-// JARVIS: Home's Agents widget (step 2 of #57, prototypes/jarvis-agents-widget.html design A):
-// a one-line summary, then a row per agent (his small visor with its eye in the agent's state
-// colour, the project, what it does, how long). One asking you rises to the top in a soft orange
-// band with its command and Deny / Allow. The rows come from the island (island/share-agents.ts).
+// JARVIS: Home's Agents widget (step 2 of #57), one to one with the demo's #gAgents
+// (prototypes/jarvis-home.html): on the left his solar system (JARVIS in the middle, three rings,
+// each agent a planet in its state colour, slowly turning); beside it the list (his small visor,
+// the project, what it does, "needs you" / "done" / how long); along the bottom the approval bar,
+// only while one asks: Deny / Allow. The rows come from the island (island/share-agents.ts).
 
 import { h, clear } from "../views/dom";
 import { t } from "../i18n/i18n";
 import { emitToWindow, onEvent } from "../core/bridge";
 import { visor } from "../theme/theme";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, minutesBetween, rankRows, rowCounts, type AgentRow,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, minutesBetween, orbitAngle, orbitRing, rankRows,
+  type AgentRow,
 } from "../core/agents";
 
-/** Rows shown under the summary: four, or two under an agent asking you (its band is taller). */
-const ROWS = 4, ROWS_UNDER_ASK = 2;
-
-function face(row: AgentRow, width: number): HTMLElement {
-  const v = visor(width);
-  v.style.setProperty("--eye", agentEye(row.state));
-  if (row.state === "finished" || row.state === "idle") v.classList.add("rest");
-  return v;
-}
+const NS = "http://www.w3.org/2000/svg";
+/** The rings' radii in the 240 × 240 drawing, inner to outer (the demo's RR). */
+const RR = [48, 76, 104];
+/** List rows that fit beside the orbit: five, four above the approval bar. */
+const ROWS = 5, ROWS_WITH_BAR = 4;
 
 const quiet = (e: Event) => e.stopPropagation();
 
-/** Draws the rows into `el` (the widget's whole inside). */
-export function renderAgents(el: HTMLElement, rows: readonly AgentRow[], now = Date.now()) {
-  clear(el);
-  if (rows.length === 0) {
-    const empty = h("div", { class: "jv-ag-empty" },
-      visor(64, "sleeping"),
+function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number>): SVGElementTagNameMap[K] {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  return n;
+}
+
+/** The solar system: rings, the planets on them, JARVIS in the middle. */
+function orbit(rows: readonly AgentRow[]): SVGSVGElement {
+  const svg = el("svg", { viewBox: "-120 -120 240 240", width: 180, height: 180, class: "jv-orbit", "aria-hidden": "true" });
+  const defs = el("defs", {});
+  const grad = el("linearGradient", { id: "jvOrbitBody", x1: 0, y1: 0, x2: 0, y2: 1 });
+  for (const [o, c] of [["0", "#f6f7f9"], [".7", "#eceef1"], ["1", "#dcdfe4"]]) grad.append(el("stop", { offset: o, "stop-color": c }));
+  defs.append(grad);
+  svg.append(defs,
+    el("circle", { r: 104, fill: "none", stroke: "#2c2c2e", "stroke-dasharray": "4 5" }),
+    el("circle", { r: 76, fill: "none", stroke: "#2c2c2e" }),
+    el("circle", { r: 48, fill: "rgba(10,132,255,.07)", stroke: "rgba(10,132,255,.35)" }));
+  for (const ring of [0, 1, 2] as const) {
+    const on = rows.filter((r) => orbitRing(r) === ring);
+    const g = el("g", { class: `spin r${ring + 1}` });
+    on.forEach((r, i) => {
+      const a = orbitAngle(i, on.length, ring);
+      const done = r.state === "finished" || r.state === "idle";
+      g.append(el("circle", { cx: (Math.cos(a) * RR[ring]).toFixed(1), cy: (Math.sin(a) * RR[ring]).toFixed(1), r: done ? 6 : 8, fill: agentEye(r.state) }));
+    });
+    svg.append(g);
+  }
+  // JARVIS: the white shell, the slot, his blue eye glancing.
+  const eye = el("rect", { x: -9, y: -2.5, width: 18, height: 5, rx: 2.5, fill: "#0a84ff" });
+  eye.append(el("animate", { attributeName: "x", values: "-9;-14;-9;-4;-9", dur: "7s", repeatCount: "indefinite" }));
+  svg.append(
+    el("rect", { x: -30, y: -21, width: 60, height: 42, rx: 14, fill: "url(#jvOrbitBody)" }),
+    el("rect", { x: -19, y: -5, width: 38, height: 10, rx: 5, fill: "#0b0f17", stroke: "#c9cdd4", "stroke-width": 0.8 }),
+    eye);
+  return svg;
+}
+
+/** Draws the widget's inside into `box`. */
+export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = Date.now()) {
+  clear(box);
+  const ranked = rankRows(rows);
+  const asking = ranked.find((r) => r.ask) ?? null;
+  const list = h("div", { class: "jv-aglist" });
+
+  if (ranked.length === 0) {
+    list.append(h("div", { class: "jv-ag-empty" },
       h("p", { class: "t", text: t("No agents running") }),
       h("p", { class: "d", text: t("Start a Claude Code session and it shows up here.") }),
-      h("button", { class: "jv-pill", text: t("New session"), onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "launch"); } }));
-    el.append(empty);
-    return;
+      h("button", { class: "jv-btn", text: t("New session"), onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "launch"); } })));
   }
-  const ranked = rankRows(rows);
-  const n = rowCounts(ranked);
-  const sum = h("p", { class: "jv-ag-sum" });
-  const parts: HTMLElement[] = [];
-  if (n.asking) parts.push(h("b", { class: "ask", text: t("{n} needs you", { n: n.asking }) }));
-  if (n.working) parts.push(h("b", { text: t("{n} working", { n: n.working }) }));
-  if (n.done) parts.push(h("span", { text: t("{n} done", { n: n.done }) }));
-  parts.forEach((p, i) => { if (i) sum.append(document.createTextNode(" · ")); sum.append(p); });
-  el.append(sum);
-
-  const asking = ranked[0]?.ask ? ranked[0] : null;
-  if (asking && asking.ask) {
-    const ask = asking.ask;
-    const band = h("div", { class: "jv-ag-band" },
-      h("div", { class: "top" }, face(asking, 34),
-        h("div", { class: "x" }, h("p", { class: "t", text: asking.title }),
-          h("p", { class: "d", text: ask.question ? t("{app} has a question", { app: asking.app }) : `${asking.app} · ${t("wants to run a command")}` })),
-        h("span", { class: "st", text: t("Needs you") })));
-    if (ask.question) {
-      band.append(h("div", { class: "acts" },
-        h("button", { class: "jv-pill blue", text: t("Answer"), onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "question"); } })));
-    } else {
-      const decide = (d: "allow" | "deny") => (e: Event) => {
-        quiet(e);
-        void emitToWindow("island", AGENT_DECIDE, { requestId: ask.requestId, d });
-      };
-      band.append(h("p", { class: "cmd", text: ask.command }),
-        h("div", { class: "acts" },
-          h("button", { class: "jv-pill", text: t("Deny"), onclick: decide("deny") }),
-          h("button", { class: "jv-pill blue", text: t("Allow"), onclick: decide("allow") })));
-    }
-    band.addEventListener("keydown", quiet);
-    el.append(band);
-  }
-  const rest = ranked.filter((r) => r !== asking);
-  const max = asking ? ROWS_UNDER_ASK : ROWS;
-  for (const r of rest.slice(0, max)) {
+  const max = asking ? ROWS_WITH_BAR : ROWS;
+  for (const r of ranked.slice(0, max)) {
+    const v = visor(34);
+    v.style.setProperty("--eye", agentEye(r.state));
     const mins = minutesBetween(r.since, now);
-    const line = r.state === "finished"
-      ? t("done {n} min ago", { n: mins })
-      : r.doing ?? (r.state === "idle" ? t("Ready") : t("Working"));
-    el.append(h("div", { class: "jv-ag-row" }, face(r, 30),
-      h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: line })),
-      r.state === "finished" || r.state === "idle" ? h("span") : h("span", { class: "m", text: mins < 1 ? t("just now") : t("{n} min", { n: mins }) })));
+    const done = r.state === "finished" || r.state === "idle";
+    const what = r.ask
+      ? (r.ask.question ? t("has a question") : t("wants to run {command}", { command: r.ask.command }))
+      : r.state === "finished" ? t("done {n} min ago", { n: mins }) : r.doing ?? (r.state === "idle" ? t("Ready") : t("Working"));
+    const side = r.ask
+      ? h("span", { class: "s ask", text: t("Needs you") })
+      : h("span", { class: "s", text: done ? t("Done") : mins < 1 ? t("just now") : t("{n} min", { n: mins }) });
+    list.append(h("div", { class: "jv-agrow" }, v,
+      h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: what })), side));
   }
-  if (rest.length > max) el.append(h("p", { class: "jv-ag-more", text: t("+ {n} more", { n: rest.length - max }) }));
+  if (ranked.length > max) list.append(h("p", { class: "jv-ag-more", text: t("+ {n} more", { n: ranked.length - max }) }));
+  box.append(h("div", { class: "jv-agmain" }, orbit(ranked), list));
+
+  // The approval bar: the one asking you, and your answer.
+  if (asking?.ask) {
+    const ask = asking.ask;
+    const send = (d: "allow" | "deny") => (e: Event) => { quiet(e); void emitToWindow("island", AGENT_DECIDE, { requestId: ask.requestId, d }); };
+    const text = h("span", { class: "x" }, h("b", { text: asking.title }), document.createTextNode(" "),
+      h("span", { class: "d", text: ask.question ? t("has a question") : t("wants to run {command}", { command: ask.command }) }));
+    const bar = h("div", { class: "jv-wapprove" }, h("span", { class: "dot" }), text,
+      ...(ask.question
+        ? [h("button", { class: "jv-btn blue", text: t("Answer"), onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "question"); } })]
+        : [h("button", { class: "jv-btn", text: t("Deny"), onclick: send("deny") }), h("button", { class: "jv-btn blue", text: t("Allow"), onclick: send("allow") })]));
+    bar.addEventListener("keydown", quiet);
+    box.append(bar);
+  }
 }
 
 /** Fills `body` and keeps it current; returns a function that stops it. */
 export function agentsWidget(body: HTMLElement): () => void {
   let rows: AgentRow[] = [];
-  const el = h("div", { class: "jv-ag" });
-  body.append(el);
-  const draw = () => renderAgents(el, rows);
-
+  const box = h("div", { class: "jv-ag" });
+  body.append(box);
+  const draw = () => renderAgents(box, rows);
   draw();
   const off = onEvent<AgentRow[]>(AGENTS_SNAPSHOT, (r) => { rows = Array.isArray(r) ? r : []; draw(); });
   void emitToWindow("island", AGENTS_WANTED);
