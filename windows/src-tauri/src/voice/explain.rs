@@ -156,6 +156,7 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     // sweeping) and fills in when the drawing model is done (issue #14).
     let line = super::window::short_line(said);
     let (id, shown) = start(app, question, &line, window, shot.cloned());
+    crate::his_windows::note(app, question, &shown);
     let _ = win.emit(
         "explain-show",
         json!({ "add": add, "draw": id, "question": question, "said": line, "window": shown, "target": target, "about": about, "cursor": page(cursor) }),
@@ -194,6 +195,9 @@ fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
     let _ = match got {
         Ok(w) => {
             crate::log::line(format!("explain: drawn as {}", w["form"].as_str().or(w["kind"].as_str()).unwrap_or("?")));
+            if let Some(j) = job(id) {
+                crate::his_windows::note(app, &j.question, &w);
+            }
             app.emit_to(LABEL, "explain-drawn", json!({ "draw": id, "window": w }))
         }
         Err(err) => {

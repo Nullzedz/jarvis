@@ -3,10 +3,12 @@
 // and whenever the window asks (it just opened Home).
 
 import { State } from "../core/state";
-import { pillDefinition } from "../core/pills";
+import { availablePills, pillDefinition } from "../core/pills";
+import { serviceCards } from "./phone-services";
 import { emitToWindow, onEvent } from "../core/bridge";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentDoing, agentTitle, hasSession, type AgentRow,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, CONNECTIONS_SNAPSHOT, agentDoing, agentTitle, hasSession,
+  type AgentRow, type ConnectionRow,
 } from "../core/agents";
 import { stampSince } from "../views/agents";
 
@@ -29,12 +31,28 @@ export function shareAgents(host: { decide(d: "allow" | "deny"): void; show(view
         : null,
     }));
   };
+  // Home's Connections widget: every service pill, whether it's connected, and its headline.
+  let lastConn = "";
+  const connections = (): ConnectionRow[] => {
+    const heads = new Map(serviceCards().map((c) => [c.id, c.headline]));
+    return availablePills(State.os).filter((p) => p.category === "service" && p.support !== "soon").map((p) => {
+      const info = State.integrations[p.id];
+      return { id: p.id, name: p.name, color: p.color, headline: heads.get(p.id) ?? null, live: !!info?.configured && !info.error };
+    });
+  };
   const send = (force = false) => {
     const r = rows();
     const key = JSON.stringify(r);
-    if (!force && key === last) return;
-    last = key;
-    void emitToWindow(HUB, AGENTS_SNAPSHOT, r);
+    if (force || key !== last) {
+      last = key;
+      void emitToWindow(HUB, AGENTS_SNAPSHOT, r);
+    }
+    const c = connections();
+    const ck = JSON.stringify(c);
+    if (force || ck !== lastConn) {
+      lastConn = ck;
+      void emitToWindow(HUB, CONNECTIONS_SNAPSHOT, c);
+    }
   };
   State.subscribe(() => send());
   void onEvent(AGENTS_WANTED, () => send(true));
