@@ -28,3 +28,17 @@ test("the row is named for the project, and says what it's doing", () => {
   assert.equal(minutesBetween(0, 4.5 * 60_000), 4);
   assert.equal(minutesBetween(10, 0), 0);
 });
+
+test("Home's Agents widget: asking first, then working, then done; and the summary counts", async () => {
+  const { rankRows, rowCounts } = await import("../src/core/agents.ts");
+  const rows = [
+    { id: "a", state: "finished", ask: null },
+    { id: "b", state: "working", ask: null },
+    { id: "c", state: "approval", ask: { requestId: "r1", command: "npm test", question: false } },
+    { id: "d", state: "idle", ask: null },
+    { id: "e", state: "thinking", ask: null },
+  ];
+  assert.deepEqual(rankRows(rows).map((r) => r.id), ["c", "b", "e", "a", "d"]);
+  assert.deepEqual(rowCounts(rows), { asking: 1, working: 2, done: 2 });
+  assert.deepEqual(rowCounts([]), { asking: 0, working: 0, done: 0 });
+});

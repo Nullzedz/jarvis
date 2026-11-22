@@ -9,6 +9,7 @@ import { t } from "../i18n/i18n";
 import { Bridge } from "../core/bridge";
 import type { HubContext } from "./shell";
 import { visor } from "../theme/theme";
+import { agentsWidget } from "./agents-widget";
 import type { Section } from "./sections";
 
 /** The squares' line icons, on a 24×24 grid. */
@@ -135,6 +136,8 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
       h("p", { class: "jv-sub", text: date })),
   );
   const below = h("section", { class: "jv-below" }, glance(go));
+  const agentsBody = below.querySelector<HTMLElement>('[data-body="agents"]');
+  const stopAgents = agentsBody ? agentsWidget(agentsBody) : () => {};
   const el = h("div", { class: "jv-home" }, h("div", { class: "jv-texture", "aria-hidden": "true" }), hero, below);
 
   // The control layer, floating over the page (fixed, so it stays while you scroll).
@@ -157,6 +160,7 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
   return {
     el,
     destroy() {
+      stopAgents();
       bottom.remove();
       tools.remove();
     },

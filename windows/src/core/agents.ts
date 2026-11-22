@@ -47,3 +47,45 @@ export function agentDoing(t: AgentLike): string | null {
 export function minutesBetween(from: number, to: number): number {
   return Math.max(0, Math.floor((to - from) / 60_000));
 }
+
+// ── Shared with the JARVIS window's Home (step 2 of #57): the island sends its agents there ──
+
+/** Island → window: the agents as rows (AgentRow[]). */
+export const AGENTS_SNAPSHOT = "agents-snapshot";
+/** Window → island: send the rows now (the window just opened Home). */
+export const AGENTS_WANTED = "agents-wanted";
+/** Window → island: Deny or Allow the request `requestId` ({ requestId, d }). */
+export const AGENT_DECIDE = "agent-decide";
+/** Window → island: open the notch on a view: "launch" (New Claude Code session) or "question" (answer it). */
+export const AGENT_SHOW = "agent-show";
+
+export interface AgentRow {
+  id: string;
+  /** The project's folder, else the agent's name. */
+  title: string;
+  /** Claude Code, Codex… */
+  app: string;
+  state: BotStateName;
+  doing: string | null;
+  /** When its current state began (ms). */
+  since: number;
+  /** What it asks you, if it does: a command to allow, or a question to answer in the notch. */
+  ask: { requestId: string; command: string; question: boolean } | null;
+}
+
+/** Asking you first, then those at work, then the ones done; otherwise as they came. */
+export function rankRows<T extends Pick<AgentRow, "state" | "ask">>(rows: readonly T[]): T[] {
+  const rank = (r: T) => (r.ask ? 0 : r.state === "finished" || r.state === "idle" ? 2 : 1);
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map(({ r }) => r);
+}
+
+/** The widget's one-line summary: how many ask you, work, and are done. */
+export function rowCounts(rows: readonly Pick<AgentRow, "state" | "ask">[]): { asking: number; working: number; done: number } {
+  let asking = 0, working = 0, done = 0;
+  for (const r of rows) {
+    if (r.ask) asking++;
+    else if (r.state === "finished" || r.state === "idle") done++;
+    else working++;
+  }
+  return { asking, working, done };
+}
