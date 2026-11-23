@@ -10384,21 +10384,6 @@
       "tr": "Oturumlar",
       "zh-Hans": "会话"
     },
-    "{n} sessions": {
-      "ar": "{n} جلسات",
-      "bn": "{n}টি সেশন",
-      "de": "{n} Sitzungen",
-      "es": "{n} sesiones",
-      "fr": "{n} sessions",
-      "hi": "{n} सत्र",
-      "id": "{n} sesi",
-      "ja": "{n} セッション",
-      "ko": "세션 {n}개",
-      "pt-BR": "{n} sessões",
-      "ru": "Сеансов: {n}",
-      "tr": "{n} oturum",
-      "zh-Hans": "{n} 个会话"
-    },
     "Claude plan {n}%": {
       "ar": "خطة Claude {n}%",
       "bn": "Claude প্ল্যান {n}%",
@@ -10519,21 +10504,6 @@
       "tr": "Ne kadar yakından izleyeceğini değiştirmek için bir gezegeni başka bir halkaya sürükleyin",
       "zh-Hans": "把行星拖到另一个环上，改变他关注的程度"
     },
-    "wants to run": {
-      "ar": "يريد تشغيل",
-      "bn": "চালাতে চায়",
-      "de": "möchte ausführen:",
-      "es": "quiere ejecutar",
-      "fr": "veut exécuter",
-      "hi": "चलाना चाहता है",
-      "id": "ingin menjalankan",
-      "ja": "実行したいコマンド:",
-      "ko": "실행하려는 명령:",
-      "pt-BR": "quer executar",
-      "ru": "хочет выполнить",
-      "tr": "çalıştırmak istiyor:",
-      "zh-Hans": "想运行"
-    },
     "Conversation": {
       "ar": "المحادثة",
       "bn": "কথোপকথন",
@@ -10653,21 +10623,6 @@
       "ru": "Говорить с JARVIS",
       "tr": "JARVIS ile konuş",
       "zh-Hans": "和 JARVIS 说话"
-    },
-    "He can't hear you yet: set up his voice on the Hey JARVIS tab.": {
-      "ar": "لا يستطيع سماعك بعد: اضبط صوته في تبويب Hey JARVIS.",
-      "bn": "সে এখনও আপনাকে শুনতে পায় না: Hey JARVIS ট্যাবে তার ভয়েস সেট করুন।",
-      "de": "Er kann dich noch nicht hören: Richte seine Stimme im Tab Hey JARVIS ein.",
-      "es": "Aún no puede oírte: configura su voz en la pestaña Hey JARVIS.",
-      "fr": "Il ne vous entend pas encore : configurez sa voix dans l'onglet Hey JARVIS.",
-      "hi": "वह अभी आपको सुन नहीं सकता: Hey JARVIS टैब में उसकी आवाज़ सेट करें।",
-      "id": "Ia belum bisa mendengar Anda: atur suaranya di tab Hey JARVIS.",
-      "ja": "まだ聞き取れません。Hey JARVIS タブで音声を設定してください。",
-      "ko": "아직 들을 수 없습니다. Hey JARVIS 탭에서 음성을 설정하세요.",
-      "pt-BR": "Ele ainda não consegue ouvir você: configure a voz dele na aba Hey JARVIS.",
-      "ru": "Он вас пока не слышит: настройте его голос на вкладке Hey JARVIS.",
-      "tr": "Henüz sizi duyamıyor: Hey JARVIS sekmesinde sesini ayarlayın.",
-      "zh-Hans": "他还听不到你：请在 Hey JARVIS 标签页设置他的语音。"
     },
     "I didn't catch that. Try again, a little closer to the microphone.": {
       "ar": "لم أفهم ذلك. حاول مرة أخرى، أقرب قليلًا إلى الميكروفون.",
@@ -12900,6 +12855,137 @@
       "ru": "использовано",
       "tr": "kullanıldı",
       "zh-Hans": "已用"
+    },
+    "No agents running. Press New session, or start one in your terminal or editor.": {
+      "ar": "لا يعمل أي وكيل. اضغط جلسة جديدة، أو ابدأ واحدًا في الطرفية أو المحرر.",
+      "bn": "কোনো এজেন্ট চলছে না। New session চাপুন, বা টার্মিনাল বা এডিটরে একটি শুরু করুন।",
+      "de": "Keine Agenten aktiv. Drück Neue Sitzung oder starte einen im Terminal oder Editor.",
+      "es": "No hay agentes en marcha. Pulsa Nueva sesión o inicia uno en tu terminal o editor.",
+      "fr": "Aucun agent en cours. Appuyez sur Nouvelle session, ou lancez-en un dans votre terminal ou éditeur.",
+      "hi": "कोई एजेंट नहीं चल रहा। New session दबाएँ, या टर्मिनल या एडिटर में एक शुरू करें।",
+      "id": "Tidak ada agen yang berjalan. Tekan Sesi baru, atau mulai satu di terminal atau editor.",
+      "ja": "実行中のエージェントはありません。「新しいセッション」を押すか、ターミナルやエディタで始めてください。",
+      "ko": "실행 중인 에이전트가 없어요. 새 세션을 누르거나 터미널이나 편집기에서 시작하세요.",
+      "pt-BR": "Nenhum agente em execução. Pressione Nova sessão ou inicie um no terminal ou editor.",
+      "ru": "Агенты не запущены. Нажмите «Новая сессия» или запустите его в терминале или редакторе.",
+      "tr": "Çalışan ajan yok. Yeni oturum'a basın veya terminalde ya da düzenleyicide birini başlatın.",
+      "zh-Hans": "没有运行中的代理。按“新会话”，或在终端或编辑器中启动一个。"
+    },
+    "{count} running": {
+      "ar": {
+        "other": "{count} قيد التشغيل"
+      },
+      "bn": {
+        "other": "{count}টি চলছে"
+      },
+      "de": {
+        "other": "{count} aktiv"
+      },
+      "es": {
+        "other": "{count} en marcha"
+      },
+      "fr": {
+        "other": "{count} en cours"
+      },
+      "hi": {
+        "other": "{count} चल रहे"
+      },
+      "id": {
+        "other": "{count} berjalan"
+      },
+      "ja": {
+        "other": "{count} 件実行中"
+      },
+      "ko": {
+        "other": "{count}개 실행 중"
+      },
+      "pt-BR": {
+        "other": "{count} em execução"
+      },
+      "ru": {
+        "other": "Запущено: {count}"
+      },
+      "tr": {
+        "other": "{count} çalışıyor"
+      },
+      "zh-Hans": {
+        "other": "{count} 个运行中"
+      }
+    },
+    "Press the microphone, or type to him.": {
+      "ar": "اضغط الميكروفون، أو اكتب له.",
+      "bn": "মাইক্রোফোন চাপুন, বা তাকে লিখুন।",
+      "de": "Drück das Mikrofon oder schreib ihm.",
+      "es": "Pulsa el micrófono o escríbele.",
+      "fr": "Appuyez sur le micro, ou écrivez-lui.",
+      "hi": "माइक्रोफ़ोन दबाएँ, या उन्हें लिखें।",
+      "id": "Tekan mikrofon, atau ketik untuknya.",
+      "ja": "マイクを押すか、文字で話しかけてください。",
+      "ko": "마이크를 누르거나 입력하세요.",
+      "pt-BR": "Pressione o microfone ou escreva para ele.",
+      "ru": "Нажмите микрофон или напишите ему.",
+      "tr": "Mikrofona basın veya ona yazın.",
+      "zh-Hans": "按下麦克风，或打字给他。"
+    },
+    "He needs to learn your voice first.": {
+      "ar": "يحتاج أولًا إلى تعلّم صوتك.",
+      "bn": "তাকে আগে আপনার কণ্ঠ শিখতে হবে।",
+      "de": "Er muss zuerst deine Stimme lernen.",
+      "es": "Primero tiene que aprender tu voz.",
+      "fr": "Il doit d’abord apprendre votre voix.",
+      "hi": "उन्हें पहले आपकी आवाज़ सीखनी होगी।",
+      "id": "Dia perlu mengenali suara Anda dulu.",
+      "ja": "まずあなたの声を覚える必要があります。",
+      "ko": "먼저 목소리를 학습해야 해요.",
+      "pt-BR": "Ele precisa aprender sua voz primeiro.",
+      "ru": "Сначала ему нужно выучить ваш голос.",
+      "tr": "Önce sesinizi öğrenmesi gerekiyor.",
+      "zh-Hans": "他需要先认识你的声音。"
+    },
+    "Teach him in Settings": {
+      "ar": "علّمه في الإعدادات",
+      "bn": "সেটিংসে শেখান",
+      "de": "In den Einstellungen beibringen",
+      "es": "Enséñaselo en Ajustes",
+      "fr": "Lui apprendre dans les Réglages",
+      "hi": "सेटिंग्स में सिखाएँ",
+      "id": "Ajari di Pengaturan",
+      "ja": "設定で覚えさせる",
+      "ko": "설정에서 학습시키기",
+      "pt-BR": "Ensine nos Ajustes",
+      "ru": "Научить в настройках",
+      "tr": "Ayarlar'da öğret",
+      "zh-Hans": "在设置中教他"
+    },
+    "He can't hear you yet: set up his voice in Settings › Voice.": {
+      "ar": "لا يستطيع سماعك بعد: اضبط صوته في الإعدادات › الصوت.",
+      "bn": "তিনি এখনো আপনাকে শুনতে পান না: সেটিংস › ভয়েস-এ তার কণ্ঠ সেট করুন।",
+      "de": "Er hört dich noch nicht: richte seine Stimme unter Einstellungen › Stimme ein.",
+      "es": "Aún no te oye: configura su voz en Ajustes › Voz.",
+      "fr": "Il ne vous entend pas encore : configurez sa voix dans Réglages › Voix.",
+      "hi": "वे अभी आपको नहीं सुन सकते: सेटिंग्स › आवाज़ में उनकी आवाज़ सेट करें।",
+      "id": "Dia belum bisa mendengar Anda: atur suaranya di Pengaturan › Suara.",
+      "ja": "まだ聞こえていません。設定 › 音声で声を設定してください。",
+      "ko": "아직 들을 수 없어요. 설정 › 음성에서 설정하세요.",
+      "pt-BR": "Ele ainda não ouve você: configure a voz dele em Ajustes › Voz.",
+      "ru": "Он вас пока не слышит: настройте голос в «Настройки › Голос».",
+      "tr": "Henüz sizi duyamıyor: sesini Ayarlar › Ses'ten kurun.",
+      "zh-Hans": "他还听不到你：请在“设置 › 语音”中设置他的声音。"
+    },
+    "I didn't hear anything. Press the microphone to try again.": {
+      "ar": "لم أسمع شيئًا. اضغط الميكروفون لتحاول مجددًا.",
+      "bn": "কিছু শুনিনি। আবার চেষ্টা করতে মাইক্রোফোন চাপুন।",
+      "de": "Ich habe nichts gehört. Drück das Mikrofon, um es noch mal zu versuchen.",
+      "es": "No oí nada. Pulsa el micrófono para intentarlo de nuevo.",
+      "fr": "Je n’ai rien entendu. Appuyez sur le micro pour réessayer.",
+      "hi": "मैंने कुछ नहीं सुना। फिर कोशिश करने के लिए माइक्रोफ़ोन दबाएँ।",
+      "id": "Saya tidak mendengar apa pun. Tekan mikrofon untuk mencoba lagi.",
+      "ja": "何も聞こえませんでした。もう一度マイクを押してください。",
+      "ko": "아무것도 듣지 못했어요. 다시 하려면 마이크를 누르세요.",
+      "pt-BR": "Não ouvi nada. Pressione o microfone para tentar de novo.",
+      "ru": "Я ничего не услышал. Нажмите микрофон, чтобы попробовать снова.",
+      "tr": "Hiçbir şey duymadım. Tekrar denemek için mikrofona basın.",
+      "zh-Hans": "我什么都没听到。按下麦克风再试一次。"
     }
   }
 }

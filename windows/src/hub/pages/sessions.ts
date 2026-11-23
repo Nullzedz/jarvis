@@ -6,14 +6,15 @@
 // card open, the others peeking above it. The rows come from the island (island/share-agents.ts).
 
 import { h, clear } from "../../views/dom";
-import { t } from "../../i18n/i18n";
+import { t, tn } from "../../i18n/i18n";
 import { Bridge, emitToWindow, onEvent } from "../../core/bridge";
 import { visor } from "../../theme/theme";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, loadWatch, minutesBetween, rankRows, ringAt, saveWatch, watchOf,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_SHOW, agentEye, loadWatch, minutesBetween, rankRows, ringAt, saveWatch, watchOf,
   type AgentRow, type Watch,
 } from "../../core/agents";
 import { storedPlan } from "../plan-widget";
+import { agentName, approveBar } from "../approve-bar";
 import type { HubContext } from "../shell";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -50,9 +51,13 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
   // ── The top: title, the plan chip ──
   const count = h("span");
   const plan = storedPlan();
+  // A new session from here, any time (#84: it was only in Home's empty widget).
+  const newSession = h("button", { class: "jv-btn", text: `+ ${t("New session")}`, onclick: () => void emitToWindow("island", AGENT_SHOW, "launch") });
   const top = h("div", { class: "jv-ahero-top" },
     h("p", { class: "jv-atitle" }, document.createTextNode(t("Agents")), count),
-    ...(plan?.fiveHour ? [h("span", { class: "jv-chip" }, h("span", { class: "dot", style: "background:#ff375f" }), h("span", { text: t("Claude plan {n}%", { n: Math.round(plan.fiveHour.usedPct) }) }))] : []));
+    h("span", { class: "jv-ahero-acts" },
+      ...(plan?.fiveHour ? [h("span", { class: "jv-chip" }, h("span", { class: "dot", style: "background:#ff375f" }), h("span", { text: t("Claude plan {n}%", { n: Math.round(plan.fiveHour.usedPct) }) }))] : []),
+      newSession));
 
   // ── The orbit ──
   const svg = el("svg", { class: "jv-aorbit", viewBox: "0 0 900 420", preserveAspectRatio: "xMidYMid meet" });
@@ -179,8 +184,9 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
   }
 
   let raf = 0;
+  const still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   function spin(stamp: number) {
-    const dt = (stamp - t0) / 1000;
+    const dt = still ? 0 : (stamp - t0) / 1000;
     const all = [...map.values()];
     for (const s of all) {
       if (s.drag) { s.px = s.drag.x; s.py = s.drag.y; }
@@ -227,26 +233,18 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
 
   // ── The approval bar ──
   const approve = h("div", { class: "jv-approve gone" });
+  // #84: the shared bar (approve-bar.ts): every request waiting, one at a time, your answer at once.
   function paintApprove() {
-    const asking = rows.find((r) => r.ask);
-    approve.classList.toggle("gone", !asking);
     clear(approve);
-    if (!asking?.ask) return;
-    const ask = asking.ask;
-    const send = (d: "allow" | "deny") => () => void emitToWindow("island", AGENT_DECIDE, { requestId: ask.requestId, d });
-    approve.append(h("span", { class: "dot", style: `background:${askColor}` }),
-      h("span", { class: "x" }, document.createTextNode(`${asking.title} · ${asking.app} `),
-        ...(ask.question ? [document.createTextNode(t("has a question"))]
-          : [document.createTextNode(`${t("wants to run")} `), h("span", { class: "mono", text: ask.command })])),
-      ...(ask.question
-        ? [h("button", { class: "jv-btn blue", text: t("Answer"), onclick: () => void emitToWindow("island", AGENT_SHOW, "question") })]
-        : [h("button", { class: "jv-btn", text: t("Deny"), onclick: send("deny") }), h("button", { class: "jv-btn blue", text: t("Allow"), onclick: send("allow") })]));
+    const bar = approveBar(rankRows(rows), "page", paintApprove);
+    approve.classList.toggle("gone", !bar);
+    if (bar) approve.append(bar);
   }
 
   // ── The card stack ──
   const stack = h("div", { class: "jv-stack" });
   const cards = new Map<string, HTMLElement>();
-  function front(id: string) { order = [id, ...order.filter((x) => x !== id)]; paintStack(); }
+  function front(id: string) { order = [id, ...order.filter((x) => x !== id)]; layoutStack(); }
   function cardFor(r: AgentRow): HTMLElement {
     const col = agentEye(r.state);
     const v = visor(42);
@@ -261,7 +259,7 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
       h("div", { class: "peek" }, h("span", { class: "dot", style: `background:${col}` }), h("span", { class: "pk", text: `${r.title} · ${whatOf(r, now())}` })),
       h("div", { class: "body" },
         h("div", { class: "head" }, v,
-          h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: `${r.app} · ${whatOf(r, now())}` })),
+          h("div", { class: "x" }, h("p", { class: "t", text: agentName(r, rows) }), h("p", { class: "d", text: `${r.app} · ${whatOf(r, now())}` })),
           h("span", { class: "jv-chip" }, h("span", { class: "dot", style: `background:${col}` }),
             h("span", { text: done(r) ? t("Done") : mins < 1 ? t("just now") : t("{n} min", { n: mins }) }))),
         code,
@@ -269,17 +267,28 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
     c.addEventListener("click", () => { if (order[0] !== r.id) front(r.id); });
     return c;
   }
+  // #84: the cards stay; only their contents are refreshed and their places moved, so bringing one
+  // forward slides it (the transform transition) instead of redrawing the stack with a jump.
   function paintStack() {
-    clear(stack);
-    cards.clear();
     const ids = rows.map((r) => r.id);
     order = [...order.filter((id) => ids.includes(id)), ...rankRows(rows).map((r) => r.id).filter((id) => !order.includes(id))];
+    for (const [id, c] of cards) if (!ids.includes(id)) { c.remove(); cards.delete(id); }
+    stack.querySelector(".jv-stack-empty")?.remove();
     if (!rows.length) {
       stack.style.height = "";
-      stack.append(h("p", { class: "jv-stack-empty", text: t("No agents running. Start one in your terminal or editor and it shows here.") }));
+      stack.append(h("p", { class: "jv-stack-empty", text: t("No agents running. Press New session, or start one in your terminal or editor.") }));
       return;
     }
-    for (const r of rows) { const c = cardFor(r); cards.set(r.id, c); stack.append(c); }
+    for (const r of rows) {
+      const fresh = cardFor(r);
+      const old = cards.get(r.id);
+      if (old) old.replaceChildren(...fresh.childNodes);
+      else { cards.set(r.id, fresh); stack.append(fresh); }
+    }
+    layoutStack();
+  }
+  function layoutStack() {
+    for (const c of cards.values()) c.classList.remove("front");
     const behind = order.slice(1).reverse(); // farthest first
     const peek = 26, frontTop = behind.length * peek;
     behind.forEach((id, i) => {
@@ -301,14 +310,15 @@ export function sessionsPage(page: HTMLElement, ctx: HubContext, start: AgentRow
   }
 
   function paint() {
-    count.textContent = t("{n} sessions", { n: rows.length });
+    count.textContent = tn("{count} running", "{count} running", rows.length);
     syncPlanets();
     paintApprove();
     paintStack();
   }
 
   page.append(
-    h("div", { class: "jv-ahero" }, top, svg, approve),
+    // The bar above the orbit while something waits: never below the fold (#84).
+    h("div", { class: "jv-ahero" }, top, approve, svg),
     h("p", { class: "jv-greet-sm", text: t("Sessions") }),
     stack);
   paint();
