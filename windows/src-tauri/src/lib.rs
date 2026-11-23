@@ -778,6 +778,10 @@ fn create_settings_window(app: &AppHandle) {
         .inner_size(1100.0, 720.0)
         .min_inner_size(820.0, 560.0)
         .resizable(true)
+        // No title bar: just the app. Windows keeps the rounded corners, the shadow and the
+        // resize edges; the controls appear at his visor when the pointer nears the top.
+        .decorations(false)
+        .shadow(true)
         .visible(false)
         .center()
         .build()
@@ -810,6 +814,33 @@ fn create_settings_window(app: &AppHandle) {
 /// `document.visibilityState` at "visible" for a hidden window, and its
 /// animation loop then kept a core busy with the window closed (#792).
 static HUB_SHOWN: AtomicBool = AtomicBool::new(false);
+
+/// The window's own controls (it has no title bar): what his visor's dots do.
+/// "close" hides it, as the title bar's × did, so it can be opened again.
+#[tauri::command]
+fn hub_window(window: tauri::WebviewWindow, action: String) {
+    if window.label() != HUB_LABEL {
+        return;
+    }
+    match action.as_str() {
+        "minimize" => {
+            let _ = window.minimize();
+        }
+        "maximize" => {
+            let on = window.is_maximized().unwrap_or(false);
+            let _ = if on { window.unmaximize() } else { window.maximize() };
+        }
+        "close" => {
+            let _ = window.hide();
+            set_hub_shown(&window, false);
+            webview_memory::set_low(&window, true);
+        }
+        "drag" => {
+            let _ = window.start_dragging();
+        }
+        _ => {}
+    }
+}
 
 fn set_hub_shown(win: &tauri::WebviewWindow, shown: bool) {
     if HUB_SHOWN.swap(shown, Ordering::Relaxed) != shown {
@@ -907,6 +938,7 @@ pub fn run() {
         .manage(shortcuts::Registry::default())
         .manage(recap::load())
         .invoke_handler(tauri::generate_handler![
+            hub_window,
             boot,
             gcal::gcal_connected,
             gcal::gcal_connect,
@@ -922,6 +954,7 @@ pub fn run() {
             voice::piper::piper_model,
             voice::ask::ask_send,
             voice::ask::ask_close,
+            voice::ask::ask_open,
             voice::explain::explain_hot,
             voice::explain::explain_redraw,
             voice::draw::draw_models,

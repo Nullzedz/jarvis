@@ -270,6 +270,10 @@ export const Bridge = {
   /** JARVIS: the type-to-ask box (voice/ask.rs). */
   askSend: (question: string) => call<void>("ask_send", { question }),
   askClose: () => call<void>("ask_close"),
+  /** Opens the box from the front page, without a picture of the screen. */
+  askOpen: () => call<void>("ask_open"),
+  /** The main window's own controls (it has no title bar). */
+  hubWindow: (action: "minimize" | "maximize" | "close" | "drag") => call<void>("hub_window", { action }),
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),

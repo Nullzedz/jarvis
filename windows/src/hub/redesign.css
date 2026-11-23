@@ -1,0 +1,143 @@
+/* The redesign's window shell (docs/jarvis/design/SPEC.md §4, §5): the front page
+   with its dock and pinned bar, the sliding sidebar, section tabs, Ctrl K search. */
+
+body.hub-window { background: var(--jv-bg); color: var(--jv-t1); }
+
+/* ── The sidebar: A (grey line icons) at rest, C (coloured squares and names) on hover ── */
+.jv-rail {
+  position: fixed; left: 12px; top: 12px; bottom: 12px; width: 68px; z-index: 30;
+  background: var(--jv-s0); border-radius: 26px;
+  display: flex; flex-direction: column; gap: 10px; padding: 16px 12px; overflow: hidden;
+  /* Closing is quicker than opening (the open states below set .32s). */
+  transition: width .2s var(--jv-ease), box-shadow .2s ease, transform .45s var(--jv-ease), opacity .3s ease;
+}
+.jv-rail:hover { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
+body.at-home .jv-rail { transform: translateX(-110px); opacity: 0; pointer-events: none; }
+.jv-rlogo { display: flex; align-items: center; gap: 12px; height: 34px; padding: 0 4px; margin-bottom: 8px; white-space: nowrap; font-weight: 600; font-size: 14px; }
+.jv-ri {
+  display: flex; align-items: center; gap: 10px; height: 40px; width: 100%; flex: none; padding: 0 6px;
+  border: 0; border-radius: 14px; background: none; color: var(--jv-t2); text-align: left; white-space: nowrap; cursor: pointer; font: inherit;
+}
+.jv-ri:hover { background: var(--jv-s1); color: var(--jv-t1); }
+.jv-ri.on { background: var(--jv-s2); color: var(--jv-t1); }
+/* Colour fades in as the sidebar opens, and is gone at once when it closes: nothing to flicker. */
+.jv-ri .g { width: 32px; height: 32px; flex: none; border-radius: 9px; display: grid; place-items: center; transition: none; }
+.jv-rail:hover .jv-ri .g, body.wc-open:not(.at-home) .jv-rail .jv-ri .g { transition: background .2s ease, color .2s ease; }
+.jv-ri .g svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.jv-rail:hover .jv-ri .g { background: var(--c); color: #fff; }
+.jv-rail .n { font-size: 13px; opacity: 0; transform: translateX(-6px); transition: none; }
+.jv-rail:hover .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
+.jv-rail .spacer { flex: 1 1 auto; }
+.jv-rail .hub-status { padding: 4px 8px; white-space: nowrap; overflow: hidden; }
+.jv-rail:not(:hover) .hub-status span { opacity: 0; }
+
+/* The panel sits beside the closed sidebar; the front page takes the whole window. */
+body.hub-window #hub .hub-panel { margin-left: 92px; transition: margin .45s var(--jv-ease), background .3s ease; }
+body.hub-window.at-home #hub .hub-panel { margin: 0; border: 0; border-radius: 0; background: var(--jv-bg); }
+body.at-home .hub-scroll { padding: 0; }
+
+/* A section's pages, as tabs at its top */
+.jv-tabs { display: inline-flex; gap: 2px; background: var(--jv-s1); border-radius: 999px; padding: 3px; margin: 0 0 18px; flex-wrap: wrap; }
+.jv-tabs button { border: 0; background: none; color: var(--jv-t2); font: 500 12.5px/1 var(--font); padding: 7px 14px; border-radius: 999px; cursor: pointer; }
+.jv-tabs button:hover { color: var(--jv-t1); }
+.jv-tabs button.on { background: var(--jv-s2); color: var(--jv-t1); }
+
+/* ── The front page ── */
+.hub-page.jv-homepage { max-width: none; }
+.jv-home { max-width: 980px; margin: 0 auto; padding: 0 32px; width: 100%; box-sizing: border-box; }
+.jv-hero { height: 100vh; min-height: 560px; display: flex; flex-direction: column; padding: 18px 0 26px; box-sizing: border-box; }
+.jv-top { display: flex; align-items: center; justify-content: space-between; }
+.jv-brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 600; font-size: 14px; }
+.jv-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.jv-h1 { margin: 0; font-size: 44px; font-weight: 600; letter-spacing: -.015em; line-height: 1.08; }
+.jv-h1 span { color: var(--jv-t3); }
+.jv-sub { margin: 10px 0 0; font-size: 15px; color: var(--jv-t2); }
+.jv-askrow { display: flex; align-items: center; gap: 10px; width: min(560px, 90%); margin-top: 30px; }
+.jv-ask {
+  flex: 1; display: flex; align-items: center; gap: 12px; background: var(--jv-s1); border: 0; border-radius: 999px;
+  padding: 0 14px 0 20px; height: 52px; font: 15px var(--font); color: var(--jv-t2); cursor: text; text-align: left;
+  transition: background .2s ease;
+}
+.jv-ask:hover { background: var(--jv-s2); }
+.jv-ask .q { flex: 1; }
+.jv-spark { color: var(--jv-purple); }
+.jv-kc { font-size: 11.5px; color: var(--jv-t2); border: 1px solid var(--jv-t3); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+.jv-mic { width: 52px; height: 52px; flex: none; border: 0; border-radius: 50%; background: var(--jv-blue); color: #fff; display: grid; place-items: center; cursor: pointer; transition: transform .12s ease; }
+.jv-mic:active, .jv-ask:active { transform: scale(.97); }
+.jv-mic svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.jv-dock { display: flex; justify-content: center; gap: 30px; }
+.jv-app .nm { visibility: hidden; } /* shown by the flying square's own name (.jv-sqname) */
+.jv-center { will-change: opacity; }
+.jv-app { display: flex; flex-direction: column; align-items: center; gap: 8px; font-size: 12px; color: var(--jv-t2); }
+.jv-app .slot { width: 54px; height: 54px; display: block; }
+.jv-chev { text-align: center; color: var(--jv-t3); margin-top: 14px; animation: jv-bob 2.4s ease-in-out infinite; }
+@keyframes jv-bob { 50% { transform: translateY(4px); } }
+.jv-below { min-height: 40vh; }
+/* The settings window styles every <section> as a card; the front page's are not. */
+.jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0; max-width: none; }
+
+/* The squares live in one fixed layer: they glide from the dock into the pinned bar as you scroll. */
+.jv-flyers { position: fixed; inset: 0; pointer-events: none; z-index: 21; }
+body:not(.at-home) .jv-flyers, body:not(.at-home) .jv-pinbar { display: none; }
+.jv-sq {
+  position: absolute; left: 0; top: 0; pointer-events: auto; will-change: transform; border: 0; cursor: pointer;
+  display: grid; place-items: center; color: #fff; border-radius: 26%;
+}
+.jv-sq svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.jv-sq:active { filter: brightness(.9); }
+.jv-sq { overflow: visible; }
+.jv-sqname { position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap;
+  font: 12px var(--font); color: var(--jv-t2); pointer-events: none; }
+.jv-pinbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 20; opacity: 0; pointer-events: none;
+  background: color-mix(in srgb, var(--jv-bg) 82%, transparent); backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--jv-s1); transition: opacity .25s ease;
+}
+.jv-pinbar.on { opacity: 1; pointer-events: auto; }
+.jv-pinbar .in { max-width: 980px; margin: 0 auto; padding: 0 32px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+.jv-pins { display: flex; gap: 10px; }
+.jv-pins > span { width: 30px; height: 30px; display: block; }
+.jv-askmini { border: 0; display: flex; align-items: center; gap: 8px; background: var(--jv-s1); color: var(--jv-t2); border-radius: 999px; padding: 6px 16px; font: 13px var(--font); cursor: pointer; }
+
+/* ── Ctrl K: settings search ── */
+.jv-veil { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .45); display: none; align-items: flex-start; justify-content: center; padding-top: 12vh; }
+.jv-veil.on { display: flex; }
+.jv-searchpop { width: min(560px, 90vw); background: var(--jv-s1); border-radius: 18px; padding: 10px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+.jv-searchpop .hub-search { margin: 0; }
+.jv-searchpop .hub-search-results { max-height: 50vh; overflow-y: auto; margin-top: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jv-rail, .jv-chev, body.hub-window #hub .hub-panel { transition: none; animation: none; }
+}
+
+/* ── The window's controls: his visor in the top-left corner, three dots slide out from behind him ── */
+.jv-dragedge { position: fixed; top: 0; left: 0; right: 0; height: 10px; z-index: 39; }
+.jv-wc { position: fixed; left: 28px; top: 28px; z-index: 40; display: flex; align-items: center; gap: 12px; }
+.jv-wc-face { cursor: grab; transition: transform .35s var(--jv-ease); }
+.jv-wc-face:active { cursor: grabbing; }
+.jv-wc.open .jv-wc-face > b { animation: none; transform: translateX(14%); transition: transform .3s var(--jv-ease); }
+.jv-dots { display: flex; gap: 8px; }
+.jv-dot {
+  width: 13px; height: 13px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .25);
+  opacity: 0; transform: translateX(-34px) scale(.3); pointer-events: none;
+  /* Going back in: quick, all together, so they're gone before the sidebar closes. */
+  transition: transform .1s ease-in, opacity .08s ease-in, filter .15s ease;
+}
+/* macOS's own traffic-light colours */
+.jv-dot.close { background: #ff5f57; }
+.jv-dot.min { background: #febc2e; }
+.jv-dot.max { background: #28c840; }
+/* Coming out: one after another, with a little spring. */
+.jv-wc.open .jv-dot { opacity: 1; transform: none; pointer-events: auto; transition: transform .38s var(--jv-ease), opacity .22s ease, filter .15s ease; }
+.jv-wc.open .jv-dot:nth-child(2) { transition-delay: .03s; } .jv-wc.open .jv-dot:nth-child(3) { transition-delay: .06s; }
+.jv-dot:hover { filter: brightness(1.08); }
+.jv-dot:active { filter: brightness(.85); }
+/* The sidebar keeps a place for him, and hides his name while the dots are out. */
+.jv-rlogo-slot { width: 36px; height: 25px; flex: none; }
+body.wc-open .jv-rlogo .n { opacity: 0 !important; }
+/* On a section page the sidebar opens with them, so the dots sit inside it, not over the page. */
+body.wc-open:not(.at-home) .jv-rail { width: 176px; box-shadow: 12px 0 40px rgba(0, 0, 0, .6); transition-duration: .32s; }
+body.wc-open:not(.at-home) .jv-rail .jv-ri .g { background: var(--c); color: #fff; }
+body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; transition: opacity .2s ease .06s, transform .2s ease .06s; }
+@media (prefers-reduced-motion: reduce) { .jv-dot, .jv-wc-face { transition: none; } }
