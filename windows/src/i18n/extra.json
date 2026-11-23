@@ -5044,21 +5044,6 @@
       "ko": "목소리는 이 컴퓨터 밖으로 절대 안 나가요. Parakeet이 여기서 글자로 바꾸고, 녹음은 붙여넣자마자 버려요.",
       "ja": "あなたの声がこのパソコンの外に出ることはありません：Parakeet がここでテキストに変換し、録音は貼り付け後すぐに破棄されます。"
     },
-    "With Claude, the transcript (never the audio) goes to Anthropic with your key from Notch → Chat.": {
-      "zh-Hans": "使用 Claude 时，文字记录（绝不包括音频）会通过你在“Notch → 聊天”中设置的密钥发送给 Anthropic。",
-      "hi": "Claude के साथ, ट्रांसक्रिप्ट (ऑडियो कभी नहीं) Notch → चैट में दी गई आपकी कुंजी के साथ Anthropic को जाता है।",
-      "es": "Con Claude, la transcripción (nunca el audio) va a Anthropic con tu clave de Notch → Chat.",
-      "ar": "مع Claude، يذهب النص المكتوب (لا الصوت أبدًا) إلى Anthropic بمفتاحك من Notch ← الدردشة.",
-      "fr": "Avec Claude, la transcription (jamais l'audio) part chez Anthropic avec ta clé de Notch → Chat.",
-      "bn": "Claude-এ, ট্রান্সক্রিপ্ট (অডিও কখনো নয়) Notch → চ্যাট থেকে আপনার কী দিয়ে Anthropic-এ যায়।",
-      "pt-BR": "Com o Claude, a transcrição (nunca o áudio) vai para a Anthropic com sua chave de Notch → Chat.",
-      "ru": "С Claude расшифровка (но никогда не звук) уходит в Anthropic с вашим ключом из Notch → Чат.",
-      "id": "Dengan Claude, transkrip (tidak pernah audionya) dikirim ke Anthropic dengan kuncimu dari Notch → Obrolan.",
-      "de": "Mit Claude wird das Transkript mit deinem Schlüssel aus Notch → Chat an Anthropic gesendet, niemals das Audio.",
-      "tr": "Claude ile döküm, Çentik → Sohbet bölümündeki anahtarınla Anthropic'e gönderilir; ses asla gönderilmez.",
-      "ko": "Claude를 쓰면 녹취록(오디오는 안 보내요)이 노치 → 채팅의 내 키와 함께 Anthropic으로 가요.",
-      "ja": "Claude を使う場合、文字起こし（音声は送られません）が ノッチ → チャット のキーで Anthropic に送られます。"
-    },
     "Everything stays on this computer. Tell the people in the call that you are recording.": {
       "zh-Hans": "所有内容都留在这台电脑上。请告知通话中的人你正在录音。",
       "hi": "सब कुछ इसी कंप्यूटर पर रहता है। कॉल में मौजूद लोगों को बताएँ कि आप रिकॉर्ड कर रहे हैं।",
@@ -5148,21 +5133,6 @@
       "tr": "Coucou görüşmelerini bu bilgisayarda Parakeet ile yazıya döker ve ikinci küçük bir modelle sesleri ayırt eder. İkisi de bir kez indirilir (yaklaşık {0} MB), sonra her şey çevrimdışı çalışır.",
       "ko": "Coucou는 Parakeet으로 이 컴퓨터에서 통화를 받아 적고, 작은 모델 하나로 목소리를 구분해요. 두 모델을 한 번만 받으면(약 {0}MB) 그다음부턴 전부 오프라인으로 돌아가요.",
       "ja": "Coucou はこのパソコン上で Parakeet を使って通話を書き起こし、2 つ目の小さなモデルで声を聞き分けます。どちらも 1 回だけダウンロード（約 {0} MB）すれば、すべてオフラインで動作します。"
-    },
-    "The clean-up uses your Claude key. Add it in Notch → Chat.": {
-      "zh-Hans": "清理功能使用你的 Claude 密钥。请在“Notch → 聊天”中添加。",
-      "hi": "सफ़ाई आपकी Claude कुंजी इस्तेमाल करती है। इसे Notch → चैट में जोड़ें।",
-      "es": "La limpieza usa tu clave de Claude. Añádela en Notch → Chat.",
-      "ar": "يستخدم التنظيف مفتاح Claude الخاص بك. أضفه في Notch ← الدردشة.",
-      "fr": "Le nettoyage utilise ta clé Claude. Ajoute-la dans Notch → Chat.",
-      "bn": "পরিষ্কার করতে আপনার Claude কী লাগে। Notch → চ্যাট-এ যোগ করুন।",
-      "pt-BR": "A limpeza usa sua chave do Claude. Adicione-a em Notch → Chat.",
-      "ru": "Для очистки нужен ваш ключ Claude. Добавьте его в Notch → Чат.",
-      "id": "Pembersihan memakai kunci Claude-mu. Tambahkan di Notch → Obrolan.",
-      "de": "Die Überarbeitung nutzt deinen Claude-Schlüssel. Füge ihn unter Notch → Chat hinzu.",
-      "tr": "Düzenleme, Claude anahtarını kullanır. Çentik → Sohbet bölümünden ekle.",
-      "ko": "다듬기에는 Claude 키가 필요해요. 노치 → 채팅에서 넣어 주세요.",
-      "ja": "整える機能は Claude のキーを使います。ノッチ → チャットで追加してください。"
     },
     "With the clean-up on, the text (never your voice) goes to Anthropic with your Claude key. Off, everything stays on this computer.": {
       "zh-Hans": "开启清理后，文字（绝不包括你的声音）会通过你的 Claude 密钥发送给 Anthropic。关闭时，一切都留在这台电脑上。",
@@ -11494,21 +11464,6 @@
       "tr": "not alınamadı",
       "zh-Hans": "未能记录"
     },
-    "notes ready · {n} to-dos": {
-      "ar": "الملاحظات جاهزة · {n} مهام",
-      "bn": "নোট প্রস্তুত · {n}টি করণীয়",
-      "de": "Notizen fertig · {n} Aufgaben",
-      "es": "notas listas · {n} tareas",
-      "fr": "notes prêtes · {n} à faire",
-      "hi": "नोट तैयार · {n} काम",
-      "id": "catatan siap · {n} tugas",
-      "ja": "メモ完成 · やること {n} 件",
-      "ko": "노트 완료 · 할 일 {n}개",
-      "pt-BR": "notas prontas · {n} tarefas",
-      "ru": "заметки готовы · задач: {n}",
-      "tr": "notlar hazır · {n} yapılacak",
-      "zh-Hans": "笔记已就绪 · {n} 项待办"
-    },
     "notes ready": {
       "ar": "الملاحظات جاهزة",
       "bn": "নোট প্রস্তুত",
@@ -11538,21 +11493,6 @@
       "ru": "пишу заметку…",
       "tr": "not yazılıyor…",
       "zh-Hans": "正在写笔记…"
-    },
-    "{n} to-dos.": {
-      "ar": "{n} مهام.",
-      "bn": "{n}টি করণীয়।",
-      "de": "{n} Aufgaben.",
-      "es": "{n} tareas.",
-      "fr": "{n} choses à faire.",
-      "hi": "{n} काम।",
-      "id": "{n} tugas.",
-      "ja": "やること {n} 件。",
-      "ko": "할 일 {n}개.",
-      "pt-BR": "{n} tarefas.",
-      "ru": "Задач: {n}.",
-      "tr": "{n} yapılacak.",
-      "zh-Hans": "{n} 项待办。"
     },
     "recording now": {
       "ar": "جارٍ التسجيل",
@@ -12986,6 +12926,404 @@
       "ru": "Я ничего не услышал. Нажмите микрофон, чтобы попробовать снова.",
       "tr": "Hiçbir şey duymadım. Tekrar denemek için mikrofona basın.",
       "zh-Hans": "我什么都没听到。按下麦克风再试一次。"
+    },
+    "Styles apply with Claude clean-up on.": {
+      "ar": "تُطبَّق الأنماط عند تشغيل تنظيف Claude.",
+      "bn": "Claude ক্লিন-আপ চালু থাকলে স্টাইল প্রযোজ্য হয়।",
+      "de": "Stile wirken nur mit Claudes Aufräumen.",
+      "es": "Los estilos se aplican con la limpieza de Claude activada.",
+      "fr": "Les styles s’appliquent quand le nettoyage par Claude est activé.",
+      "hi": "स्टाइल तभी लागू होते हैं जब Claude की सफ़ाई चालू हो।",
+      "id": "Gaya berlaku saat pembersihan Claude aktif.",
+      "ja": "スタイルは Claude のクリーンアップがオンのときに適用されます。",
+      "ko": "스타일은 Claude 정리가 켜져 있을 때 적용돼요.",
+      "pt-BR": "Os estilos se aplicam com a limpeza do Claude ligada.",
+      "ru": "Стили применяются, когда включена очистка Claude.",
+      "tr": "Stiller, Claude temizliği açıkken uygulanır.",
+      "zh-Hans": "风格仅在开启 Claude 整理时生效。"
+    },
+    "The voice model isn't downloaded": {
+      "ar": "نموذج الصوت غير مُنزَّل",
+      "bn": "ভয়েস মডেল ডাউনলোড হয়নি",
+      "de": "Das Sprachmodell ist nicht geladen",
+      "es": "El modelo de voz no está descargado",
+      "fr": "Le modèle vocal n’est pas téléchargé",
+      "hi": "वॉइस मॉडल डाउनलोड नहीं हुआ",
+      "id": "Model suara belum diunduh",
+      "ja": "音声モデルがダウンロードされていません",
+      "ko": "음성 모델이 다운로드되지 않았어요",
+      "pt-BR": "O modelo de voz não foi baixado",
+      "ru": "Голосовая модель не загружена",
+      "tr": "Ses modeli indirilmedi",
+      "zh-Hans": "语音模型尚未下载"
+    },
+    "Turn dictation on and download the voice model (about 600 MB) in Settings › Dictation.": {
+      "ar": "شغّل الإملاء ونزّل نموذج الصوت (حوالي 600 ميغابايت) من الإعدادات › الإملاء.",
+      "bn": "সেটিংস › ডিক্টেশন-এ ডিক্টেশন চালু করুন ও ভয়েস মডেল (প্রায় 600 MB) ডাউনলোড করুন।",
+      "de": "Schalte das Diktat ein und lade das Sprachmodell (ca. 600 MB) unter Einstellungen › Diktat.",
+      "es": "Activa el dictado y descarga el modelo de voz (unos 600 MB) en Ajustes › Dictado.",
+      "fr": "Activez la dictée et téléchargez le modèle vocal (environ 600 Mo) dans Réglages › Dictée.",
+      "hi": "सेटिंग्स › डिक्टेशन में डिक्टेशन चालू करें और वॉइस मॉडल (लगभग 600 MB) डाउनलोड करें।",
+      "id": "Nyalakan dikte dan unduh model suara (sekitar 600 MB) di Pengaturan › Dikte.",
+      "ja": "設定 › 音声入力で音声入力をオンにし、音声モデル（約 600 MB）をダウンロードしてください。",
+      "ko": "설정 › 받아쓰기에서 받아쓰기를 켜고 음성 모델(약 600MB)을 다운로드하세요.",
+      "pt-BR": "Ligue o ditado e baixe o modelo de voz (cerca de 600 MB) em Ajustes › Ditado.",
+      "ru": "Включите диктовку и загрузите голосовую модель (около 600 МБ) в «Настройки › Диктовка».",
+      "tr": "Ayarlar › Dikte'de dikteyi açın ve ses modelini (yaklaşık 600 MB) indirin.",
+      "zh-Hans": "在“设置 › 听写”中打开听写并下载语音模型（约 600 MB）。"
+    },
+    "Set up": {
+      "ar": "إعداد",
+      "bn": "সেট আপ",
+      "de": "Einrichten",
+      "es": "Configurar",
+      "fr": "Configurer",
+      "hi": "सेट अप",
+      "id": "Siapkan",
+      "ja": "設定する",
+      "ko": "설정",
+      "pt-BR": "Configurar",
+      "ru": "Настроить",
+      "tr": "Kur",
+      "zh-Hans": "设置"
+    },
+    "The history is off. Turn it on in Settings › Dictation.": {
+      "ar": "السجل متوقف. شغّله من الإعدادات › الإملاء.",
+      "bn": "ইতিহাস বন্ধ। সেটিংস › ডিক্টেশন-এ চালু করুন।",
+      "de": "Der Verlauf ist aus. Schalte ihn unter Einstellungen › Diktat ein.",
+      "es": "El historial está desactivado. Actívalo en Ajustes › Dictado.",
+      "fr": "L’historique est désactivé. Activez-le dans Réglages › Dictée.",
+      "hi": "इतिहास बंद है। सेटिंग्स › डिक्टेशन में चालू करें।",
+      "id": "Riwayat mati. Nyalakan di Pengaturan › Dikte.",
+      "ja": "履歴はオフです。設定 › 音声入力でオンにしてください。",
+      "ko": "기록이 꺼져 있어요. 설정 › 받아쓰기에서 켜세요.",
+      "pt-BR": "O histórico está desligado. Ligue em Ajustes › Ditado.",
+      "ru": "История выключена. Включите её в «Настройки › Диктовка».",
+      "tr": "Geçmiş kapalı. Ayarlar › Dikte'den açın.",
+      "zh-Hans": "历史记录已关闭。请在“设置 › 听写”中打开。"
+    },
+    "With Claude, the transcript (never the audio) goes to Anthropic with your key from Settings › Accounts and keys.": {
+      "ar": "مع Claude، يُرسَل النص (وليس الصوت أبدًا) إلى Anthropic بمفتاحك من الإعدادات › الحسابات والمفاتيح.",
+      "bn": "Claude দিয়ে ট্রান্সক্রিপ্ট (অডিও কখনো নয়) সেটিংস › অ্যাকাউন্ট ও কী-এর আপনার কী দিয়ে Anthropic-এ যায়।",
+      "de": "Mit Claude geht das Transkript (nie der Ton) mit deinem Schlüssel aus Einstellungen › Konten und Schlüssel an Anthropic.",
+      "es": "Con Claude, la transcripción (nunca el audio) va a Anthropic con tu clave de Ajustes › Cuentas y claves.",
+      "fr": "Avec Claude, la transcription (jamais l’audio) part chez Anthropic avec votre clé de Réglages › Comptes et clés.",
+      "hi": "Claude के साथ ट्रांसक्रिप्ट (ऑडियो कभी नहीं) सेटिंग्स › खाते और कुंजियाँ की आपकी कुंजी से Anthropic को जाता है।",
+      "id": "Dengan Claude, transkrip (bukan audio) dikirim ke Anthropic dengan kunci Anda dari Pengaturan › Akun dan kunci.",
+      "ja": "Claude を使うと、書き起こし（音声は送られません）が設定 › アカウントとキーのキーで Anthropic に送られます。",
+      "ko": "Claude를 쓰면 대본(음성은 아님)이 설정 › 계정 및 키의 키로 Anthropic에 전송돼요.",
+      "pt-BR": "Com o Claude, a transcrição (nunca o áudio) vai para a Anthropic com sua chave de Ajustes › Contas e chaves.",
+      "ru": "С Claude расшифровка (не звук) отправляется в Anthropic с ключом из «Настройки › Аккаунты и ключи».",
+      "tr": "Claude ile döküm (ses asla) Ayarlar › Hesaplar ve anahtarlar'daki anahtarınızla Anthropic'e gider.",
+      "zh-Hans": "使用 Claude 时，转录文本（绝不含音频）会用“设置 › 账户和密钥”中的密钥发送给 Anthropic。"
+    },
+    "back to it": {
+      "ar": "العودة إليه",
+      "bn": "সেখানে ফিরুন",
+      "de": "zurück dazu",
+      "es": "volver",
+      "fr": "y retourner",
+      "hi": "वापस जाएँ",
+      "id": "kembali ke sana",
+      "ja": "戻る",
+      "ko": "돌아가기",
+      "pt-BR": "voltar",
+      "ru": "вернуться",
+      "tr": "geri dön",
+      "zh-Hans": "返回"
+    },
+    "Couldn't start recording: {0}": {
+      "ar": "تعذّر بدء التسجيل: {0}",
+      "bn": "রেকর্ডিং শুরু করা যায়নি: {0}",
+      "de": "Aufnahme konnte nicht starten: {0}",
+      "es": "No se pudo empezar a grabar: {0}",
+      "fr": "Impossible de lancer l’enregistrement : {0}",
+      "hi": "रिकॉर्डिंग शुरू नहीं हो सकी: {0}",
+      "id": "Tidak bisa mulai merekam: {0}",
+      "ja": "録音を開始できませんでした: {0}",
+      "ko": "녹음을 시작하지 못했어요: {0}",
+      "pt-BR": "Não foi possível começar a gravar: {0}",
+      "ru": "Не удалось начать запись: {0}",
+      "tr": "Kayıt başlatılamadı: {0}",
+      "zh-Hans": "无法开始录制：{0}"
+    },
+    "Show all {0} calls": {
+      "ar": "عرض كل المكالمات الـ {0}",
+      "bn": "সব {0}টি কল দেখান",
+      "de": "Alle {0} Anrufe zeigen",
+      "es": "Ver las {0} llamadas",
+      "fr": "Afficher les {0} appels",
+      "hi": "सभी {0} कॉल दिखाएँ",
+      "id": "Tampilkan semua {0} panggilan",
+      "ja": "{0} 件の通話をすべて表示",
+      "ko": "통화 {0}개 모두 보기",
+      "pt-BR": "Mostrar as {0} chamadas",
+      "ru": "Показать все звонки ({0})",
+      "tr": "{0} görüşmenin hepsini göster",
+      "zh-Hans": "显示全部 {0} 个通话"
+    },
+    "Search your calls": {
+      "ar": "ابحث في مكالماتك",
+      "bn": "আপনার কল খুঁজুন",
+      "de": "Anrufe durchsuchen",
+      "es": "Buscar en tus llamadas",
+      "fr": "Chercher dans vos appels",
+      "hi": "अपनी कॉल खोजें",
+      "id": "Cari panggilan Anda",
+      "ja": "通話を検索",
+      "ko": "통화 검색",
+      "pt-BR": "Buscar suas chamadas",
+      "ru": "Искать звонки",
+      "tr": "Görüşmelerinizde arayın",
+      "zh-Hans": "搜索你的通话"
+    },
+    "No call matches “{0}”.": {
+      "ar": "لا توجد مكالمة تطابق “{0}”.",
+      "bn": "“{0}”-এর সাথে কোনো কল মেলে না।",
+      "de": "Kein Anruf passt zu „{0}“.",
+      "es": "Ninguna llamada coincide con “{0}”.",
+      "fr": "Aucun appel ne correspond à « {0} ».",
+      "hi": "“{0}” से कोई कॉल मेल नहीं खाती।",
+      "id": "Tidak ada panggilan yang cocok dengan “{0}”.",
+      "ja": "「{0}」に一致する通話はありません。",
+      "ko": "“{0}”와(과) 일치하는 통화가 없어요.",
+      "pt-BR": "Nenhuma chamada corresponde a “{0}”.",
+      "ru": "Нет звонков для «{0}».",
+      "tr": "“{0}” ile eşleşen görüşme yok.",
+      "zh-Hans": "没有与“{0}”匹配的通话。"
+    },
+    "Couldn't export: {0}": {
+      "ar": "تعذّر التصدير: {0}",
+      "bn": "এক্সপোর্ট করা যায়নি: {0}",
+      "de": "Export fehlgeschlagen: {0}",
+      "es": "No se pudo exportar: {0}",
+      "fr": "Impossible d’exporter : {0}",
+      "hi": "एक्सपोर्ट नहीं हो सका: {0}",
+      "id": "Tidak bisa mengekspor: {0}",
+      "ja": "書き出せませんでした: {0}",
+      "ko": "내보내지 못했어요: {0}",
+      "pt-BR": "Não foi possível exportar: {0}",
+      "ru": "Не удалось экспортировать: {0}",
+      "tr": "Dışa aktarılamadı: {0}",
+      "zh-Hans": "无法导出：{0}"
+    },
+    "Delete “{0}” and its notes? This can't be undone.": {
+      "ar": "حذف “{0}” وملاحظاته؟ لا يمكن التراجع عن ذلك.",
+      "bn": "“{0}” ও এর নোট মুছবেন? এটি ফেরানো যাবে না।",
+      "de": "„{0}“ und die Notizen löschen? Das lässt sich nicht rückgängig machen.",
+      "es": "¿Eliminar “{0}” y sus notas? No se puede deshacer.",
+      "fr": "Supprimer « {0} » et ses notes ? C’est définitif.",
+      "hi": "“{0}” और इसके नोट हटाएँ? इसे वापस नहीं किया जा सकता।",
+      "id": "Hapus “{0}” dan catatannya? Ini tidak bisa dibatalkan.",
+      "ja": "「{0}」とそのメモを削除しますか？元に戻せません。",
+      "ko": "“{0}”와(과) 노트를 삭제할까요? 되돌릴 수 없어요.",
+      "pt-BR": "Excluir “{0}” e as notas? Não dá para desfazer.",
+      "ru": "Удалить «{0}» и его заметки? Это нельзя отменить.",
+      "tr": "“{0}” ve notları silinsin mi? Bu geri alınamaz.",
+      "zh-Hans": "删除“{0}”及其笔记？此操作无法撤销。"
+    },
+    "Delete call": {
+      "ar": "حذف المكالمة",
+      "bn": "কল মুছুন",
+      "de": "Anruf löschen",
+      "es": "Eliminar llamada",
+      "fr": "Supprimer l’appel",
+      "hi": "कॉल हटाएँ",
+      "id": "Hapus panggilan",
+      "ja": "通話を削除",
+      "ko": "통화 삭제",
+      "pt-BR": "Excluir chamada",
+      "ru": "Удалить звонок",
+      "tr": "Görüşmeyi sil",
+      "zh-Hans": "删除通话"
+    },
+    "Keep": {
+      "ar": "الإبقاء",
+      "bn": "রাখুন",
+      "de": "Behalten",
+      "es": "Conservar",
+      "fr": "Garder",
+      "hi": "रखें",
+      "id": "Simpan",
+      "ja": "残す",
+      "ko": "유지",
+      "pt-BR": "Manter",
+      "ru": "Оставить",
+      "tr": "Sakla",
+      "zh-Hans": "保留"
+    },
+    "People in the call · press a name to change it": {
+      "ar": "الأشخاص في المكالمة · اضغط اسمًا لتغييره",
+      "bn": "কলে থাকা মানুষ · নাম বদলাতে নামে চাপুন",
+      "de": "Personen im Anruf · Namen anklicken zum Ändern",
+      "es": "Personas en la llamada · pulsa un nombre para cambiarlo",
+      "fr": "Personnes dans l’appel · appuyez sur un nom pour le changer",
+      "hi": "कॉल में लोग · बदलने के लिए नाम दबाएँ",
+      "id": "Orang dalam panggilan · tekan nama untuk mengubahnya",
+      "ja": "通話の参加者 · 名前を押して変更",
+      "ko": "통화 참여자 · 이름을 눌러 바꾸기",
+      "pt-BR": "Pessoas na chamada · pressione um nome para mudar",
+      "ru": "Участники · нажмите имя, чтобы изменить",
+      "tr": "Görüşmedekiler · değiştirmek için ada basın",
+      "zh-Hans": "通话中的人 · 点名字即可更改"
+    },
+    "{count} to-dos.": {
+      "ar": {
+        "one": "مهمة واحدة.",
+        "other": "{count} مهام."
+      },
+      "bn": {
+        "one": "{count}টি করণীয়।",
+        "other": "{count}টি করণীয়।"
+      },
+      "de": {
+        "one": "{count} Aufgabe.",
+        "other": "{count} Aufgaben."
+      },
+      "es": {
+        "one": "{count} tarea.",
+        "other": "{count} tareas."
+      },
+      "fr": {
+        "one": "{count} chose à faire.",
+        "other": "{count} choses à faire."
+      },
+      "hi": {
+        "one": "{count} काम।",
+        "other": "{count} काम।"
+      },
+      "id": {
+        "other": "{count} tugas."
+      },
+      "ja": {
+        "other": "やること {count} 件。"
+      },
+      "ko": {
+        "other": "할 일 {count}개."
+      },
+      "pt-BR": {
+        "one": "{count} tarefa.",
+        "other": "{count} tarefas."
+      },
+      "ru": {
+        "one": "Задача: {count}.",
+        "other": "Задач: {count}."
+      },
+      "tr": {
+        "other": "{count} yapılacak."
+      },
+      "zh-Hans": {
+        "other": "{count} 项待办。"
+      }
+    },
+    "{count} to-dos": {
+      "ar": {
+        "one": "مهمة واحدة",
+        "other": "{count} مهام"
+      },
+      "bn": {
+        "one": "{count}টি করণীয়",
+        "other": "{count}টি করণীয়"
+      },
+      "de": {
+        "one": "{count} Aufgabe",
+        "other": "{count} Aufgaben"
+      },
+      "es": {
+        "one": "{count} tarea",
+        "other": "{count} tareas"
+      },
+      "fr": {
+        "one": "{count} chose à faire",
+        "other": "{count} choses à faire"
+      },
+      "hi": {
+        "one": "{count} काम",
+        "other": "{count} काम"
+      },
+      "id": {
+        "other": "{count} tugas"
+      },
+      "ja": {
+        "other": "やること {count} 件"
+      },
+      "ko": {
+        "other": "할 일 {count}개"
+      },
+      "pt-BR": {
+        "one": "{count} tarefa",
+        "other": "{count} tarefas"
+      },
+      "ru": {
+        "one": "Задача: {count}",
+        "other": "Задач: {count}"
+      },
+      "tr": {
+        "other": "{count} yapılacak"
+      },
+      "zh-Hans": {
+        "other": "{count} 项待办"
+      }
+    },
+    "The clean-up uses your Claude key. Add it in Settings › Accounts and keys.": {
+      "ar": "يستخدم التنظيف مفتاح Claude. أضفه من الإعدادات › الحسابات والمفاتيح.",
+      "bn": "ক্লিন-আপ আপনার Claude কী ব্যবহার করে। সেটিংস › অ্যাকাউন্ট ও কী-তে যোগ করুন।",
+      "de": "Das Aufräumen nutzt deinen Claude-Schlüssel. Füge ihn unter Einstellungen › Konten und Schlüssel hinzu.",
+      "es": "La limpieza usa tu clave de Claude. Añádela en Ajustes › Cuentas y claves.",
+      "fr": "Le nettoyage utilise votre clé Claude. Ajoutez-la dans Réglages › Comptes et clés.",
+      "hi": "सफ़ाई आपकी Claude कुंजी इस्तेमाल करती है। सेटिंग्स › खाते और कुंजियाँ में जोड़ें।",
+      "id": "Pembersihan memakai kunci Claude Anda. Tambahkan di Pengaturan › Akun dan kunci.",
+      "ja": "クリーンアップには Claude キーを使います。設定 › アカウントとキーで追加してください。",
+      "ko": "정리에는 Claude 키가 필요해요. 설정 › 계정 및 키에서 추가하세요.",
+      "pt-BR": "A limpeza usa sua chave do Claude. Adicione em Ajustes › Contas e chaves.",
+      "ru": "Очистка использует ключ Claude. Добавьте его в «Настройки › Аккаунты и ключи».",
+      "tr": "Temizlik Claude anahtarınızı kullanır. Ayarlar › Hesaplar ve anahtarlar'dan ekleyin.",
+      "zh-Hans": "整理会使用你的 Claude 密钥。请在“设置 › 账户和密钥”中添加。"
+    },
+    "The clean-up uses your Claude key.": {
+      "ar": "يستخدم التنظيف مفتاح Claude.",
+      "bn": "ক্লিন-আপ আপনার Claude কী ব্যবহার করে।",
+      "de": "Das Aufräumen nutzt deinen Claude-Schlüssel.",
+      "es": "La limpieza usa tu clave de Claude.",
+      "fr": "Le nettoyage utilise votre clé Claude.",
+      "hi": "सफ़ाई आपकी Claude कुंजी इस्तेमाल करती है।",
+      "id": "Pembersihan memakai kunci Claude Anda.",
+      "ja": "クリーンアップには Claude キーを使います。",
+      "ko": "정리에는 Claude 키가 필요해요.",
+      "pt-BR": "A limpeza usa sua chave do Claude.",
+      "ru": "Очистка использует ключ Claude.",
+      "tr": "Temizlik Claude anahtarınızı kullanır.",
+      "zh-Hans": "整理会使用你的 Claude 密钥。"
+    },
+    "Add it in Settings › Accounts and keys": {
+      "ar": "أضفه من الإعدادات › الحسابات والمفاتيح",
+      "bn": "সেটিংস › অ্যাকাউন্ট ও কী-তে যোগ করুন",
+      "de": "Unter Einstellungen › Konten und Schlüssel hinzufügen",
+      "es": "Añádela en Ajustes › Cuentas y claves",
+      "fr": "L’ajouter dans Réglages › Comptes et clés",
+      "hi": "सेटिंग्स › खाते और कुंजियाँ में जोड़ें",
+      "id": "Tambahkan di Pengaturan › Akun dan kunci",
+      "ja": "設定 › アカウントとキーで追加",
+      "ko": "설정 › 계정 및 키에서 추가",
+      "pt-BR": "Adicionar em Ajustes › Contas e chaves",
+      "ru": "Добавить в «Настройки › Аккаунты и ключи»",
+      "tr": "Ayarlar › Hesaplar ve anahtarlar'dan ekle",
+      "zh-Hans": "在“设置 › 账户和密钥”中添加"
+    },
+    "Removed “{0}”": {
+      "ar": "تمت إزالة “{0}”",
+      "bn": "“{0}” সরানো হয়েছে",
+      "de": "„{0}“ entfernt",
+      "es": "Se quitó “{0}”",
+      "fr": "« {0} » retiré",
+      "hi": "“{0}” हटाया गया",
+      "id": "“{0}” dihapus",
+      "ja": "「{0}」を削除しました",
+      "ko": "“{0}” 삭제됨",
+      "pt-BR": "“{0}” removido",
+      "ru": "«{0}» удалено",
+      "tr": "“{0}” kaldırıldı",
+      "zh-Hans": "已移除“{0}”"
     }
   }
 }

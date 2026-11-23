@@ -12,6 +12,7 @@ import type { HubContext } from "../shell";
 import { styleOptions } from "./styles";
 import { wallPage, type WallKind } from "./walls";
 import { dictationPage } from "./dictation";
+import { whenShown } from "../fit";
 
 const NS = "http://www.w3.org/2000/svg";
 const DAY = 86_400_000;
@@ -167,12 +168,25 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
       void ctx.setPrefs((p) => (p.defaultStyle = id as Style));
     } }));
   }
+  // Styles only apply with Claude's clean-up on: its switch is right here, and says so (#84).
+  const cleanSw = h("span", { class: `jv-switch${status.prefs.cleanup ? " on" : ""}` }, h("i"));
+  const cleanNote = h("p", { class: "cap", text: t("Styles apply with Claude clean-up on.") });
+  cleanNote.style.display = status.prefs.cleanup ? "none" : "";
+  const cleanBtn = h("button", { class: "jv-sswitch", role: "switch", "aria-checked": String(status.prefs.cleanup), "aria-label": t("Clean up with Claude") }, cleanSw);
+  cleanBtn.addEventListener("click", () => {
+    const on = !cleanSw.classList.contains("on");
+    cleanSw.classList.toggle("on", on);
+    cleanBtn.setAttribute("aria-checked", String(on));
+    cleanNote.style.display = on ? "none" : "";
+    void ctx.setPrefs((pp) => (pp.cleanup = on));
+  });
   const glance = h("div", { class: "jv-dglance" },
     h("div", { class: "jv-dtile" }, h("p", { class: "cap", text: t("Today") }), h("p", { class: "big", text: fmt(today) }),
       h("p", { class: "cap", text: `${t("words dictated")} · ${t("{time} saved", { time: saved(todaySaved) })}` })),
     h("div", { class: "jv-dtile row" }, ring, h("div", {}, h("p", { class: "cap", text: t("Streak") }),
       h("p", { class: "mid", text: t("{n} days", { n: streak }) }))),
-    h("div", { class: "jv-dtile" }, h("p", { class: "cap", text: t("Style in use") }), styleSeg));
+    h("div", { class: "jv-dtile" }, h("p", { class: "cap", text: t("Style in use") }), styleSeg,
+      h("div", { class: "jv-dclean" }, h("span", { text: t("Clean up with Claude") }), cleanBtn), cleanNote));
 
   // ── Your words ──
   const list = words?.words ?? [];
@@ -185,13 +199,20 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
       : h("p", { class: "cap empty", text: t("Add the names and words you use, and Parakeet spells them right.") }));
 
   // ── Dictionary, Snippets, Styles: each opens its own page ──
+  let subLeave: (() => void) | undefined;
+  const leaveSub = () => { subLeave?.(); subLeave = undefined; };
+  ctx.onLeave = leaveSub;
   const open = (title: string, render: (box: HTMLElement, c: HubContext) => Promise<void> | void) => () => {
+    leaveSub();
     clear(full);
     const box = h("div", { class: "jv-flowpart jv-sub-own" });
     const sub: HubContext = Object.create(ctx, { hero: { value: () => h("div") }, navigate: { value: (p: Parameters<HubContext["navigate"]>[0]) => ctx.navigate(p) } });
-    full.append(h("button", { class: "back", text: `‹ ${t("Dictation")}`, onclick: () => { full.style.display = "none"; main.style.display = ""; right.style.visibility = ""; } }),
+    full.append(h("button", { class: "back", text: `‹ ${t("Dictation")}`, onclick: () => { leaveSub(); full.style.display = "none"; main.style.display = ""; right.style.visibility = ""; } }),
       h("p", { class: "jv-ptitle", text: title }), box);
-    void render(box, sub);
+    // Its leave hook (a live listener on History) runs on Back and when the page is left (#84).
+    void Promise.resolve(render(box, sub)).then(() => {
+      if (Object.prototype.hasOwnProperty.call(sub, "onLeave")) subLeave = sub.onLeave;
+    });
     main.style.display = "none";
     full.style.display = "";
     right.style.visibility = "hidden";
@@ -210,14 +231,14 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
     (page.closest(".hub-scroll") as HTMLElement | null)?.scrollTo({ top: 0 });
   };
   const col = (title: string, items: HTMLElement[], go: () => void) => {
-    const b = h("button", { class: "jv-dcol", onclick: go }, h("p", { class: "row between hd" }, h("span", { text: title }), h("span", { class: "plus", text: "+" })),
+    const b = h("button", { class: "jv-dcol", onclick: go }, h("p", { class: "row between hd" }, h("span", { text: title }), h("span", { class: "plus", text: "›" })),
       ...(items.length ? items : [h("p", { class: "none", text: t("None yet") })]));
     return b;
   };
   const defaultName = styleOptions().find(([id]) => id === status.prefs.defaultStyle)?.[1] ?? "";
   const cols = h("div", { class: "jv-dcols" },
-    col(t("Dictionary"), list.slice(0, 4).map((w, i) => h("p", { class: i === 0 ? "it sel" : "it", text: w })), wall("dictionary")),
-    col(t("Snippets"), (snippets ?? []).slice(0, 3).map((s, i) => h("p", { class: i === 1 ? "it sel" : "it" }, document.createTextNode(`“${s.trigger}” `), h("span", { class: "cap", text: `→ ${s.text.slice(0, 24)}${s.text.length > 24 ? "…" : ""}` }))), wall("snippets")),
+    col(t("Dictionary"), list.slice(0, 4).map((w) => h("p", { class: "it", text: w })), wall("dictionary")),
+    col(t("Snippets"), (snippets ?? []).slice(0, 3).map((s) => h("p", { class: "it" }, document.createTextNode(`“${s.trigger}” `), h("span", { class: "cap", text: `→ ${s.text.slice(0, 24)}${s.text.length > 24 ? "…" : ""}` }))), wall("snippets")),
     col(t("Styles"), [
       h("p", { class: "it use" }, document.createTextNode(`${defaultName} `), h("span", { class: "cap", text: t("in use") })),
       ...(styles ?? []).slice(0, 2).map((s) => h("p", { class: "it" }, document.createTextNode(`${styleOptions().find(([id]) => id === s.style)?.[1] ?? s.style} `), h("span", { class: "cap", text: s.name }))),
@@ -225,7 +246,15 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
   const historyRow = h("button", { class: "jv-dhist", onclick: open(t("History"), dictationPage) },
     h("span", { text: t("History") }), h("span", { class: "cap", text: t("{n} dictations", { n: entries.length }) }), h("span", { class: "go", text: "›" }));
 
+  // Off, or no voice model: say so first, with the way to set it up (#84: it hid inside History).
+  const setupCard = !status.prefs.enabled || !ready
+    ? [h("div", { class: "jv-dsetup" },
+        h("div", {}, h("b", { text: !status.prefs.enabled ? t("Dictation is off") : t("The voice model isn't downloaded") }),
+          h("p", { class: "cap", text: t("Turn dictation on and download the voice model (about 600 MB) in Settings › Dictation.") })),
+        h("button", { class: "jv-btn blue", text: t("Set up"), onclick: () => ctx.navigate("flowsettings") }))]
+    : [];
   main.append(
+    ...setupCard,
     h("div", { class: "row between end" }, h("div", {}, headCap, headNum, headSub), ranges),
     svg,
     ...(apps.length ? [h("p", { class: "jv-dcap", text: t("Where you dictate") }), where] : []),
@@ -233,4 +262,8 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
   full.style.display = "none";
   page.classList.add("jv-dictpage");
   page.append(right, main, full);
+  whenShown(page, (sc) => {
+    const head = sc.querySelector(".jv-sechead");
+    if (head) { right.classList.add("inhead"); head.append(right); }
+  });
 }

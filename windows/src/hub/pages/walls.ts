@@ -179,12 +179,25 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
       h("div", { class: "grow" }, h("b", { text: t("Clean up with Claude") }),
         h("p", { class: "cap", text: t("Removes the “um”, the repeats and the corrections you made while speaking, and fixes the punctuation.") }),
         h("p", { class: "cap", text: t("With the clean-up on, the text (never your voice) goes to Anthropic with your Claude key. Off, everything stays on this computer.") }),
-        status.hasClaudeKey ? null : h("p", { class: "warn", text: t("The clean-up uses your Claude key. Add it in Notch → Chat.") })),
+        status.hasClaudeKey ? null : h("p", { class: "warn" }, document.createTextNode(`${t("The clean-up uses your Claude key.")} `),
+          h("button", { class: "jv-link", text: `${t("Add it in Settings › Accounts and keys")} ›`, onclick: () => ctx.navigate("chat") }))),
       b));
     wall.classList.toggle("dim", !status.prefs.cleanup);
   };
 
   const btn = (text: string, onclick: () => void, cls = "") => h("button", { class: `jv-chipbtn${cls ? ` ${cls}` : ""}`, text, onclick });
+  // Removing says what went, with Undo for a few seconds (#84).
+  const toast = h("div", { class: "jv-toast", role: "status" });
+  box.append(toast);
+  let toastAt = 0;
+  const removed = (what: string, undo: () => Promise<unknown>) => {
+    clear(toast);
+    toast.append(h("span", { text: t("Removed “{0}”", { 0: what }) }),
+      h("button", { class: "jv-link", text: t("Undo"), onclick: async () => { clear(toast); toast.classList.remove("on"); await undo(); draw(); } }));
+    toast.classList.add("on");
+    window.clearTimeout(toastAt);
+    toastAt = window.setTimeout(() => toast.classList.remove("on"), 6000);
+  };
   const times = (n: number) => tn("{count} time", "{count} times", n);
 
   const drawDetail = () => {
@@ -210,14 +223,18 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
         inp.addEventListener("keydown", (e) => { if (e.key === "Enter") void done(); });
         detail.append(inp, actions);
         actions.append(btn(t("Save"), () => void done(), "primary"), btn(t("Cancel"), () => { editing = false; draw(); }));
-        inp.focus();
+        // Not while you're typing in the search (#84: it stole the cursor after one letter).
+        if (document.activeElement !== q) inp.focus();
         return;
       }
       detail.append(name(w), h("div", { class: "grow" },
         h("p", { class: "cap", text: `${t("Always spelled this way")} · ${times(it.n)}` }),
         last ? h("p", { class: "line" }, `“${last.text.slice(0, 140)}${last.text.length > 140 ? "…" : ""}”`, last.app ? h("span", { class: "cap", text: ` · ${last.app}` }) : null) : null), actions);
       actions.append(btn(t("Edit"), () => { editing = true; drawDetail(); }),
-        btn(t("Remove"), async () => { if (await saveWords({ words: words.filter((x) => x !== w), replacements })) { sel = ""; draw(); } }, "danger"));
+        btn(t("Remove"), async () => {
+          const before = { words: [...words], replacements: [...replacements] };
+          if (await saveWords({ words: words.filter((x) => x !== w), replacements })) { sel = ""; draw(); removed(w, () => saveWords(before)); }
+        }, "danger"));
     } else if (it.key.startsWith("r:")) {
       const r = replacements.find((x) => `r:${x.id}` === it.key)!;
       if (editing) {
@@ -236,7 +253,10 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
         h("p", { class: "cap", text: `${t("Heard as “{0}”", { 0: r.from })} · ${times(it.n)}` }),
         h("p", { class: "line", text: t("When JARVIS hears “{0}”, he writes “{1}”.", { 0: r.from, 1: r.to }) })), actions);
       actions.append(btn(t("Edit"), () => { editing = true; drawDetail(); }),
-        btn(t("Remove"), async () => { if (await saveWords({ words, replacements: replacements.filter((x) => x.id !== r.id) })) { sel = ""; draw(); } }, "danger"));
+        btn(t("Remove"), async () => {
+          const before = { words: [...words], replacements: [...replacements] };
+          if (await saveWords({ words, replacements: replacements.filter((x) => x.id !== r.id) })) { sel = ""; draw(); removed(r.to, () => saveWords(before)); }
+        }, "danger"));
     } else if (it.key.startsWith("s:")) {
       const s = snippets.find((x) => `s:${x.id}` === it.key)!;
       if (editing) {
@@ -257,13 +277,16 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
         };
         detail.append(h("div", { class: "grow col" }, h("div", { class: "row" }, h("span", { class: "cap", text: t("You say") }), tr), tx), actions);
         actions.append(btn(t("Save"), () => void done(), "primary"), btn(t("Cancel"), cancel));
-        (s.trigger ? tx : tr).focus();
+        if (document.activeElement !== q) (s.trigger ? tx : tr).focus();
         return;
       }
       detail.append(name(`“${s.trigger}”`), h("span", { class: "cap", text: t("types") }), h("pre", { class: "out", text: s.text }),
         h("span", { class: "cap", text: times(it.n) }), actions);
       actions.append(btn(t("Edit"), () => { editing = true; drawDetail(); }),
-        btn(t("Remove"), async () => { if (await saveSnippets(snippets.filter((x) => x.id !== s.id))) { sel = ""; draw(); } }, "danger"));
+        btn(t("Remove"), async () => {
+          const before = [...snippets];
+          if (await saveSnippets(snippets.filter((x) => x.id !== s.id))) { sel = ""; draw(); removed(`“${s.trigger}”`, () => saveSnippets(before)); }
+        }, "danger"));
     } else {
       const id = it.key.slice(2) as Style;
       const apps = styles.filter((s) => s.style === id);
