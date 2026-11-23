@@ -20,7 +20,7 @@ import { searchSettings, type SettingsSearchHit } from "./search";
 export type PageId =
   | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
-  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk";
+  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk" | "prefs";
 
 interface PageDef {
   id: PageId;
@@ -64,7 +64,14 @@ const HOME_PAGE: PageDef = { id: "home", icon: "grid", title: () => t("Home") };
 const SESSIONS_PAGE: PageDef = { id: "sessions", icon: "terminal", title: () => t("Sessions") };
 /** The JARVIS section's first tab: the listening panel and today's conversation (#67). */
 const TALK_PAGE: PageDef = { id: "talk", icon: "wave", title: () => t("Conversation") };
-const ALL = [HOME_PAGE, SESSIONS_PAGE, TALK_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+/** Settings (#70): the demo's groups, every setting of the old pages in them. */
+const PREFS_PAGE: PageDef = { id: "prefs", icon: "gear", title: () => t("Settings") };
+const ALL = [HOME_PAGE, SESSIONS_PAGE, TALK_PAGE, PREFS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+/** The old pages whose settings now live in Settings: opening one opens its group there. */
+const MOVED: Partial<Record<PageId, string>> = {
+  general: "general", pills: "island", shortcuts: "shortcuts", agents: "agents", chat: "accounts",
+  phone: "phone", voice: "voice", flowsettings: "dictation",
+};
 
 /** What a page gets to draw itself and reach the rest of the window. */
 export interface HubContext {
@@ -78,6 +85,8 @@ export interface HubContext {
   hero(page: PageId, title: string, subtitle: string | null, actions?: HTMLElement[], compact?: boolean): HTMLElement;
   /** Set by a page: called when the page is left. */
   onLeave?: () => void;
+  /** Draws one of the island's settings pages (settings/main.ts) into `container`. */
+  notch(page: PageId, container: HTMLElement): Promise<void>;
 }
 
 export type FlowPageRenderer = (container: HTMLElement, ctx: HubContext) => void | Promise<void>;
@@ -141,6 +150,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       await FlowBridge.setPrefs(next);
     },
     hero: (page, title, subtitle, actions = [], compact = false) => hero(page, title, subtitle, actions, compact),
+    notch: (page, container) => opts.renderNotch(page, container),
   };
 
   function drawStatus() {
@@ -170,6 +180,8 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   }
 
   async function show(page: PageId, targetAnchor?: string) {
+    const moved = MOVED[page];
+    if (moved) return show("prefs", targetAnchor ?? `group-${moved}`);
     const def = ALL.find((p) => p.id === page) ?? HOME_PAGE;
     ctx.onLeave?.();
     ctx.onLeave = undefined;

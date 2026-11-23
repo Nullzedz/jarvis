@@ -13,6 +13,7 @@ import { mailBannedPage, mailOverviewPage, mailRulesPage, mailVIPPage } from "./
 
 import { sessionsPage } from "./pages/sessions";
 import { talkPage } from "./pages/talk";
+import { prefsPage } from "./pages/prefs";
 
 export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   dictation: dictationPage,
@@ -29,4 +30,5 @@ export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   mailVIP: mailVIPPage,
   sessions: sessionsPage,
   talk: talkPage,
+  prefs: prefsPage,
 };
