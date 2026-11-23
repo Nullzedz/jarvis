@@ -45,7 +45,8 @@ const TICK_MS: u64 = 16;
 /// (shown without activation) and only ever moved never is. Same as the
 /// island, which is never re-shown either.
 const PARK: bool = cfg!(windows);
-const PARKED: (f64, f64) = (-32000.0, -32000.0);
+// JARVIS: far off-screen, but not -32000 (see voice/explain.rs).
+const PARKED: (f64, f64) = (-10000.0, -10000.0);
 
 // ── Pure geometry ─────────────────────────────────────────────────────────────
 
@@ -335,6 +336,10 @@ fn create_window(app: &AppHandle, _mode: DesktopMode) -> Option<WebviewWindow> {
     let built = builder.build();
     match built {
         Ok(win) => {
+            // The builder's position isn't always applied: parked off-screen for sure.
+            if PARK {
+                let _ = win.set_position(tauri::PhysicalPosition::new(PARKED.0 as i32, PARKED.1 as i32));
+            }
             crate::webview_memory::set_low(&win, true); // he starts at home
             Some(win)
         }

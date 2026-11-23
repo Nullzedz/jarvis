@@ -6,7 +6,7 @@
 
 import { Bridge, onEvent, type ClipEntry } from "../core/bridge";
 import { State } from "../core/state";
-import { Spotify, currentArtwork, isAd } from "../core/spotify";
+import { Spotify, currentArtwork, isAd, spotifyPosition } from "../core/spotify";
 import { eventsBetween, type CalEvent } from "../core/ics";
 import { nextUp, untilText } from "../core/nextup";
 import { Focus, clockText, focusLeftMs } from "../core/focus";
@@ -70,8 +70,11 @@ export interface WidgetsHost {
 
 export function buildWidgets(host: WidgetsHost): ViewHost {
   const grid = h("div", { class: "grid3" });
-  const np = h("div", { class: "np" });
-  const el = h("div", { class: "view pk ov" }, grid, np);
+  // JARVIS: music first (design C): the big card on top, the cover blurred behind it.
+  const np = h("div", { class: "ov-hero" });
+  const el = h("div", { class: "view pk ov" }, np, grid);
+  let fill: HTMLElement | null = null;
+  let barTimer: number | null = null;
 
   let google: CalEvent[] = [];
   let fetchedAt = 0;
@@ -149,6 +152,47 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
     return [today, reminders, focus, clipboard, notes, agentTile];
   }
 
+  /** Where the song is, 0…1, from the player's last report run on to now; null: unknown. */
+  function progress(): number | null {
+    const m = State.media;
+    if (m && m.duration > 0) {
+      const pos = m.playing && m.at > 0 ? m.position + (Date.now() - m.at) / 1000 : m.position;
+      return Math.max(0, Math.min(1, pos / m.duration));
+    }
+    const sp = Spotify.state;
+    if (!m && sp.track && sp.track.duration > 0) return Math.max(0, Math.min(1, spotifyPosition(sp, Date.now()) / sp.track.duration));
+    return null;
+  }
+
+  /** The big card: backdrop, cover, title, "artist — album", the bar and the controls. */
+  function hero(m: ReturnType<typeof musicParts>): Node[] {
+    const media = State.media;
+    const sp = Spotify.state.track;
+    const cover = media ? media.art : currentArtwork();
+    const backdrop = h("div", { class: "ov-hero-bg" });
+    if (cover) backdrop.style.backgroundImage = `url("${cover}")`;
+    else backdrop.classList.add("none");
+    const art = m.art;
+    art.classList.add("ov-hero-art");
+    const title = media?.title ?? (sp && !isAd(sp) ? sp.title : null);
+    const artist = media?.artist ?? sp?.artist ?? "";
+    const album = media?.album ?? sp?.album ?? "";
+    const sub = [artist, album].filter(Boolean).join(" — ");
+    const bar = h("div", { class: "ov-bar" });
+    const f = h("i");
+    bar.append(f);
+    const p = progress();
+    if (p == null) bar.classList.add("none");
+    else f.style.width = `${(p * 100).toFixed(2)}%`;
+    fill = f;
+    const info = h("div", { class: "ov-hero-info" },
+      h("p", { class: "ov-hero-title", text: title ?? t("Nothing playing") }),
+      ...(title && sub ? [h("p", { class: "ov-hero-sub", text: sub })] : []),
+      ...(title ? [bar] : []));
+    m.ctls.classList.add("ov-hero-ctl");
+    return [backdrop, art, info, m.ctls];
+  }
+
   function paint(force = false) {
     const now = new Date();
     const s = Spotify.state;
@@ -163,8 +207,9 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
     clear(grid);
     grid.append(...tiles(now));
     clear(np);
+    fill = null;
     const m = musicParts();
-    np.append(m.art, m.who, m.src, m.ctls);
+    np.append(...hero(m));
     host.resize();
   }
 
@@ -182,6 +227,15 @@ export function buildWidgets(host: WidgetsHost): ViewHost {
         if (Date.now() - fetchedAt > REFRESH_MS) void loadCalendar();
       }
       wasShown = shown;
+      if (shown && barTimer == null) {
+        barTimer = window.setInterval(() => {
+          const p = progress();
+          if (fill && p != null) fill.style.width = `${(p * 100).toFixed(2)}%`;
+        }, 1000);
+      } else if (!shown && barTimer != null) {
+        window.clearInterval(barTimer);
+        barTimer = null;
+      }
       if (shown) paint();
     },
     fitHeight: () => contentHeight(el),

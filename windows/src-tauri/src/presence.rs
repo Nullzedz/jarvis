@@ -22,9 +22,28 @@ pub struct NowPlaying {
     pub app: String,
     pub title: String,
     pub artist: String,
+    pub album: String,
     pub playing: bool,
     /// The cover as a data URL, when the player gives one.
     pub art: Option<String>,
+    /// Seconds into the song at `at` (Unix ms), and its length (0 when unknown): the island
+    /// runs the progress bar on from there.
+    pub position: f64,
+    pub duration: f64,
+    pub at: f64,
+}
+
+impl NowPlaying {
+    /// The same song in the same state, give or take where it is in it: no need to tell the island
+    /// again unless it jumped (a seek) by more than 3 s from where it should be.
+    fn same_as(&self, other: &NowPlaying) -> bool {
+        let still = NowPlaying { position: other.position, at: other.at, ..self.clone() };
+        if still != *other {
+            return false;
+        }
+        let expected = if self.playing { self.position + (other.at - self.at) / 1000.0 } else { self.position };
+        (other.position - expected).abs() < 3.0
+    }
 }
 
 /// Seconds since the last keyboard or mouse input anywhere on the PC.
@@ -81,9 +100,13 @@ pub fn setup(app: &AppHandle) {
                     let _ = app.emit("music-playing", any);
                 }
                 let changed = NOW.lock().map(|mut n| {
-                    let differs = *n != now;
-                    if differs { *n = now.clone(); }
-                    differs
+                    let same = match (&*n, &now) {
+                        (Some(a), Some(b)) => a.same_as(b),
+                        (None, None) => true,
+                        _ => false,
+                    };
+                    if !same { *n = now.clone(); }
+                    !same
                 }).unwrap_or(false);
                 if changed {
                     let _ = app.emit("now-playing", now);
@@ -156,6 +179,15 @@ mod win {
             return (any, None);
         }
         let artist = props.Artist().map(|s| s.to_string_lossy()).unwrap_or_default();
+        let album = props.AlbumTitle().map(|s| s.to_string_lossy()).unwrap_or_default();
+        // Where it is in the song, and how long it is (Windows' timeline, as for Spotify).
+        let (position, duration, at) = session.GetTimelineProperties().ok().and_then(|tl| {
+            let start = tl.StartTime().ok()?.Duration;
+            let end = tl.EndTime().ok()?.Duration;
+            let pos = tl.Position().ok()?.Duration;
+            let at = tl.LastUpdatedTime().ok().and_then(|u| crate::spotify::windows_time_to_unix_ms(u.UniversalTime));
+            Some((crate::spotify::ticks_to_secs(pos - start), crate::spotify::ticks_to_secs(end - start), at.unwrap_or(0.0)))
+        }).unwrap_or((0.0, 0.0, 0.0));
         let app_id = app_id(&session);
         let key = format!("{app_id}|{title}|{artist}");
         if *cover_for != key {
@@ -166,8 +198,12 @@ mod win {
             app: super::music_app(&app_id).unwrap_or("Music").to_string(),
             title,
             artist,
+            album,
             playing: playing(&session),
             art: cover.clone(),
+            position,
+            duration,
+            at,
         }))
     }
 

@@ -1462,8 +1462,9 @@ export class BotEngine {
 
   private drawBadge(x: CanvasRenderingContext2D, badge: Badge, R: number, cx: number, cy: number) {
     const bs = this.badgeS * (this.isMini ? 1.25 : 1);
-    const bx = cx - R * 0.72 * this.sx;
-    const by = cy - R * 0.72 * this.sy;
+    // JARVIS: on a mini square the dot sits inside its top-left corner, never over its edge.
+    const bx = this.isMini ? cx - (1.14 * R - 0.42 * R) * this.sx : cx - R * 0.72 * this.sx;
+    const by = this.isMini ? cy - (0.88 * R - 0.36 * R) * this.sy : cy - R * 0.72 * this.sy;
     const t = now();
 
     x.save();
@@ -1474,7 +1475,8 @@ export class BotEngine {
     if (badge.kind === "dots") {
       if (this.isMini) {
         const phase = (t * 2.4) % 1;
-        const dotR = R * 0.22 * (1 + 0.25 * Math.sin(phase * Math.PI * 2));
+        // The pulse stays inside its dark ring.
+        const dotR = R * 0.13 * (1 + 0.2 * Math.sin(phase * Math.PI * 2));
         x.fillStyle = "#000";
         x.beginPath();
         x.arc(0, 0, R * 0.2, 0, Math.PI * 2);

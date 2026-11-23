@@ -282,6 +282,13 @@ pub fn clipboard_pin(app: AppHandle, id: u64, on: bool) {
     let _ = app.emit("clipboard-history", list());
 }
 
+/// Forgets one copy (swiped away in the island), pinned or not: its text and its pixels.
+#[tauri::command]
+pub fn clipboard_remove(app: AppHandle, id: u64) {
+    CLIPS.lock().unwrap().retain(|e| e.clip.id != id);
+    let _ = app.emit("clipboard-history", list());
+}
+
 /// Forgets the history, all but what's pinned.
 #[tauri::command]
 pub fn clipboard_clear(app: AppHandle) {

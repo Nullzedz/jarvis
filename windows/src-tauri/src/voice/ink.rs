@@ -11,7 +11,8 @@ use super::circle::{Ink, Pt};
 
 pub const LABEL: &str = "ink";
 /// Off every screen while nothing is drawn (shown windows that move don't take focus).
-const PARKED: (i32, i32) = (-32000, -32000);
+// JARVIS: far off-screen, but not -32000 (see explain.rs).
+const PARKED: (i32, i32) = (-10000, -10000);
 
 fn url(app: &AppHandle) -> WebviewUrl {
     #[cfg(dev)]
@@ -42,6 +43,7 @@ pub fn setup(app: &AppHandle) {
         .build();
     match built {
         Ok(win) => {
+            let _ = win.set_position(PhysicalPosition::new(PARKED.0, PARKED.1));
             super::sight::hide_from_capture(&win);
             crate::platform::prepare_pill_window(&win, crate::platform::DesktopMode::Poll);
         }
