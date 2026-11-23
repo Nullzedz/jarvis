@@ -873,6 +873,10 @@ export class Island {
       return { w: this.closedW, h: CLOSED_H, r: ROUNDED_CORNER }; // the prototype's 0 0 26 26
     }
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
+    // JARVIS: a tab that knows its own height gets a notch just that tall (the prototype's fit()):
+    // the content's top padding and the tab bar, the content, the bottom padding; never past the window.
+    const fit = State.mode === "expanded" ? this.views.get(State.view)?.fitHeight?.() : undefined;
+    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, 8 + 34 + fit + 10)));
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
     }
