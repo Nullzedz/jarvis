@@ -9,8 +9,8 @@ import { t, language } from "../../i18n/i18n";
 import { FlowBridge, flowKeyId, type FlowEntry, type FlowStats, type Style } from "../../core/flow";
 import { keyLabel } from "../ui";
 import type { HubContext } from "../shell";
-import { dictionaryPage, snippetsPage } from "./words";
-import { stylesPage, styleOptions } from "./styles";
+import { styleOptions } from "./styles";
+import { wallPage, type WallKind } from "./walls";
 import { dictationPage } from "./dictation";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -197,6 +197,18 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
     right.style.visibility = "hidden";
     (page.closest(".hub-scroll") as HTMLElement | null)?.scrollTo({ top: 0 });
   };
+  // Dictionary, Snippets and Styles: the demo's word walls (#78).
+  const wall = (kind: WallKind) => () => {
+    clear(full);
+    const box = h("div", { class: "jv-wallpg" });
+    const back = () => { full.style.display = "none"; main.style.display = ""; right.style.visibility = ""; };
+    full.append(box);
+    void wallPage(box, ctx, kind, back);
+    main.style.display = "none";
+    full.style.display = "";
+    right.style.visibility = "hidden";
+    (page.closest(".hub-scroll") as HTMLElement | null)?.scrollTo({ top: 0 });
+  };
   const col = (title: string, items: HTMLElement[], go: () => void) => {
     const b = h("button", { class: "jv-dcol", onclick: go }, h("p", { class: "row between hd" }, h("span", { text: title }), h("span", { class: "plus", text: "+" })),
       ...(items.length ? items : [h("p", { class: "none", text: t("None yet") })]));
@@ -204,12 +216,12 @@ export async function dictationHomePage(page: HTMLElement, ctx: HubContext) {
   };
   const defaultName = styleOptions().find(([id]) => id === status.prefs.defaultStyle)?.[1] ?? "";
   const cols = h("div", { class: "jv-dcols" },
-    col(t("Dictionary"), list.slice(0, 4).map((w, i) => h("p", { class: i === 0 ? "it sel" : "it", text: w })), open(t("Dictionary"), dictionaryPage)),
-    col(t("Snippets"), (snippets ?? []).slice(0, 3).map((s, i) => h("p", { class: i === 1 ? "it sel" : "it" }, document.createTextNode(`“${s.trigger}” `), h("span", { class: "cap", text: `→ ${s.text.slice(0, 24)}${s.text.length > 24 ? "…" : ""}` }))), open(t("Snippets"), snippetsPage)),
+    col(t("Dictionary"), list.slice(0, 4).map((w, i) => h("p", { class: i === 0 ? "it sel" : "it", text: w })), wall("dictionary")),
+    col(t("Snippets"), (snippets ?? []).slice(0, 3).map((s, i) => h("p", { class: i === 1 ? "it sel" : "it" }, document.createTextNode(`“${s.trigger}” `), h("span", { class: "cap", text: `→ ${s.text.slice(0, 24)}${s.text.length > 24 ? "…" : ""}` }))), wall("snippets")),
     col(t("Styles"), [
       h("p", { class: "it use" }, document.createTextNode(`${defaultName} `), h("span", { class: "cap", text: t("in use") })),
       ...(styles ?? []).slice(0, 2).map((s) => h("p", { class: "it" }, document.createTextNode(`${styleOptions().find(([id]) => id === s.style)?.[1] ?? s.style} `), h("span", { class: "cap", text: s.name }))),
-    ], open(t("Styles"), stylesPage)));
+    ], wall("styles")));
   const historyRow = h("button", { class: "jv-dhist", onclick: open(t("History"), dictationPage) },
     h("span", { text: t("History") }), h("span", { class: "cap", text: t("{n} dictations", { n: entries.length }) }), h("span", { class: "go", text: "›" }));
 
