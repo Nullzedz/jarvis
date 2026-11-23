@@ -179,26 +179,35 @@ function micMeterBar(mic: string): HTMLElement {
   // The quietest speech JARVIS hears (voice/wake.rs MIN_SPEECH, 0.0035 ≈ −49 dBFS) on the bar's −60…−10 dB scale.
   mark.style.left = `${((20 * Math.log10(0.0035) + 60) / 50) * 100}%`;
   const bar = h("div", { class: "mic-bar" }, fill, mark);
-  let alive = true;
-  const ping = () => {
-    if (!bar.isConnected && document.readyState === "complete" && alive) {
-      // The page is gone: stop the microphone.
-      alive = false;
-      void Bridge.micMeterStop();
-      return;
-    }
-    void Bridge.micMeter(mic);
+  // #84: the microphone is open only while the bar is on screen (Settings draws this page inside
+  // its Voice group: reading General must not light Windows' microphone icon). Off screen it stops;
+  // back on screen (after a sub-page, or scrolling back) it starts again. Gone for good: it ends.
+  let on = false;
+  let goneTicks = 0;
+  const set = (want: boolean) => {
+    if (want === on) return;
+    on = want;
+    if (on) void Bridge.micMeter(mic);
+    else { void Bridge.micMeterStop(); fill.style.width = "0%"; }
   };
-  ping();
-  const timer = window.setInterval(() => {
-    if (!alive) return window.clearInterval(timer);
-    ping();
-  }, 2000);
-  void onEvent<{ level: number; rms: number }>("mic-level", (e) => {
-    if (!bar.isConnected) return;
+  const seen = new IntersectionObserver(([e]) => set(!!e?.isIntersecting && bar.isConnected));
+  seen.observe(bar);
+  const off = onEvent<{ level: number; rms: number }>("mic-level", (e) => {
+    if (!on) return;
     fill.style.width = `${Math.round(e.level * 100)}%`;
     bar.classList.toggle("speech", e.rms >= 0.0035);
   });
+  const timer = window.setInterval(() => {
+    if (bar.isConnected) {
+      goneTicks = 0;
+      // The meter stops by itself without a ping (meter.rs): keep it going while it's wanted.
+      if (on) void Bridge.micMeter(mic);
+      return;
+    }
+    set(false);
+    // Detached for a minute: the page was left, not a sub-page opened. Stop listening for good.
+    if (++goneTicks > 30) { window.clearInterval(timer); seen.disconnect(); void off.then((f) => f()); }
+  }, 2000);
   return bar;
 }
 

@@ -185,10 +185,53 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
   }
 
-  async function show(page: PageId, targetAnchor?: string) {
+  /** Where to land on a page: an anchor, a label's text, then the group a moved page went to. */
+  interface Target { anchor?: string; label?: string; fallback?: string }
+
+  /** The element a target names on the page, or null (yet). */
+  function findTarget(root: HTMLElement, t: Target): HTMLElement | null {
+    if (t.anchor) {
+      const el = root.querySelector<HTMLElement>(`[data-anchor="${CSS.escape(t.anchor)}"]`);
+      if (el) return el;
+    }
+    if (t.label) {
+      const want = t.label.trim().toLowerCase();
+      const names = root.querySelectorAll<HTMLElement>(".srow .lbl > b, .hub-row .hub-row-title, .hub-row b, label, h3, h4, .jv-srow .lbl b");
+      for (const n of names) {
+        if ((n.textContent ?? "").trim().toLowerCase() === want) return (n.closest<HTMLElement>(".srow, .hub-row, .row, .jv-srow, section") ?? n);
+      }
+    }
+    if (t.fallback) return root.querySelector<HTMLElement>(`[data-anchor="${CSS.escape(t.fallback)}"]`);
+    return null;
+  }
+
+  /** Scrolls to the target and lights it softly for a moment (#84: no glow). Parts drawn later are waited for. */
+  function landOn(root: HTMLElement, t: Target, token: number) {
+    let tries = 0;
+    const attempt = () => {
+      if (token !== rendering) return;
+      const el = findTarget(root, t);
+      // The row itself is worth waiting for (Voice and Dictation draw after the page); the group isn't.
+      const exact = el && !(t.fallback && el.matches(`[data-anchor="${CSS.escape(t.fallback)}"]`));
+      if (!exact && tries++ < 12) { window.setTimeout(attempt, 100); return; }
+      if (!el) { scroll.scrollTop = 0; return; }
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.remove("jv-lit");
+      void el.offsetWidth;
+      el.classList.add("jv-lit");
+      window.setTimeout(() => el.classList.remove("jv-lit"), 1600);
+    };
+    attempt();
+  }
+
+  /** Home's scroll when it was left, so coming back lands where you were. */
+  let homeScroll = 0;
+
+  async function show(page: PageId, targetAnchor?: string, label?: string, fallback?: string) {
     const moved = MOVED[page];
-    if (moved) return show(moved[0], targetAnchor ?? (moved[1] || undefined));
+    if (moved) return show(moved[0], targetAnchor, label, moved[1] || fallback);
     const def = ALL.find((p) => p.id === page) ?? HOME_PAGE;
+    if (current === "home") homeScroll = scroll.scrollTop;
     ctx.onLeave?.();
     ctx.onLeave = undefined;
     current = def.id;
@@ -207,7 +250,13 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       page_.classList.add("jv-homepage");
       page_.append(home.el);
     } else if (renderer) {
-      await renderer(page_, ctx);
+      // #84: each render gets its own context: a page that finishes after you've moved on is
+      // cleaned up here, instead of putting its leave hook over the page you're on.
+      const pageCtx: HubContext = Object.create(ctx);
+      await renderer(page_, pageCtx);
+      const leave = Object.prototype.hasOwnProperty.call(pageCtx, "onLeave") ? pageCtx.onLeave : undefined;
+      if (token !== rendering) { leave?.(); return; }
+      ctx.onLeave = leave;
     } else {
       page_.append(hero(def.id, def.title(), def.subtitle?.() ?? null));
       const container = h("div", { id: "settings-root" });
@@ -227,18 +276,12 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       scroll.append(tabs);
     }
     scroll.append(page_);
-    if (targetAnchor) {
-      const el = page_.querySelector(`[data-anchor="${targetAnchor}"]`) as HTMLElement | null;
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.classList.remove("hub-card-glowing");
-        void el.offsetWidth;
-        el.classList.add("hub-card-glowing");
-      } else {
-        scroll.scrollTop = 0;
-      }
-    } else {
+    if (targetAnchor || label || fallback) {
       scroll.scrollTop = 0;
+      landOn(page_, { anchor: targetAnchor, label, fallback }, token);
+    } else {
+      // Back on Home: where you were, not the top (the widgets sit below the greeting).
+      scroll.scrollTop = def.id === "home" ? homeScroll : 0;
     }
   }
 
@@ -372,7 +415,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       row.append(textContainer);
       row.addEventListener("click", () => {
         closeSearch();
-        void show(hit.entry.page, hit.entry.id);
+        void show(hit.entry.page, hit.entry.id, hit.label ?? t(hit.entry.title));
       });
       searchRows.set(hit.entry.id, row);
       resultsContainer.append(row);
@@ -387,7 +430,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       if (searchHits.length > 0) {
         const first = searchHits[0].entry;
         closeSearch();
-        void show(first.page, first.id);
+        void show(first.page, first.id, t(first.title));
       }
     }
   });

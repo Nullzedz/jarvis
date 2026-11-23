@@ -19,7 +19,9 @@ export function demoRows(section: HTMLElement): HTMLElement[] {
     const k = kids[i];
     if (k.tagName === "H2") continue;
     if (!k.classList.contains("row")) { out.push(k); continue; }
-    const name = k.querySelector<HTMLElement>(":scope > label");
+    // #84: an empty <label> (a spacer the old rows use) is no name: the row folds into the one above.
+    const labelEl = k.querySelector<HTMLElement>(":scope > label");
+    const name = labelEl && (labelEl.textContent ?? "").trim() ? labelEl : null;
     const next = kids[i + 1];
     const hint = next?.classList.contains("hint") ? next : null;
     if (hint) i++;
@@ -70,6 +72,9 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
       h("div", { class: "ctl" }, h("span", { class: "go", text: "›" })));
     r.addEventListener("click", () => {
       scrollBack = scroller()?.scrollTop ?? 0;
+      // The group it opened from stays lit on the left while you're on its page.
+      const from = (r.closest<HTMLElement>(".jv-sgroup")?.dataset.anchor ?? "").replace("group-", "");
+      if (from) light(from);
       clear(content);
       content.append(h("div", { class: "jv-sub" },
         h("button", { class: "back", text: `‹ ${t("Settings")}`, onclick: () => { drawGroups(); requestAnimationFrame(() => { const s = scroller(); if (s) s.scrollTop = scrollBack; }); } }),
@@ -92,12 +97,14 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
   const ISLAND = [t("Open on hover"), t("Open for every pill’s alerts"), t("Show clock in the island"), t("Closed island shows"), t("Auto-close"), t("Island lives on")];
   const general = rowsOf("general");
   const island: HTMLElement[] = [], sound: HTMLElement[] = [], gen: HTMLElement[] = [];
-  general.forEach((r, i) => {
+  // A row without a name (a button, a note) goes where the row above it went.
+  const SOUND = [t("Sound"), t("Volume")];
+  let into = gen;
+  for (const r of general) {
     const n = nameOf(r);
-    if (ISLAND.includes(n)) island.push(r);
-    else if (n === t("Sound") || (r.classList.contains("bare") && nameOf(general[i - 1] ?? r) === t("Sound"))) sound.push(r);
-    else gen.push(r);
-  });
+    if (!r.classList.contains("bare")) into = ISLAND.includes(n) ? island : SOUND.includes(n) ? sound : gen;
+    into.push(r);
+  }
 
   // The old Hey JARVIS and Notes settings pages, drawn in their group; they redraw in place.
   const inPlace = (render: (box: HTMLElement, c: HubContext) => Promise<void> | void, self: PageId) => {
@@ -151,8 +158,11 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
   const search = h("input", { class: "q", placeholder: t("Search"), "aria-label": t("Search settings") }) as HTMLInputElement;
   const links = new Map<string, HTMLElement>();
   const nav = h("nav", { class: "jv-snav" }, h("label", { class: "search" }, h("span", { text: "⌕" }), search));
+  const light = (id: string) => { for (const [k, a] of links) a.classList.toggle("on", k === id); };
   for (const g of groups) {
     const a = h("button", { class: "lnk", text: g.name, onclick: () => {
+      clicked = g.id;
+      window.setTimeout(() => { if (clicked === g.id) light(g.id); }, 450);
       if (!content.querySelector(".jv-sgroup")) drawGroups();
       content.querySelector(`[data-anchor="group-${g.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
     } });
@@ -166,38 +176,66 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
   }
   function drawGroups() {
     clear(content);
-    content.append(h("p", { class: "jv-ptitle", text: t("Settings") }), ...sections.values());
+    content.append(h("p", { class: "jv-ptitle", text: t("Settings") }), noMatch, ...sections.values());
     filter();
   }
-  // Search: only the rows that say it, and their groups.
+  // Search (#84): each row shown only if it says it; a group whose name matches shows whole; the
+  // blocks drawn by other pages (Voice, Dictation) filter their own rows; nothing found says so.
+  const noMatch = h("p", { class: "jv-pnone" });
+  const says = (el: Element, q: string) => (el.textContent ?? "").toLowerCase().includes(q);
   function filter() {
     const q = search.value.trim().toLowerCase();
+    let anyAtAll = false;
     for (const [id, sec] of sections) {
-      let any = !q || (groups.find((g) => g.id === id)?.name.toLowerCase().includes(q) ?? false);
-      for (const r of sec.querySelectorAll<HTMLElement>(":scope > .srow, :scope > .jv-flowpart .hub-row")) {
-        const hit = !q || (r.textContent ?? "").toLowerCase().includes(q);
-        r.style.display = hit || any ? "" : "none";
+      const whole = !q || (groups.find((g) => g.id === id)?.name.toLowerCase().includes(q) ?? false);
+      let any = whole;
+      for (const child of [...sec.children] as HTMLElement[]) {
+        if (child.tagName === "H3" || child.classList.contains("say")) continue;
+        if (whole) { child.style.display = ""; child.querySelectorAll<HTMLElement>(".hub-row").forEach((r) => (r.style.display = "")); continue; }
+        if (child.classList.contains("jv-flowpart")) {
+          let inner = false;
+          child.querySelectorAll<HTMLElement>(".hub-row").forEach((r) => { const hit = says(r, q); r.style.display = hit ? "" : "none"; inner ||= hit; });
+          child.style.display = inner ? "" : "none";
+          any ||= inner;
+          continue;
+        }
+        const hit = !child.classList.contains("jv-psub") && says(child, q);
+        child.style.display = hit ? "" : "none";
         any ||= hit;
       }
       sec.style.display = any ? "" : "none";
+      anyAtAll ||= any;
     }
+    noMatch.textContent = anyAtAll ? "" : t("No setting matches “{0}”.", { 0: search.value.trim() });
+    noMatch.style.display = anyAtAll ? "none" : "";
   }
   search.addEventListener("input", () => { if (!content.querySelector(".jv-sgroup")) drawGroups(); filter(); });
 
-  // The group in view is the one lit on the left.
-  const seen = new IntersectionObserver((entries) => {
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      const id = (e.target as HTMLElement).dataset.anchor?.replace("group-", "");
-      for (const [k, a] of links) a.classList.toggle("on", k === id);
-    }
-  }, { rootMargin: "-10% 0px -70% 0px" });
-  for (const s of sections.values()) seen.observe(s);
+  // The group in view is the one lit on the left (#84): the last one whose top has passed the
+  // top third; at the bottom, the one you clicked (short last groups never reach the top).
+  let clicked: string | null = null;
+  const onScroll = () => {
+    const s = scroller();
+    if (!s || !content.querySelector(".jv-sgroup")) return;
+    const top = s.getBoundingClientRect().top + s.clientHeight / 3;
+    let id = "general";
+    for (const [k, sec] of sections) if (sec.style.display !== "none" && sec.getBoundingClientRect().top <= top) id = k;
+    const atBottom = s.scrollTop + s.clientHeight >= s.scrollHeight - 4;
+    if (atBottom && clicked) id = clicked;
+    light(id);
+  };
+  const seen = { disconnect: () => scroller()?.removeEventListener("scroll", onScroll) };
 
   page.classList.add("jv-prefs");
   page.append(nav, content);
   drawGroups();
   links.get("general")?.classList.add("on");
+  // The page is in the window now: follow its scroll; a wheel or drag forgets the clicked group.
+  requestAnimationFrame(() => {
+    const s = scroller();
+    s?.addEventListener("scroll", onScroll, { passive: true });
+    s?.addEventListener("wheel", () => { clicked = null; }, { passive: true });
+  });
   const prev = ctx.onLeave;
   ctx.onLeave = () => { seen.disconnect(); prev?.(); };
 }

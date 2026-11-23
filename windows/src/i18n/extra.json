@@ -9184,21 +9184,6 @@
       "tr": "Simge durumuna küçült",
       "zh-Hans": "最小化"
     },
-    "Full screen": {
-      "ar": "ملء الشاشة",
-      "bn": "পূর্ণ স্ক্রিন",
-      "de": "Vollbild",
-      "es": "Pantalla completa",
-      "fr": "Plein écran",
-      "hi": "पूर्ण स्क्रीन",
-      "id": "Layar penuh",
-      "ja": "全画面",
-      "ko": "전체 화면",
-      "pt-BR": "Tela cheia",
-      "ru": "Во весь экран",
-      "tr": "Tam ekran",
-      "zh-Hans": "全屏"
-    },
     "Add a reminder, press Enter": {
       "ar": "أضف تذكيرًا ثم اضغط Enter",
       "bn": "একটি রিমাইন্ডার লিখে Enter চাপুন",
@@ -12795,6 +12780,36 @@
       "ru": "Усыпить или разбудить JARVIS",
       "tr": "JARVIS’i uyut veya uyandır",
       "zh-Hans": "让 JARVIS 睡觉或唤醒他"
+    },
+    "No setting matches “{0}”.": {
+      "ar": "لا يوجد إعداد يطابق “{0}”.",
+      "bn": "“{0}”-এর সাথে কোনো সেটিং মেলে না।",
+      "de": "Keine Einstellung passt zu „{0}“.",
+      "es": "Ningún ajuste coincide con “{0}”.",
+      "fr": "Aucun réglage ne correspond à « {0} ».",
+      "hi": "“{0}” से कोई सेटिंग मेल नहीं खाती।",
+      "id": "Tidak ada pengaturan yang cocok dengan “{0}”.",
+      "ja": "「{0}」に一致する設定はありません。",
+      "ko": "“{0}”와(과) 일치하는 설정이 없어요.",
+      "pt-BR": "Nenhum ajuste corresponde a “{0}”.",
+      "ru": "Нет настроек для «{0}».",
+      "tr": "“{0}” ile eşleşen ayar yok.",
+      "zh-Hans": "没有与“{0}”匹配的设置。"
+    },
+    "Maximize": {
+      "ar": "تكبير",
+      "bn": "বড় করুন",
+      "de": "Maximieren",
+      "es": "Maximizar",
+      "fr": "Agrandir",
+      "hi": "बड़ा करें",
+      "id": "Maksimalkan",
+      "ja": "最大化",
+      "ko": "최대화",
+      "pt-BR": "Maximizar",
+      "ru": "Развернуть",
+      "tr": "Büyüt",
+      "zh-Hans": "最大化"
     }
   }
 }

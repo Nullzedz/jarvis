@@ -353,7 +353,13 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-prefs .jv-flowpart .hub-row > :not(.text) { justify-self: end; }
 .jv-prefs .jv-flowpart .hub-row .title { font-weight: 600; font-size: 14px; color: var(--jv-t1); }
 .jv-prefs .jv-flowpart .hub-row .detail { font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
-@media (max-width: 860px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } }
+/* #84: the smallest window (820 px, the rail included) keeps the layout: a narrower menu on the left,
+   each setting's control on the right of its name. Only a really narrow page stacks. */
+@media (max-width: 1000px) { .hub-page.jv-prefs { grid-template-columns: 150px minmax(0, 1fr); gap: 22px; } .jv-prefs .srow { grid-template-columns: minmax(0, 1fr) fit-content(60%); gap: 16px; } .jv-prefs .srow .ctl { justify-self: end; } }
+@media (max-width: 640px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } .jv-prefs .srow .ctl { justify-self: stretch; } }
+.jv-pnone { margin: 8px 0 0; font-size: 14px; color: var(--jv-t2); }
+/* A search result, lit for a moment where it lands (no glow, #84). */
+.jv-lit { background-color: rgba(255, 255, 255, .08) !important; border-radius: 12px; transition: background-color .9s ease; }
 /* ── Notes · Dictation (#72): the demo's page ── */
 .jv-tabs { background: none; gap: 6px; padding: 0; }
 .jv-tabs button { background: #2c2c2e; color: #e5e5ea; font: 13px var(--font); padding: 6px 15px; border-radius: 999px; }
@@ -789,3 +795,28 @@ span.jv-mrb { opacity: .9; }
 
 /* #80: the Notch group's parts (tabs, pills, behaviour) */
 .jv-sgroup .jv-psub { margin: 26px 0 6px; font-size: 13px; font-weight: 600; color: var(--jv-t2); text-transform: none; letter-spacing: 0; }
+
+/* ── #84: the old button rules carry no weight now (settings.css :where): each new control has its own states ── */
+.jv-tabs2 button:not(.on):hover { background: #3a3a3c; }
+.jv-tabs2 button:active { transform: scale(.95); }
+.jv-tabs button:not(.on):hover { background: #3a3a3c; }
+.jv-talkask .talk:hover { filter: brightness(1.12); }
+.jv-txbar .play:hover { filter: brightness(.92); }
+.jv-txbar .play:active { transform: scale(.94); }
+.jv-talk .jv-voicecard:hover { background: #222224; }
+.jv-rooms button:not(.on):hover:not(:disabled) { background: var(--jv-s2); color: #e5e5ea; }
+.jv-chipbtn:active { transform: scale(.95); }
+span.jv-chipbtn:hover { background: #2c2c2e; }
+/* The window dots: their own colours; on hover, macOS's symbols. Hidden, they're out of the Tab order too. */
+.jv-dot { position: relative; visibility: hidden; transition: transform .1s ease-in, opacity .08s ease-in, filter .15s ease, visibility 0s linear .1s; }
+.jv-wc.open .jv-dot { visibility: visible; transition: transform .38s var(--jv-ease), opacity .22s ease, filter .15s ease, visibility 0s; }
+.jv-dot { display: grid; place-items: center; }
+.jv-dot svg { width: 58%; height: 58%; display: block; opacity: 0; transition: opacity .1s ease; }
+.jv-dot svg path { fill: none; stroke: rgba(0, 0, 0, .6); stroke-width: 1.3; stroke-linecap: round; }
+.jv-dots:hover .jv-dot svg, .jv-dots:focus-within .jv-dot svg { opacity: 1; }
+.jv-dot:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
+/* Focus rings for the new controls that had none. */
+.jv-tabs button:focus-visible, .jv-tabs2 button:focus-visible, .jv-chipbtn:focus-visible, .jv-btn:focus-visible, .jv-talkask .talk:focus-visible,
+.jv-rooms button:focus-visible, .jv-ht:focus-visible, .jv-md:focus-visible, .jv-mp:focus-visible, .jv-sdrill:focus-visible, .jv-wchip:focus-visible,
+.jv-dcol:focus-visible, .jv-dhist:focus-visible, .jv-snav .lnk:focus-visible, .jv-ri:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
+.jv-talkask .q:focus-visible, .jv-wsearch:focus-within, .jv-snav .search:focus-within { box-shadow: 0 0 0 2px rgba(10, 132, 255, .5); }

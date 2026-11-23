@@ -1118,6 +1118,10 @@ function generalSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Sound") }),
       sound,
+    ),
+    // #84: its own row, so it has a name (and search finds "volume").
+    h("div", { class: "row" },
+      h("label", { text: t("Volume") }),
       volume,
     ),
     h("div", { class: "row" }, soundsFolder, reloadSounds, customCount),
