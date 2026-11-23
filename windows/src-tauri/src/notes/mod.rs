@@ -564,10 +564,12 @@ fn summarize(app: &AppHandle, id: &str) {
         transcript.truncate(cut);
     }
     let user = format!("<transcript>\n{transcript}\n</transcript>");
+    // Written in the app's language (English unless you picked another), not the call's.
+    let instructions = builder::summary_instructions(crate::i18n::current_name());
     let reply = tauri::async_runtime::block_on(async {
-        match crate::claude::complete(&model, builder::SUMMARY_INSTRUCTIONS, &user, 2048, Duration::from_secs(120)).await {
+        match crate::claude::complete(&model, &instructions, &user, 2048, Duration::from_secs(120)).await {
             Ok(text) => Some(text),
-            Err(_) => crate::claude::complete(crate::flow::cleanup::MODEL, builder::SUMMARY_INSTRUCTIONS, &user, 2048, Duration::from_secs(120))
+            Err(_) => crate::claude::complete(crate::flow::cleanup::MODEL, &instructions, &user, 2048, Duration::from_secs(120))
                 .await
                 .ok(),
         }
@@ -735,7 +737,7 @@ pub fn notes_markdown(taker: State<Arc<NoteTaker>>, id: String) -> Option<String
 /// Windows asks where to save; cancelling the native dialog writes nothing.
 #[tauri::command]
 pub async fn notes_export(window: tauri::WebviewWindow, taker: State<'_, Arc<NoteTaker>>, id: String) -> Result<Option<String>, String> {
-    if window.label() != crate::HUB_LABEL { return Err("Open the note in Coucou to export it.".into()); }
+    if window.label() != crate::HUB_LABEL { return Err("Open the note in JARVIS to export it.".into()); }
     let note = taker.note(&id).ok_or("no such note")?;
     let safe: String = note
         .title

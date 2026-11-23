@@ -67,10 +67,13 @@ const TALK_PAGE: PageDef = { id: "talk", icon: "wave", title: () => t("Conversat
 /** Settings (#70): the demo's groups, every setting of the old pages in them. */
 const PREFS_PAGE: PageDef = { id: "prefs", icon: "gear", title: () => t("Settings") };
 const ALL = [HOME_PAGE, SESSIONS_PAGE, TALK_PAGE, PREFS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
-/** The old pages whose settings now live in Settings: opening one opens its group there. */
-const MOVED: Partial<Record<PageId, string>> = {
-  general: "general", pills: "island", shortcuts: "shortcuts", agents: "agents", chat: "accounts",
-  phone: "phone", voice: "voice", flowsettings: "dictation",
+/** Old pages that now live elsewhere: opening one opens its new home (page, and where on it). */
+const MOVED: Partial<Record<PageId, [PageId, string]>> = {
+  general: ["prefs", "group-general"], pills: ["prefs", "group-island"], shortcuts: ["prefs", "group-shortcuts"],
+  agents: ["prefs", "group-agents"], chat: ["prefs", "group-accounts"], phone: ["prefs", "group-phone"],
+  voice: ["prefs", "group-voice"], flowsettings: ["prefs", "group-dictation"],
+  // Notes (#72): Statistics, Dictionary, Snippets and Styles are on the Dictation page now.
+  insights: ["dictation", ""], dictionary: ["dictation", ""], snippets: ["dictation", ""], styles: ["dictation", ""],
 };
 
 /** What a page gets to draw itself and reach the rest of the window. */
@@ -181,7 +184,7 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
 
   async function show(page: PageId, targetAnchor?: string) {
     const moved = MOVED[page];
-    if (moved) return show("prefs", targetAnchor ?? `group-${moved}`);
+    if (moved) return show(moved[0], targetAnchor ?? (moved[1] || undefined));
     const def = ALL.find((p) => p.id === page) ?? HOME_PAGE;
     ctx.onLeave?.();
     ctx.onLeave = undefined;

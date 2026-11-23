@@ -128,7 +128,9 @@ export function applyDocumentLanguage() {
 
 /** JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS. */
 export function brand(text: string): string {
-  return text.replace(/OK Coucou/g, "Hey JARVIS").replace(/Coucou|Mochi/g, "JARVIS");
+  const out = text.replace(/OK Coucou/g, "Hey JARVIS").replace(/Coucou|Mochi/g, "JARVIS");
+  // coucou's English keys quote with French « »: English shows “ ”.
+  return current === "en" ? out.replace(/«\s?/g, "“").replace(/\s?»/g, "”") : out;
 }
 
 function interpolate(text: string, vars?: Vars): string {

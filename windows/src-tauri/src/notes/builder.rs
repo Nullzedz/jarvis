@@ -236,8 +236,14 @@ pub struct Summary {
     pub todos: Vec<Todo>,
 }
 
+/// The instructions, with the app's language (its English name) the notes are written in.
+pub fn summary_instructions(language: &str) -> String {
+    format!("{SUMMARY_INSTRUCTIONS}
+The app's language: {language}.")
+}
+
 pub const SUMMARY_INSTRUCTIONS: &str = "You write the notes of a meeting from its transcript. Each line is \"Name: words\".\n\
-Write in the language of the transcript. Invent nothing that was not said.\n\
+Write in the language named at the end of these instructions (the app's language), whatever language the transcript is in. Invent nothing that was not said.\n\
 Reply ONLY with JSON, no code block, in this exact shape:\n\
 {\"title\": \"a short title, 6 words at most\", \"summary\": \"2 to 4 sentences: what was decided and why\", \
 \"key_points\": [\"up to 6 short points\"], \"todos\": [{\"text\": \"the task\", \"owner\": \"the person's name as written in the transcript, or null\", \"due\": \"the deadline as said, or null\"}]}";
