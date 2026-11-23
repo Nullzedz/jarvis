@@ -100,7 +100,8 @@ test("the island's Mochi dances by the Mac's rules", () => {
     assert.ok(!islandDances({ ...base, state }), state);
   }
   assert.ok(!islandDances({ ...base, music: false }));
-  assert.ok(!islandDances({ ...base, mode: "hidden" }));
+  // JARVIS: he dances on the closed pill too (the notch prototype's dance112).
+  assert.ok(islandDances({ ...base, mode: "hidden" }));
   // Expanded: only on the overview, with the music pill in front.
   assert.ok(!islandDances({ ...base, mode: "expanded" }));
   assert.ok(islandDances({ ...base, mode: "expanded", focusId: SPOTIFY_ID }));

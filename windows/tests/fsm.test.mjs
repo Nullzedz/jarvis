@@ -51,35 +51,40 @@ test("leaving the greeting collapses it at once", () => {
   assert.equal(fsm.state, "petit");
 });
 
-test("the mouse wakes a hidden island, which stays while it is hovered", () => {
+// JARVIS: the notch prototype (docs/jarvis/design/prototypes/jarvis-notch.html): the pointer on
+// the closed pill opens the notch at once; 3 s after it leaves, the notch folds straight back.
+
+test("the pointer on the closed pill opens the notch at once, and it stays while hovered", () => {
   fsm.mouseEntered();
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "home");
+  assert.equal(fsm.openedByHover, true);
   seconds(600);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "home");
+  assert.deepEqual(transitions, ["hidden>home"]);
 });
 
-test("the compact island hides 60 s after the mouse leaves", () => {
+test("3 s after the pointer leaves, the notch folds back to the closed pill", () => {
   fsm.mouseEntered();
   fsm.mouseLeft();
-  seconds(59);
-  assert.equal(fsm.state, "petit");
-  seconds(1);
+  seconds(2.9);
+  assert.equal(fsm.state, "home");
+  seconds(0.1);
   assert.equal(fsm.state, "hidden");
 });
 
-test("coming back before the 60 s are up cancels the hide", () => {
+test("coming back before the 3 s are up keeps it open", () => {
   fsm.mouseEntered();
   fsm.mouseLeft();
-  seconds(59);
+  seconds(2.5);
   fsm.mouseEntered();
   seconds(600);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "home");
 });
 
 test("a click opens the compact island, and only the compact island", () => {
   fsm.click();
   assert.equal(fsm.state, "hidden");
-  fsm.mouseEntered();
+  fsm.reveal();
   fsm.click();
   assert.equal(fsm.state, "home");
   fsm.click();
@@ -87,13 +92,13 @@ test("a click opens the compact island, and only the compact island", () => {
   assert.deepEqual(transitions, ["hidden>petit", "petit>home"]);
 });
 
-test("the open island collapses 15 s after the mouse leaves", () => {
+test("the open island folds 15 s after the mouse leaves", () => {
   fsm.forceHome();
   fsm.mouseLeft();
   seconds(14);
   assert.equal(fsm.state, "home");
   seconds(1);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("coming back to the open island cancels the collapse", () => {
@@ -118,7 +123,7 @@ test("the collapse delay is the configured one", () => {
   fsm.forceHome();
   fsm.mouseLeft();
   seconds(5);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("reveal shows the compact island from hidden and hides it again after 60 s", () => {
@@ -168,8 +173,9 @@ test("a transition to the current state is not reported", () => {
 /** Opened by a click, the way the Mac tests open theirs. */
 function opened(delay) {
   fsm.homeToPetitDelay = delay;
-  fsm.mouseEntered();
+  fsm.reveal();
   fsm.click();
+  fsm.mouseEntered();
   assert.equal(fsm.state, "home");
 }
 
@@ -179,7 +185,7 @@ test("a configured 2-second delay replaces the default 15 seconds", () => {
   seconds(1.9);
   assert.equal(fsm.state, "home");
   seconds(0.1);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("editing the delay during a countdown replaces its timer", () => {
@@ -187,7 +193,7 @@ test("editing the delay during a countdown replaces its timer", () => {
   fsm.mouseLeft();
   fsm.homeToPetitDelay = 0.05;
   seconds(0.05);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("a longer delay also cancels the shorter timer that was running", () => {
@@ -197,7 +203,7 @@ test("a longer delay also cancels the shorter timer that was running", () => {
   seconds(0.1);
   assert.equal(fsm.state, "home");
   seconds(0.15);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("coming back cancels the countdown, and leaving again starts it with the delay", () => {
@@ -208,7 +214,7 @@ test("coming back cancels the countdown, and leaving again starts it with the de
   assert.equal(fsm.state, "home");
   fsm.mouseLeft();
   seconds(0.05);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("a delay edit while the island is hovered starts no countdown", () => {
@@ -218,7 +224,7 @@ test("a delay edit while the island is hovered starts no countdown", () => {
   assert.equal(fsm.state, "home");
   fsm.mouseLeft();
   seconds(0.05);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("the greeting keeps its own timing whatever the auto-close delay", () => {
@@ -242,7 +248,7 @@ test("an alert waiting for an answer stays open through a delay edit", () => {
   fsm.pinned = false;
   fsm.mouseLeft();
   seconds(0.01);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("an alert pinned during a countdown blocks the old timer and its replacement", () => {
@@ -255,7 +261,7 @@ test("an alert pinned during a countdown blocks the old timer and its replacemen
   fsm.pinned = false;
   fsm.mouseLeft();
   seconds(0.01);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
 test("a pin that arrives after the timer was armed still holds the island", () => {
@@ -293,13 +299,10 @@ test("a folded card keeps the compact island on screen until it is answered", ()
   fsm.mouseLeft();
   seconds(600);
   assert.equal(fsm.state, "home");
-  // Answered: the usual timers again.
+  // Answered: the usual timer again, back to the closed pill.
   fsm.pinned = false;
   fsm.mouseLeft();
   seconds(15);
-  assert.equal(fsm.state, "petit");
-  fsm.mouseLeft();
-  seconds(60);
   assert.equal(fsm.state, "hidden");
 });
 
@@ -308,95 +311,35 @@ test("an unusable delay is ignored", () => {
   assert.equal(fsm.homeToPetitDelay, 15);
 });
 
-// ── Open on hover (IslandHoverTests.swift) ────────────────────────────────────
+// ── Hover (the notch prototype) ───────────────────────────────────────────────
 
-test("open on hover off: hovering only peeks", () => {
+test("hover: opened by the pointer, a click inside makes it an ordinary open island", () => {
+  fsm.homeToPetitDelay = 5;
   fsm.mouseEntered();
-  assert.equal(fsm.state, "petit");
-  assert.equal(fsm.openedByHover, false);
-});
-
-test("open on hover: the closed island only peeks, resting on the compact one opens it", () => {
-  fsm.openOnHover = true;
-  fsm.mouseEntered();
-  assert.equal(fsm.state, "petit");
-  seconds(0.4);
-  assert.equal(fsm.state, "petit");
-  seconds(0.1);
-  assert.equal(fsm.state, "home");
-  assert.equal(fsm.openedByHover, true);
-});
-
-test("open on hover: passing over the closed island doesn't open it", () => {
-  fsm.openOnHover = true;
-  fsm.mouseEntered();
-  seconds(0.2);
   fsm.mouseLeft();
-  seconds(5);
-  assert.equal(fsm.state, "petit");
-});
-
-test("open on hover: leaving folds after the short grace period, resting opens again", () => {
-  fsm.openOnHover = true;
-  fsm.mouseEntered();
-  seconds(0.5);
-  assert.equal(fsm.state, "home");
-  fsm.mouseLeft();
-  seconds(0.5);
-  assert.equal(fsm.state, "home");
-  seconds(0.1);
-  assert.equal(fsm.state, "petit");
-  assert.equal(fsm.openedByHover, false);
-  // From the compact island it opens again, once the pointer rests.
-  fsm.mouseEntered();
-  seconds(0.5);
-  assert.equal(fsm.state, "home");
-});
-
-test("open on hover: coming back before the grace period keeps it open", () => {
-  fsm.openOnHover = true;
-  fsm.mouseEntered();
-  seconds(0.5);
-  fsm.mouseLeft();
-  seconds(0.3);
-  fsm.mouseEntered();
-  seconds(5);
-  assert.equal(fsm.state, "home");
-});
-
-test("open on hover: a click inside makes it an ordinary open island", () => {
-  fsm.openOnHover = true;
-  fsm.homeToPetitDelay = 3;
-  fsm.mouseEntered();
-  seconds(0.5);
-  fsm.mouseLeft();
-  fsm.userInteracted();          // the short countdown becomes the normal one
-  seconds(1);
+  fsm.userInteracted();          // the 3 s countdown becomes the normal one
+  seconds(3);
   assert.equal(fsm.state, "home");
   seconds(2);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });
 
-test("open on hover: a waiting card holds the island, hover neither opens nor folds it", () => {
-  fsm.openOnHover = true;
+test("hover: a waiting card holds the island open, the pointer leaving doesn't fold it", () => {
   fsm.pinned = true;
   fsm.mouseEntered();
-  assert.equal(fsm.state, "petit");
-  assert.equal(fsm.openedByHover, false);
-  fsm.forceHome();
+  assert.equal(fsm.state, "home");
   fsm.mouseLeft();
-  seconds(5);
+  seconds(600);
   assert.equal(fsm.state, "home");
 });
 
-test("open on hover: an island opened by an alert keeps the normal delay", () => {
-  fsm.openOnHover = true;
-  fsm.homeToPetitDelay = 3;
+test("hover: an island opened by an alert keeps the normal delay", () => {
+  fsm.homeToPetitDelay = 5;
   fsm.forceHome();
   fsm.mouseEntered();
   fsm.mouseLeft();
-  seconds(1);
+  seconds(3);
   assert.equal(fsm.state, "home");
   seconds(2);
-  assert.equal(fsm.state, "petit");
+  assert.equal(fsm.state, "hidden");
 });

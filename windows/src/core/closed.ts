@@ -20,10 +20,11 @@ export function closedIsland(value: unknown): ClosedIsland {
 
 /** The closed island's size where there is nothing but Mochi, in CSS px: the
  *  Mac's resting island on a screen without a notch (IslandScreenGeometry). */
-export const CLOSED_H = 24;
-export const CLOSED_MIN_W = 80;
+// JARVIS: the notch prototype's closed pill, 132 × 34 (its fit() makes it 34 high), corners 26.
+export const CLOSED_H = 34;
+export const CLOSED_MIN_W = 132;
 /** Mochi in it, as on that Mac: centred, a little smaller than the island is tall. */
-export const CLOSED_BOT_D = 18;
+export const CLOSED_BOT_D = 22; // his visor: 22 px wide, as the prototype's .vis
 /** Widest: a long song title is cut, the island doesn't run across the screen. */
 export const CLOSED_MAX_W = 280;
 /** Room on each side of the text. */
