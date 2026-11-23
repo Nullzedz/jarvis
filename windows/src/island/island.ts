@@ -1213,14 +1213,20 @@ export class Island {
       return;
     }
     this.sleepAsked = true;
-    // Folded all the way at once, not to the compact island (which waits a minute to close): only
-    // the closed island takes his small sleeping shape. A card waiting for an answer stays reachable.
-    if (State.pendingApproval) this.collapse();
-    else if (State.mode !== "hidden") this.fsm.forceHidden();
     // He yawns as the pill closes round him: one motion, no timer (the folded window's timers
     // run late, which left the pill waiting, then shrinking with a jolt).
     this.engine.triggerEmote("yawn", 2.4);
-    this.setAsleep(true);
+    if (State.mode === "hidden") {
+      // Closed: the pill shrinks round him, slowly (setAsleep).
+      this.setAsleep(true);
+    } else {
+      // Open: asleep first, then folded all the way (not to the compact island, which waits a
+      // minute to close), so the fold goes straight to his sleeping shape in one motion, and the
+      // window, resized when the fold ends, matches it. A card waiting for an answer stays reachable.
+      this.setAsleep(true);
+      if (State.pendingApproval) this.collapse();
+      else this.fsm.forceHidden();
+    }
     this.wakeFor(2400);
   }
 
