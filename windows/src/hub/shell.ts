@@ -20,7 +20,7 @@ import { searchSettings, type SettingsSearchHit } from "./search";
 export type PageId =
   | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
-  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk" | "prefs";
+  | "mail" | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk" | "prefs";
 
 interface PageDef {
   id: PageId;
@@ -53,7 +53,8 @@ export const NOTCH_PAGES: PageDef[] = [
 
 /** Mail (classic Outlook): Windows only, Linux has no Outlook. */
 export const MAIL_PAGES: PageDef[] = [
-  { id: "mailOverview", icon: "tray", title: () => t("Overview") },
+  { id: "mail", icon: "calendar", title: () => t("Overview") },
+  { id: "mailOverview", icon: "tray", title: () => t("Sorting") },
   { id: "mailRules", icon: "filter", title: () => t("Rules") },
   { id: "mailBanned", icon: "nosign", title: () => t("Banned words") },
   { id: "mailVIP", icon: "star", title: () => t("VIP") },
@@ -73,6 +74,8 @@ const MOVED: Partial<Record<PageId, [PageId, string]>> = {
   agents: ["prefs", "group-agents"], chat: ["prefs", "group-accounts"], phone: ["prefs", "group-phone"],
   voice: ["prefs", "group-voice"], flowsettings: ["prefs", "group-dictation"],
   // Notes (#72): Statistics, Dictionary, Snippets and Styles are on the Dictation page now.
+  // Mail (#74): the rules, banned words and VIPs are rows of the Sorting tab now.
+  mailRules: ["mailOverview", "mail.rules"], mailBanned: ["mailOverview", "mail.banned"], mailVIP: ["mailOverview", "mail.vip"],
   insights: ["dictation", ""], dictionary: ["dictation", ""], snippets: ["dictation", ""], styles: ["dictation", ""],
 };
 

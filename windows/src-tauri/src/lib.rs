@@ -996,6 +996,8 @@ pub fn run() {
             mail::mail_more,
             mail::mail_search,
             mail::mail_month,
+            mail::mail_month_at,
+            mail::mail_day,
             mail::mail_detail,
             mail::mail_open,
             mail::mail_act,

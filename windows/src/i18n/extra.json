@@ -11673,6 +11673,618 @@
       "ru": "идёт запись",
       "tr": "kaydediliyor",
       "zh-Hans": "录制中"
+    },
+    "(no subject)": {
+      "ar": "(بلا موضوع)",
+      "bn": "(কোনো বিষয় নেই)",
+      "de": "(kein Betreff)",
+      "es": "(sin asunto)",
+      "fr": "(sans objet)",
+      "hi": "(कोई विषय नहीं)",
+      "id": "(tanpa subjek)",
+      "ja": "(件名なし)",
+      "ko": "(제목 없음)",
+      "pt-BR": "(sem assunto)",
+      "ru": "(без темы)",
+      "tr": "(konu yok)",
+      "zh-Hans": "（无主题）"
+    },
+    "Afternoon": {
+      "ar": "بعد الظهر",
+      "bn": "বিকেল",
+      "de": "Nachmittag",
+      "es": "Tarde",
+      "fr": "Après-midi",
+      "hi": "दोपहर बाद",
+      "id": "Sore",
+      "ja": "午後",
+      "ko": "오후",
+      "pt-BR": "Tarde",
+      "ru": "День",
+      "tr": "Öğleden sonra",
+      "zh-Hans": "下午"
+    },
+    "At {0}": {
+      "ar": "عند {0}",
+      "bn": "{0}-এ",
+      "de": "Um {0}",
+      "es": "A las {0}",
+      "fr": "À {0}",
+      "hi": "{0} बजे",
+      "id": "Pukul {0}",
+      "ja": "{0}",
+      "ko": "{0}",
+      "pt-BR": "Às {0}",
+      "ru": "В {0}",
+      "tr": "{0}",
+      "zh-Hans": "{0}"
+    },
+    "Automatic sorting is off.": {
+      "ar": "الفرز التلقائي متوقف.",
+      "bn": "স্বয়ংক্রিয় বাছাই বন্ধ।",
+      "de": "Automatisches Sortieren ist aus.",
+      "es": "La clasificación automática está desactivada.",
+      "fr": "Le tri automatique est désactivé.",
+      "hi": "स्वचालित छँटाई बंद है।",
+      "id": "Penyortiran otomatis mati.",
+      "ja": "自動仕分けはオフです。",
+      "ko": "자동 분류가 꺼져 있어요.",
+      "pt-BR": "A organização automática está desligada.",
+      "ru": "Автосортировка выключена.",
+      "tr": "Otomatik sıralama kapalı.",
+      "zh-Hans": "自动分类已关闭。"
+    },
+    "Busiest at": {
+      "ar": "الأكثر ازدحامًا عند",
+      "bn": "সবচেয়ে ব্যস্ত",
+      "de": "Am meisten um",
+      "es": "Más correo a las",
+      "fr": "Le plus chargé à",
+      "hi": "सबसे ज़्यादा",
+      "id": "Paling ramai pukul",
+      "ja": "最多は",
+      "ko": "가장 많은 시간",
+      "pt-BR": "Mais movimentado às",
+      "ru": "Больше всего в",
+      "tr": "En yoğun saat",
+      "zh-Hans": "最多在"
+    },
+    "Busy day": {
+      "ar": "يوم مزدحم",
+      "bn": "ব্যস্ত দিন",
+      "de": "Voller Tag",
+      "es": "Día ajetreado",
+      "fr": "Jour chargé",
+      "hi": "व्यस्त दिन",
+      "id": "Hari sibuk",
+      "ja": "忙しい日",
+      "ko": "바쁜 날",
+      "pt-BR": "Dia cheio",
+      "ru": "Загруженный день",
+      "tr": "Yoğun gün",
+      "zh-Hans": "忙碌日"
+    },
+    "Evening": {
+      "ar": "المساء",
+      "bn": "সন্ধ্যা",
+      "de": "Abend",
+      "es": "Noche",
+      "fr": "Soir",
+      "hi": "शाम",
+      "id": "Malam",
+      "ja": "夜",
+      "ko": "저녁",
+      "pt-BR": "Noite",
+      "ru": "Вечер",
+      "tr": "Akşam",
+      "zh-Hans": "晚上"
+    },
+    "Files": {
+      "ar": "الملفات",
+      "bn": "ফাইল",
+      "de": "Dateien",
+      "es": "Archivos",
+      "fr": "Fichiers",
+      "hi": "फ़ाइलें",
+      "id": "File",
+      "ja": "ファイル",
+      "ko": "파일",
+      "pt-BR": "Arquivos",
+      "ru": "Файлы",
+      "tr": "Dosyalar",
+      "zh-Hans": "文件"
+    },
+    "Files today": {
+      "ar": "ملفات اليوم",
+      "bn": "আজকের ফাইল",
+      "de": "Dateien heute",
+      "es": "Archivos de hoy",
+      "fr": "Fichiers du jour",
+      "hi": "आज की फ़ाइलें",
+      "id": "File hari ini",
+      "ja": "今日のファイル",
+      "ko": "오늘의 파일",
+      "pt-BR": "Arquivos de hoje",
+      "ru": "Файлы сегодня",
+      "tr": "Bugünün dosyaları",
+      "zh-Hans": "今天的文件"
+    },
+    "Midday": {
+      "ar": "الظهر",
+      "bn": "দুপুর",
+      "de": "Mittag",
+      "es": "Mediodía",
+      "fr": "Midi",
+      "hi": "दोपहर",
+      "id": "Siang",
+      "ja": "昼",
+      "ko": "정오",
+      "pt-BR": "Meio-dia",
+      "ru": "Полдень",
+      "tr": "Öğle",
+      "zh-Hans": "中午"
+    },
+    "Morning": {
+      "ar": "الصباح",
+      "bn": "সকাল",
+      "de": "Morgen",
+      "es": "Mañana",
+      "fr": "Matin",
+      "hi": "सुबह",
+      "id": "Pagi",
+      "ja": "朝",
+      "ko": "아침",
+      "pt-BR": "Manhã",
+      "ru": "Утро",
+      "tr": "Sabah",
+      "zh-Hans": "上午"
+    },
+    "Most important": {
+      "ar": "الأهم",
+      "bn": "সবচেয়ে গুরুত্বপূর্ণ",
+      "de": "Wichtigste",
+      "es": "Más importantes",
+      "fr": "Les plus importants",
+      "hi": "सबसे ज़रूरी",
+      "id": "Terpenting",
+      "ja": "重要な順",
+      "ko": "중요한 순",
+      "pt-BR": "Mais importantes",
+      "ru": "Самые важные",
+      "tr": "En önemli",
+      "zh-Hans": "最重要"
+    },
+    "New mail is sorted as it arrives.": {
+      "ar": "يُفرز البريد الجديد عند وصوله.",
+      "bn": "নতুন মেল আসার সাথে সাথে বাছাই হয়।",
+      "de": "Neue Mails werden beim Eintreffen sortiert.",
+      "es": "El correo nuevo se clasifica al llegar.",
+      "fr": "Le nouveau courrier est trié à son arrivée.",
+      "hi": "नया मेल आते ही छँट जाता है।",
+      "id": "Email baru disortir saat tiba.",
+      "ja": "新しいメールは届いたときに仕分けされます。",
+      "ko": "새 메일은 도착하면 바로 분류돼요.",
+      "pt-BR": "E-mails novos são organizados ao chegar.",
+      "ru": "Новая почта сортируется при получении.",
+      "tr": "Yeni postalar geldiği anda sıralanır.",
+      "zh-Hans": "新邮件到达时即分类。"
+    },
+    "Next month": {
+      "ar": "الشهر التالي",
+      "bn": "পরের মাস",
+      "de": "Nächster Monat",
+      "es": "Mes siguiente",
+      "fr": "Mois suivant",
+      "hi": "अगला महीना",
+      "id": "Bulan berikutnya",
+      "ja": "翌月",
+      "ko": "다음 달",
+      "pt-BR": "Próximo mês",
+      "ru": "Следующий месяц",
+      "tr": "Sonraki ay",
+      "zh-Hans": "下个月"
+    },
+    "No files today.": {
+      "ar": "لا ملفات اليوم.",
+      "bn": "আজ কোনো ফাইল নেই।",
+      "de": "Heute keine Dateien.",
+      "es": "Hoy no hay archivos.",
+      "fr": "Aucun fichier aujourd'hui.",
+      "hi": "आज कोई फ़ाइल नहीं।",
+      "id": "Tidak ada file hari ini.",
+      "ja": "今日はファイルがありません。",
+      "ko": "오늘은 파일이 없어요.",
+      "pt-BR": "Nenhum arquivo hoje.",
+      "ru": "Сегодня файлов нет.",
+      "tr": "Bugün dosya yok.",
+      "zh-Hans": "今天没有文件。"
+    },
+    "No mail yet": {
+      "ar": "لا بريد بعد",
+      "bn": "এখনো কোনো মেল নেই",
+      "de": "Noch keine Mail",
+      "es": "Aún no hay correo",
+      "fr": "Pas encore de courrier",
+      "hi": "अभी कोई मेल नहीं",
+      "id": "Belum ada email",
+      "ja": "まだメールはありません",
+      "ko": "아직 메일 없음",
+      "pt-BR": "Nenhum e-mail ainda",
+      "ru": "Писем пока нет",
+      "tr": "Henüz posta yok",
+      "zh-Hans": "暂无邮件"
+    },
+    "Nothing arrived at this hour.": {
+      "ar": "لم يصل شيء في هذه الساعة.",
+      "bn": "এই সময়ে কিছু আসেনি।",
+      "de": "In dieser Stunde kam nichts.",
+      "es": "No llegó nada a esta hora.",
+      "fr": "Rien n'est arrivé à cette heure.",
+      "hi": "इस घंटे कुछ नहीं आया।",
+      "id": "Tidak ada yang masuk pada jam ini.",
+      "ja": "この時間には何も届いていません。",
+      "ko": "이 시간에는 아무것도 오지 않았어요.",
+      "pt-BR": "Nada chegou nesta hora.",
+      "ru": "В этот час ничего не пришло.",
+      "tr": "Bu saatte bir şey gelmedi.",
+      "zh-Hans": "这个小时没有邮件。"
+    },
+    "Nothing has arrived for this day.": {
+      "ar": "لم يصل شيء في هذا اليوم.",
+      "bn": "এই দিনে কিছু আসেনি।",
+      "de": "An diesem Tag kam nichts.",
+      "es": "No llegó nada este día.",
+      "fr": "Rien n'est arrivé ce jour-là.",
+      "hi": "इस दिन कुछ नहीं आया।",
+      "id": "Tidak ada yang masuk hari ini.",
+      "ja": "この日は何も届いていません。",
+      "ko": "이날은 아무것도 오지 않았어요.",
+      "pt-BR": "Nada chegou neste dia.",
+      "ru": "В этот день ничего не пришло.",
+      "tr": "Bu gün bir şey gelmedi.",
+      "zh-Hans": "这一天没有邮件。"
+    },
+    "Nothing waiting on you.": {
+      "ar": "لا شيء بانتظارك.",
+      "bn": "আপনার জন্য কিছু অপেক্ষা করছে না।",
+      "de": "Nichts wartet auf dich.",
+      "es": "Nada te está esperando.",
+      "fr": "Rien ne vous attend.",
+      "hi": "आपके लिए कुछ बाकी नहीं।",
+      "id": "Tidak ada yang menunggu Anda.",
+      "ja": "あなた待ちのものはありません。",
+      "ko": "기다리는 메일이 없어요.",
+      "pt-BR": "Nada esperando por você.",
+      "ru": "Ничего не ждёт ответа.",
+      "tr": "Sizi bekleyen bir şey yok.",
+      "zh-Hans": "没有等你处理的邮件。"
+    },
+    "Nothing yet today": {
+      "ar": "لا شيء اليوم بعد",
+      "bn": "আজ এখনো কিছু নেই",
+      "de": "Heute noch nichts",
+      "es": "Nada todavía hoy",
+      "fr": "Rien encore aujourd'hui",
+      "hi": "आज अभी कुछ नहीं",
+      "id": "Belum ada hari ini",
+      "ja": "今日はまだありません",
+      "ko": "오늘은 아직 없음",
+      "pt-BR": "Nada ainda hoje",
+      "ru": "Сегодня пока ничего",
+      "tr": "Bugün henüz yok",
+      "zh-Hans": "今天还没有"
+    },
+    "Oldest": {
+      "ar": "الأقدم",
+      "bn": "সবচেয়ে পুরোনো",
+      "de": "Älteste",
+      "es": "Más antiguos",
+      "fr": "Les plus anciens",
+      "hi": "सबसे पुराने",
+      "id": "Terlama",
+      "ja": "古い順",
+      "ko": "오래된 순",
+      "pt-BR": "Mais antigos",
+      "ru": "Самые старые",
+      "tr": "En eski",
+      "zh-Hans": "最早"
+    },
+    "Previous month": {
+      "ar": "الشهر السابق",
+      "bn": "আগের মাস",
+      "de": "Vorheriger Monat",
+      "es": "Mes anterior",
+      "fr": "Mois précédent",
+      "hi": "पिछला महीना",
+      "id": "Bulan sebelumnya",
+      "ja": "前月",
+      "ko": "이전 달",
+      "pt-BR": "Mês anterior",
+      "ru": "Предыдущий месяц",
+      "tr": "Önceki ay",
+      "zh-Hans": "上个月"
+    },
+    "Sheets": {
+      "ar": "الجداول",
+      "bn": "শিট",
+      "de": "Tabellen",
+      "es": "Hojas",
+      "fr": "Tableurs",
+      "hi": "शीट",
+      "id": "Lembar",
+      "ja": "表計算",
+      "ko": "시트",
+      "pt-BR": "Planilhas",
+      "ru": "Таблицы",
+      "tr": "Tablolar",
+      "zh-Hans": "表格"
+    },
+    "Show the mail": {
+      "ar": "عرض الرسالة",
+      "bn": "মেলটি দেখান",
+      "de": "Mail zeigen",
+      "es": "Ver el correo",
+      "fr": "Afficher le message",
+      "hi": "मेल दिखाएँ",
+      "id": "Tampilkan email",
+      "ja": "メールを表示",
+      "ko": "메일 보기",
+      "pt-BR": "Mostrar o e-mail",
+      "ru": "Показать письмо",
+      "tr": "Postayı göster",
+      "zh-Hans": "显示邮件"
+    },
+    "Sorted by JARVIS today": {
+      "ar": "فرزه JARVIS اليوم",
+      "bn": "আজ JARVIS যা বাছাই করেছে",
+      "de": "Heute von JARVIS sortiert",
+      "es": "Clasificado hoy por JARVIS",
+      "fr": "Trié par JARVIS aujourd'hui",
+      "hi": "आज JARVIS ने छाँटा",
+      "id": "Disortir JARVIS hari ini",
+      "ja": "今日 JARVIS が仕分けたもの",
+      "ko": "오늘 JARVIS가 분류함",
+      "pt-BR": "Organizado pelo JARVIS hoje",
+      "ru": "Сегодня рассортировал JARVIS",
+      "tr": "Bugün JARVIS'in sıraladıkları",
+      "zh-Hans": "JARVIS 今天分类的邮件"
+    },
+    "Sorting": {
+      "ar": "الفرز",
+      "bn": "বাছাই",
+      "de": "Sortieren",
+      "es": "Clasificación",
+      "fr": "Tri",
+      "hi": "छँटाई",
+      "id": "Penyortiran",
+      "ja": "仕分け",
+      "ko": "분류",
+      "pt-BR": "Organização",
+      "ru": "Сортировка",
+      "tr": "Sıralama",
+      "zh-Hans": "分类"
+    },
+    "Waiting on you": {
+      "ar": "بانتظارك",
+      "bn": "আপনার অপেক্ষায়",
+      "de": "Wartet auf dich",
+      "es": "Te esperan",
+      "fr": "Vous attendent",
+      "hi": "आपके इंतज़ार में",
+      "id": "Menunggu Anda",
+      "ja": "あなた待ち",
+      "ko": "답장 대기",
+      "pt-BR": "Esperando por você",
+      "ru": "Ждут вас",
+      "tr": "Sizi bekliyor",
+      "zh-Hans": "等你处理"
+    },
+    "When mail arrives": {
+      "ar": "متى يصل البريد",
+      "bn": "কখন মেল আসে",
+      "de": "Wann Mails kommen",
+      "es": "Cuándo llega el correo",
+      "fr": "Quand le courrier arrive",
+      "hi": "मेल कब आता है",
+      "id": "Kapan email masuk",
+      "ja": "メールが届く時間",
+      "ko": "메일이 오는 시간",
+      "pt-BR": "Quando o e-mail chega",
+      "ru": "Когда приходит почта",
+      "tr": "Postalar ne zaman geliyor",
+      "zh-Hans": "邮件到达时间"
+    },
+    "bar = how much mail": {
+      "ar": "الشريط = كمية البريد",
+      "bn": "বার = কত মেল",
+      "de": "Balken = wie viel Mail",
+      "es": "barra = cuánto correo",
+      "fr": "barre = volume de courrier",
+      "hi": "बार = कितना मेल",
+      "id": "bilah = jumlah email",
+      "ja": "バー = メールの量",
+      "ko": "막대 = 메일 양",
+      "pt-BR": "barra = quantidade de e-mail",
+      "ru": "полоса = сколько писем",
+      "tr": "çubuk = posta miktarı",
+      "zh-Hans": "条 = 邮件数量"
+    },
+    "busiest": {
+      "ar": "الأكثر",
+      "bn": "সবচেয়ে বেশি",
+      "de": "am meisten",
+      "es": "más correo",
+      "fr": "pic",
+      "hi": "सबसे ज़्यादा",
+      "id": "paling ramai",
+      "ja": "最多",
+      "ko": "가장 많음",
+      "pt-BR": "pico",
+      "ru": "пик",
+      "tr": "en yoğun",
+      "zh-Hans": "最多"
+    },
+    "click an hour": {
+      "ar": "انقر على ساعة",
+      "bn": "একটি ঘণ্টায় ক্লিক করুন",
+      "de": "klick auf eine Stunde",
+      "es": "haz clic en una hora",
+      "fr": "cliquez sur une heure",
+      "hi": "किसी घंटे पर क्लिक करें",
+      "id": "klik satu jam",
+      "ja": "時間をクリック",
+      "ko": "시간을 클릭하세요",
+      "pt-BR": "clique em uma hora",
+      "ru": "нажмите на час",
+      "tr": "bir saate tıklayın",
+      "zh-Hans": "点击某个小时"
+    },
+    "{0} need you": {
+      "ar": "{0} بحاجة إليك",
+      "bn": "{0}টি আপনার অপেক্ষায়",
+      "de": "{0} brauchen dich",
+      "es": "{0} te necesitan",
+      "fr": "{0} vous attendent",
+      "hi": "{0} आपके इंतज़ार में",
+      "id": "{0} perlu Anda",
+      "ja": "{0} 件あなた待ち",
+      "ko": "{0}개 확인 필요",
+      "pt-BR": "{0} precisam de você",
+      "ru": "{0} ждут вас",
+      "tr": "{0} sizi bekliyor",
+      "zh-Hans": "{0} 封需要你处理"
+    },
+    "{0} selected": {
+      "ar": "تم تحديد {0}",
+      "bn": "{0} নির্বাচিত",
+      "de": "{0} ausgewählt",
+      "es": "{0} seleccionado",
+      "fr": "{0} sélectionné",
+      "hi": "{0} चुना गया",
+      "id": "{0} dipilih",
+      "ja": "{0} を選択中",
+      "ko": "{0} 선택됨",
+      "pt-BR": "{0} selecionado",
+      "ru": "Выбрано: {0}",
+      "tr": "{0} seçildi",
+      "zh-Hans": "已选择 {0}"
+    },
+    "{count} mails": {
+      "ar": {
+        "one": "رسالة واحدة",
+        "other": "{count} رسالة"
+      },
+      "bn": {
+        "one": "{count}টি মেল",
+        "other": "{count}টি মেল"
+      },
+      "de": {
+        "one": "{count} Mail",
+        "other": "{count} Mails"
+      },
+      "es": {
+        "one": "{count} correo",
+        "other": "{count} correos"
+      },
+      "fr": {
+        "one": "{count} message",
+        "other": "{count} messages"
+      },
+      "hi": {
+        "one": "{count} मेल",
+        "other": "{count} मेल"
+      },
+      "id": {
+        "one": "{count} email",
+        "other": "{count} email"
+      },
+      "ja": {
+        "other": "{count} 件のメール"
+      },
+      "ko": {
+        "other": "메일 {count}개"
+      },
+      "pt-BR": {
+        "one": "{count} e-mail",
+        "other": "{count} e-mails"
+      },
+      "ru": {
+        "one": "Писем: {count}",
+        "other": "Писем: {count}"
+      },
+      "tr": {
+        "one": "{count} posta",
+        "other": "{count} posta"
+      },
+      "zh-Hans": {
+        "other": "{count} 封邮件"
+      }
+    },
+    "mails today": {
+      "ar": {
+        "one": "رسالة اليوم",
+        "other": "رسالة اليوم"
+      },
+      "bn": {
+        "one": "টি মেল আজ",
+        "other": "টি মেল আজ"
+      },
+      "de": {
+        "one": "Mail heute",
+        "other": "Mails heute"
+      },
+      "es": {
+        "one": "correo hoy",
+        "other": "correos hoy"
+      },
+      "fr": {
+        "one": "message aujourd'hui",
+        "other": "messages aujourd'hui"
+      },
+      "hi": {
+        "one": "मेल आज",
+        "other": "मेल आज"
+      },
+      "id": {
+        "one": "email hari ini",
+        "other": "email hari ini"
+      },
+      "ja": {
+        "other": "件 今日"
+      },
+      "ko": {
+        "other": "개 오늘"
+      },
+      "pt-BR": {
+        "one": "e-mail hoje",
+        "other": "e-mails hoje"
+      },
+      "ru": {
+        "one": "письмо сегодня",
+        "other": "писем сегодня"
+      },
+      "tr": {
+        "one": "posta bugün",
+        "other": "posta bugün"
+      },
+      "zh-Hans": {
+        "other": "封 今天"
+      }
+    },
+    "Nothing sent yet.": {
+      "ar": "لم يُرسل شيء بعد.",
+      "bn": "এখনো কিছু পাঠানো হয়নি।",
+      "de": "Noch nichts gesendet.",
+      "es": "Aún no se ha enviado nada.",
+      "fr": "Rien envoyé pour l’instant.",
+      "hi": "अभी तक कुछ नहीं भेजा गया।",
+      "id": "Belum ada yang dikirim.",
+      "ja": "まだ何も送信していません。",
+      "ko": "아직 보낸 메일이 없어요.",
+      "pt-BR": "Nada enviado ainda.",
+      "ru": "Пока ничего не отправлено.",
+      "tr": "Henüz bir şey gönderilmedi.",
+      "zh-Hans": "还没有发送任何邮件。"
     }
   }
 }

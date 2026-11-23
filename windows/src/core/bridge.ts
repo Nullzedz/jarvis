@@ -3,6 +3,7 @@
 // `npm run dev` alone.
 
 import { invoke } from "@tauri-apps/api/core";
+import type { DayMessage } from "../hub/pages/mail-home";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import type { Settings } from "./state";
@@ -304,6 +305,10 @@ export const Bridge = {
   hisWindows: () => call<HisWindows>("his_windows"),
   /** JARVIS: this month's mail counts for Home (mail_month): per day, today per hour; null without Outlook. */
   mailMonth: () => call<MailMonth | null>("mail_month"),
+  /** The Mail page's month, `offset` months from this one (-1: last month). */
+  mailMonthAt: (offset: number) => call<MailMonth | null>("mail_month_at", { offset }),
+  /** One day's messages ("yyyy-MM-dd"), newest first, with their files and whether a VIP sent them. */
+  mailDay: (date: string) => call<{ messages: DayMessage[] } | null>("mail_day", { date }),
   clipboardUse: (id: number) => call<boolean>("clipboard_use", { id }),
   clipboardPin: (id: number, on: boolean) => call<void>("clipboard_pin", { id, on }),
   clipboardClear: () => call<void>("clipboard_clear"),
@@ -901,4 +906,8 @@ export interface DrawModel {
 export interface HisWindow { question: string; form: string; svg: string | null; at: number }
 export interface HisWindows { times: number[]; last: HisWindow[] }
 /** JARVIS: this month's mail (mail/outlook.rs month_script): received per day ("1"…"31"), today's per hour. */
-export interface MailMonth { days: Record<string, number>; hours: number[]; flagged: number; files: number }
+export interface MailMonth {
+  days: Record<string, number>; hours: number[]; flagged: number; files: number;
+  /** Per day: how many came from a VIP, are flagged, carry files. */
+  marks?: Record<string, { vip: number; flagged: number; files: number }>;
+}
