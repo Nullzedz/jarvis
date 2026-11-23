@@ -172,6 +172,46 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-plan .nums p + p { margin-top: 4px; }
 .jv-plan .nums b { font-weight: 600; font-variant-numeric: tabular-nums; }
 .jv-plan .when { font-size: 11.5px; color: var(--jv-t2); }
+/* Steps 5–9 of #57: the demo's Notetaker, Mail, Dictation, Windows and Connections. */
+.jv-wbig { margin: 0; font-size: 38px; font-weight: 600; letter-spacing: -.02em; line-height: 1; color: var(--jv-t1); font-variant-numeric: tabular-nums; }
+.jv-wbig small { font-size: 15px; font-weight: 400; color: var(--jv-t2); letter-spacing: 0; margin-left: 6px; }
+.jv-wbig small.lc { text-transform: lowercase; }
+.jv-wsub { margin: 7px 0 0; font-size: 13px; color: var(--jv-t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-wbody .cap { margin: 0; font-size: 12px; color: var(--jv-t2); }
+.jv-nt { margin-top: auto; min-width: 0; }
+.jv-nt .cap { display: flex; align-items: center; gap: 6px; }
+.jv-nt .cap .dot { width: 7px; height: 7px; border-radius: 50%; background: #ff453a; }
+.jv-nt .jv-wbig { margin-top: 6px; }
+.jv-nt .what { margin: 6px 0 0; font: 14px/1.35 Georgia, "Times New Roman", serif; color: #aeaeb2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.jv-mail { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; gap: 24px; }
+.jv-mail .x { flex: 1; min-width: 0; }
+.jv-mcal { display: grid; grid-template-columns: repeat(7, 15px); gap: 3px; flex: none; margin-top: 6px; }
+.jv-mcal i { width: 15px; height: 13px; border-radius: 4px; font-style: normal; font-size: 9px; display: grid; place-items: center; color: #8e8e93; }
+.jv-mcal i.wd { color: #636366; }
+.jv-arr { display: flex; align-items: flex-end; gap: 3px; height: 34px; margin-top: 14px; }
+.jv-arr i { flex: 1; border-radius: 3px; }
+.jv-dict { flex: 1; min-width: 0; display: flex; align-items: flex-end; gap: 24px; }
+.jv-dict .x { flex: none; }
+.jv-dbars { flex: 1; position: relative; height: 96px; display: flex; align-items: flex-end; gap: 8px; }
+.jv-dbars .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.jv-dbars .col i { width: 100%; max-width: 26px; border-radius: 5px; min-height: 3px; }
+.jv-dbars .col .cap { font-size: 10px; }
+.jv-dbars .avg { position: absolute; left: 0; right: 0; border-top: 1.5px dashed #30d158; opacity: .8; }
+.jv-wins { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; gap: 16px; }
+.jv-wins .x { flex: none; max-width: 40%; }
+.jv-thumbs { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.jv-thumbs .th { aspect-ratio: 90 / 64; background: #0e0f11; border-radius: 12px; overflow: hidden; display: grid; place-items: center; }
+.jv-thumbs .th img { width: 100%; height: 100%; object-fit: contain; }
+.jv-thumbs .th .form { font-size: 11px; color: var(--jv-t2); text-transform: capitalize; padding: 0 6px; text-align: center; }
+.jv-conn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.jv-tiles { display: flex; gap: 10px; min-width: 0; overflow: hidden; }
+.jv-hometile { width: 64px; height: 64px; border-radius: 16px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; font-size: 10.5px; line-height: 1.2;
+  flex: none; background: #f2f2f7; color: #1c1c1e; box-sizing: border-box; overflow: hidden; }
+.jv-hometile .dot { width: 12px; height: 12px; border-radius: 50%; }
+.jv-hometile b { font-weight: 600; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-hometile.off { background: #2c2c2e; color: #8e8e93; }
+.jv-hometile b.warn { color: #ff9f0a; }
+.jv-conn .n { margin-left: auto; text-align: right; flex: none; }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }

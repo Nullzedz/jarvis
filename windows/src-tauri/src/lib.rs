@@ -26,6 +26,7 @@ mod gcal;
 mod live;
 mod tts;
 mod island;
+mod his_windows;
 mod last_answer;
 mod launch;
 mod local_chat;
@@ -945,6 +946,7 @@ pub fn run() {
             hub_window,
             clipboard_history::clipboard_history,
             last_answer::last_answer,
+            his_windows::his_windows,
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
@@ -990,6 +992,7 @@ pub fn run() {
             mail::mail_refresh,
             mail::mail_more,
             mail::mail_search,
+            mail::mail_month,
             mail::mail_detail,
             mail::mail_open,
             mail::mail_act,

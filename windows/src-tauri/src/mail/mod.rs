@@ -284,6 +284,26 @@ pub async fn mail_more(app: AppHandle) {
     poll(&app).await;
 }
 
+/// JARVIS: Home's Mail widget: this month's counts (outlook::month_script), asked at most
+/// every five minutes. None without a running Outlook.
+#[tauri::command]
+pub async fn mail_month() -> Option<Value> {
+    static LAST: Mutex<Option<(std::time::Instant, Value)>> = Mutex::new(None);
+    if let Some((at, v)) = LAST.lock().ok().and_then(|l| l.clone()) {
+        if at.elapsed() < Duration::from_secs(300) {
+            return Some(v);
+        }
+    }
+    let v = outlook::run(outlook::month_script(), TIMEOUT).await.ok()?;
+    if v.get("error").is_some() {
+        return None;
+    }
+    if let Ok(mut l) = LAST.lock() {
+        *l = Some((std::time::Instant::now(), v.clone()));
+    }
+    Some(v)
+}
+
 /// Searches every inbox; nothing to search: the card's list.
 #[tauri::command]
 pub async fn mail_search(query: String, filter: Filter) -> Result<Vec<Message>, String> {

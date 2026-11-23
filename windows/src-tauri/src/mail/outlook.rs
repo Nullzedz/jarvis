@@ -95,6 +95,34 @@ fn script(body: &str) -> String {
     format!("{PRELUDE}\n{body}\n")
 }
 
+/// JARVIS: Home's Mail widget (step 6 of #57): how many messages each inbox received each day
+/// of this month, today's per hour, the flagged ones still waiting this month, and today's with
+/// files. Counts only: no sender, no subject.
+pub fn month_script() -> String {
+    script(
+        r#"$start = (Get-Date -Day 1).Date
+$today = (Get-Date).Date
+$filter = "[ReceivedTime] >= '" + $start.ToString('g') + "'"
+$days = @{}; $hours = @(0) * 24; $flagged = 0; $files = 0
+foreach ($b in (Coucou-Inboxes)) {
+  try {
+    foreach ($i in $b.inbox.Items.Restrict($filter)) {
+      if ($i.Class -ne 43) { continue }
+      $t = $i.ReceivedTime
+      $d = [string]$t.Day
+      if ($days.ContainsKey($d)) { $days[$d]++ } else { $days[$d] = 1 }
+      if ($i.FlagStatus -eq 2) { $flagged++ }
+      if ($t.Date -eq $today) {
+        $hours[$t.Hour]++
+        if ($i.Attachments.Count -gt 0) { $files++ }
+      }
+    }
+  } catch {}
+}
+[pscustomobject]@{ days = $days; hours = $hours; flagged = $flagged; files = $files } | ConvertTo-Json -Depth 3 -Compress"#,
+    )
+}
+
 /// The unread count and the newest `per_inbox` messages of every account's inbox.
 pub fn list_script(per_inbox: usize) -> String {
     script(&format!(

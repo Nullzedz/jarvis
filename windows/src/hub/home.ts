@@ -12,6 +12,7 @@ import { visor } from "../theme/theme";
 import { agentsWidget } from "./agents-widget";
 import { jarvisWidget } from "./jarvis-widget";
 import { planWidget } from "./plan-widget";
+import { connectionsWidget, dictationWidget, mailWidget, notetakerWidget, windowsWidget } from "./glance-widgets";
 import type { Section } from "./sections";
 
 /** The squares' line icons, on a 24×24 grid. */
@@ -144,6 +145,14 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
   const stopJarvis = jarvisBody ? jarvisWidget(jarvisBody, ctx.status) : () => {};
   const planBody = below.querySelector<HTMLElement>('[data-body="plan"]');
   const stopPlan = planBody ? planWidget(planBody) : () => {};
+  // Steps 5–9: Notetaker, Mail, Dictation, His windows, Connections.
+  const fill: [string, (body: HTMLElement) => () => void][] = [
+    ["notetaker", notetakerWidget], ["mail", mailWidget], ["notes", dictationWidget], ["windows", windowsWidget], ["connections", connectionsWidget],
+  ];
+  const stops = fill.map(([id, make]) => {
+    const body = below.querySelector<HTMLElement>(`[data-body="${id}"]`);
+    return body ? make(body) : () => {};
+  });
   const el = h("div", { class: "jv-home" }, h("div", { class: "jv-texture", "aria-hidden": "true" }), hero, below);
 
   // The control layer, floating over the page (fixed, so it stays while you scroll).
@@ -169,6 +178,7 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
       stopAgents();
       stopJarvis();
       stopPlan();
+      for (const stop of stops) stop();
       bottom.remove();
       tools.remove();
     },

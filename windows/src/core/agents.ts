@@ -113,3 +113,22 @@ export function orbitAngle(index: number, count: number, ring: number): number {
 export function agentsSize(rows: readonly Pick<AgentRow, "ask">[]): "wide" | "big" {
   return rows.length <= 2 && !rows.some((r) => r.ask) ? "wide" : "big";
 }
+
+/** Island → window: the service pills for Home's Connections widget (ConnectionRow[]). */
+export const CONNECTIONS_SNAPSHOT = "connections-snapshot";
+
+export interface ConnectionRow {
+  id: string;
+  name: string;
+  color: string;
+  /** What its pill's header says ("1.2k Total stars", "412.00 EUR"…), when it has data. */
+  headline: string | null;
+  /** Connected and without an error. */
+  live: boolean;
+}
+
+/** Live ones first (with something to say before those without), then the rest, as they came. */
+export function rankConnections<T extends Pick<ConnectionRow, "live" | "headline">>(rows: readonly T[]): T[] {
+  const rank = (r: T) => (r.live ? (r.headline ? 0 : 1) : 2);
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map(({ r }) => r);
+}

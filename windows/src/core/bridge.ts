@@ -290,6 +290,10 @@ export const Bridge = {
   clipboardHistory: () => call<ClipEntry[]>("clipboard_history"),
   /** JARVIS: his last answer, in memory only (last_answer.rs); null until he has answered. */
   lastAnswer: () => call<string | null>("last_answer"),
+  /** JARVIS: the windows he drew (his_windows.rs), in memory only. */
+  hisWindows: () => call<HisWindows>("his_windows"),
+  /** JARVIS: this month's mail counts for Home (mail_month): per day, today per hour; null without Outlook. */
+  mailMonth: () => call<MailMonth | null>("mail_month"),
   clipboardUse: (id: number) => call<boolean>("clipboard_use", { id }),
   clipboardPin: (id: number, on: boolean) => call<void>("clipboard_pin", { id, on }),
   clipboardClear: () => call<void>("clipboard_clear"),
@@ -882,3 +886,9 @@ export interface DrawModel {
   maker: "claude" | "chatgpt" | "gemini";
   ready: boolean;
 }
+
+/** JARVIS: a window he drew (his_windows.rs). */
+export interface HisWindow { question: string; form: string; svg: string | null; at: number }
+export interface HisWindows { times: number[]; last: HisWindow[] }
+/** JARVIS: this month's mail (mail/outlook.rs month_script): received per day ("1"…"31"), today's per hour. */
+export interface MailMonth { days: Record<string, number>; hours: number[]; flagged: number; files: number }
