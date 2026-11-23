@@ -288,6 +288,8 @@ export const Bridge = {
   hubWindow: (action: "minimize" | "maximize" | "close" | "drag") => call<void>("hub_window", { action }),
   /** JARVIS: the island's clipboard history, newest first (in memory only). */
   clipboardHistory: () => call<ClipEntry[]>("clipboard_history"),
+  /** JARVIS: his last answer, in memory only (last_answer.rs); null until he has answered. */
+  lastAnswer: () => call<string | null>("last_answer"),
   clipboardUse: (id: number) => call<boolean>("clipboard_use", { id }),
   clipboardPin: (id: number, on: boolean) => call<void>("clipboard_pin", { id, on }),
   clipboardClear: () => call<void>("clipboard_clear"),

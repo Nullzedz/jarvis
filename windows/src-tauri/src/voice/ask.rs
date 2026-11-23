@@ -256,6 +256,9 @@ pub fn ask_send(app: AppHandle, question: String) {
         let ok = reply.is_some() && (!answer.is_empty() || window.is_some());
         let text = if ok { answer } else { crate::i18n::t("I couldn't answer that just now, sir.") };
         let _ = app.emit_to(LABEL, "ask-done", text.clone());
+        if ok {
+            crate::last_answer::set(&app, &text);
+        }
         if let (true, Some(w)) = (ok, window) {
             super::explain::show(&app, &question, &text, &w, seen.as_ref(), add);
             let app2 = app.clone();

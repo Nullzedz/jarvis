@@ -10,6 +10,7 @@ import { Bridge } from "../core/bridge";
 import type { HubContext } from "./shell";
 import { visor } from "../theme/theme";
 import { agentsWidget } from "./agents-widget";
+import { jarvisWidget } from "./jarvis-widget";
 import type { Section } from "./sections";
 
 /** The squares' line icons, on a 24×24 grid. */
@@ -138,6 +139,8 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
   const below = h("section", { class: "jv-below" }, glance(go));
   const agentsBody = below.querySelector<HTMLElement>('[data-body="agents"]');
   const stopAgents = agentsBody ? agentsWidget(agentsBody) : () => {};
+  const jarvisBody = below.querySelector<HTMLElement>('[data-body="jarvis"]');
+  const stopJarvis = jarvisBody ? jarvisWidget(jarvisBody, ctx.status) : () => {};
   const el = h("div", { class: "jv-home" }, h("div", { class: "jv-texture", "aria-hidden": "true" }), hero, below);
 
   // The control layer, floating over the page (fixed, so it stays while you scroll).
@@ -161,6 +164,7 @@ export function homePage(ctx: HubContext, go: (section: Section["id"]) => void):
     el,
     destroy() {
       stopAgents();
+      stopJarvis();
       bottom.remove();
       tools.remove();
     },

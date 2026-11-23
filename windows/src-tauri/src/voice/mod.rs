@@ -556,6 +556,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         explain::show(app, question, &brain::spoken_text(&line), &w, seen, false);
     }
     let said = speech.finish();
+    crate::last_answer::set(app, &said);
     watching.store(true, Ordering::Relaxed);
     if STOPPED.load(Ordering::Relaxed) {
         return (said, true);

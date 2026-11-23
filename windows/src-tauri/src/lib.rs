@@ -26,6 +26,7 @@ mod gcal;
 mod live;
 mod tts;
 mod island;
+mod last_answer;
 mod launch;
 mod local_chat;
 mod log;
@@ -943,6 +944,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             hub_window,
             clipboard_history::clipboard_history,
+            last_answer::last_answer,
             clipboard_history::clipboard_use,
             clipboard_history::clipboard_pin,
             clipboard_history::clipboard_clear,
