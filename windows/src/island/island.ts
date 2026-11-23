@@ -1094,6 +1094,8 @@ export class Island {
 
     // No browser menu over Mochi: his right-click is the wardrobe. Everywhere
     // else (the chat field) the webview keeps its own menu.
+    // No browser menu over Mochi: his right-click is the wardrobe. Everywhere else the webview
+    // keeps its own menu (Home's squares add Edit to it: src-tauri/src/webview_menu.rs).
     this.islandEl.addEventListener("contextmenu", (e) => {
       if (this.isBotHit(e.clientX, e.clientY)) e.preventDefault();
     });
@@ -1442,7 +1444,8 @@ export class Island {
       ? hexToRGB(openPlanColor())
       : this.engine.showsUpdateHint
         ? UPDATE_BLUE_RGB
-        : focus?.isIntegration
+        // JARVIS: the main is white, his own body: he keeps it, and with it his glowing ring.
+        : focus?.isIntegration && focus.id !== State.mainPillId
           ? hexToRGB(focus.color)
           : null;
     this.engine.particleOverhang = BOT_OVERHANG;

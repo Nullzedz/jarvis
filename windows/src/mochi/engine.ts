@@ -953,13 +953,18 @@ export class BotEngine {
       if (pumpkin <= 0.001) return;
     } else {
       // Halo: the mood around the shell — none at rest, a pulse when JARVIS needs you.
-      // The ring in his state's colour round his shell, never a glow (glows read "too AI").
+      // The ring in his state's colour round his shell, and (asked for by the user, over the
+      // character sheet's "no glow") its soft glow: the ring lights up and tints the gap.
       const halo = this.haloV * (1 - this.morph);
       if (halo > 0.02) {
         x.save();
-        x.strokeStyle = rgba(this.col, halo * 0.8);
-        x.lineWidth = Math.max(1.25, R * 0.045);
         x.scale(1 + 0.09 * 1.14, 1 + 0.09 * 1.4);
+        x.fillStyle = rgba(this.col, halo * 0.22);
+        x.fill(body);
+        x.shadowColor = rgba(this.col, halo * 0.9);
+        x.shadowBlur = R * 0.28;
+        x.strokeStyle = rgba(this.col, Math.min(1, halo * 1.4));
+        x.lineWidth = Math.max(1.5, R * 0.06);
         x.stroke(body);
         x.restore();
       }

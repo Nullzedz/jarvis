@@ -3,6 +3,7 @@
 // every platform reads the same preference the same way.
 
 import { beforeEach, test } from "node:test";
+import { MAIN_COLOR, SLOT_COLORS } from "../src/core/pills.ts";
 import assert from "node:assert/strict";
 import { PILL_PALETTE, normalizeHex, parsePillColors, pillColor, withPillColor } from "../src/core/pill-colors.ts";
 import { PILL_CATALOG, pillDefinition } from "../src/core/pills.ts";
@@ -74,30 +75,21 @@ beforeEach(() => {
 
 const colorOf = (id) => State.tasks.find((t) => t.id === id)?.color;
 
-test("with no preference every pill is painted as the catalog says", () => {
+// JARVIS: on Home the colour belongs to the place (core/pills.ts slotColor): the main is
+// always white and slots 1–4 green, orange, purple, red. A colour picked in Settings no longer
+// repaints them; it still dresses the pills made for a session, below.
+test("the main pill is white and the four slots wear their slot's colour", () => {
   assert.deepEqual(DEFAULT_SETTINGS.pillColors, {});
   State.loadIntegrationTasks();
-  for (const task of State.tasks) assert.equal(task.color, pillDefinition(task.id).color, task.id);
+  assert.equal(colorOf("integration_claude"), MAIN_COLOR);
+  State.settings.activeIntegrations.forEach((id, i) => assert.equal(colorOf(id), SLOT_COLORS[i], id));
 });
 
-test("a pill is created in the colour the user gave it", () => {
-  State.settings.pillColors = { integration_claude: TEAL };
+test("a colour picked in Settings doesn't repaint the main pill or a slot", () => {
+  State.settings = { ...State.settings, pillColors: { integration_claude: TEAL, integration_github: TEAL } };
   State.loadIntegrationTasks();
-  assert.equal(colorOf("integration_claude"), TEAL);
-  assert.equal(colorOf("integration_github"), pillDefinition("integration_github").color);
-});
-
-test("a colour picked later reaches the pills already on the island, and back", () => {
-  State.loadIntegrationTasks();
-  assert.equal(colorOf("integration_claude"), VS_CODE);
-
-  State.settings = { ...State.settings, pillColors: { integration_claude: TEAL } };
-  State.loadIntegrationTasks();
-  assert.equal(colorOf("integration_claude"), TEAL);
-
-  State.settings = { ...State.settings, pillColors: {} };
-  State.loadIntegrationTasks();
-  assert.equal(colorOf("integration_claude"), VS_CODE);
+  assert.equal(colorOf("integration_claude"), MAIN_COLOR);
+  assert.equal(colorOf("integration_github"), SLOT_COLORS[3]);
 });
 
 test("pills made for a session wear the colour too", () => {
