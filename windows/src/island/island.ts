@@ -3,9 +3,9 @@
 
 import { Tracked, Glide, NOTCH_MS, clamp } from "../core/anim";
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload } from "../core/bridge";
-import { bitGapMs, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
+import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
 import {
-  CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
+  ASLEEP_H, ASLEEP_R, ASLEEP_W, CLOSED_BOT_D, CLOSED_H, closedContent, closedIsland, closedWidth, type ClosedContent,
 } from "../core/closed";
 import {
   EXPANDED_CORNER, NOTCH_W, PANEL_H, PANEL_W, STAGE_W,
@@ -91,6 +91,10 @@ export class Island {
   /** JARVIS's idle life (core/idle.ts): where it is, and the look a "look around" bit gives. */
   private idleLife = { phase: "awake" as IdlePhase, last: null as IdleBit | null, nextAt: 0, seconds: 0, polledAt: 0 };
   private bitLook: number | null = null;
+  /** Step 7: the closed notch has shrunk round him and he sleeps (core/idle.ts fallsAsleep). */
+  private asleep = false;
+  /** His z while asleep: inside the pill, in the room to his right, so it never hangs outside it. */
+  private sleepZ = h("span", { id: "sleep-z", text: "z", "aria-hidden": "true" });
   private closedLife: number | null = null;
   /** The size the window was last folded to, so a new one is only sent on a change. */
   private collapsedTo = { w: 0, h: 0 };
@@ -403,6 +407,7 @@ export class Island {
       this.compactPlan,
       this.clockEl,
       this.closedEl,
+      this.sleepZ,
       this.countdown,
     );
 
@@ -468,6 +473,8 @@ export class Island {
   private setMode(mode: IslandMode) {
     const prev = State.mode;
     if (mode === prev) return;
+    // JARVIS: opening or folding counts as touching the notch (step 7: he sleeps a minute after the last touch).
+    State.lastActivity = performance.now();
     State.mode = mode;
     if (mode === "expanded") Sound.play("open");
     if (prev === "expanded") {
@@ -489,6 +496,8 @@ export class Island {
     // Folding all the way: the closed island's width for what it will show.
     if (mode === "hidden") this.updateClosed();
     else this.closedEl.classList.remove("on");
+    // Opening wakes him at once.
+    if (mode !== "hidden") this.setAsleep(false);
     this.scheduleClosedLife();
     this.updateWindowCollapsed();
     this.animateGeometry(modeOrder(mode) < modeOrder(prev));
@@ -875,6 +884,7 @@ export class Island {
 
   private targetSize(): { w: number; h: number; r: number } {
     if (State.mode === "hidden" && this.closedShows) {
+      if (this.asleep) return { w: ASLEEP_W, h: ASLEEP_H, r: ASLEEP_R };
       return { w: this.closedW, h: CLOSED_H, r: ROUNDED_CORNER }; // the prototype's 0 0 26 26
     }
     let { w, h } = islandSize(State.mode, State.view, State.chatHistory.length);
@@ -987,7 +997,7 @@ export class Island {
     const move = () => {
       this.closedLife = null;
       if (State.mode !== "hidden") return;
-      if (!State.paused) {
+      if (!State.paused && !this.asleep) {
         this.closedLook = { x: LOOK[step][1], y: 0 };
         this.closedAwakeUntil = performance.now() + 700;
         this.ensureRunning();
@@ -998,7 +1008,7 @@ export class Island {
     };
     this.closedLife = window.setTimeout(move, next());
     this.closedBlink = window.setInterval(() => {
-      if (State.mode !== "hidden" || State.paused) return;
+      if (State.mode !== "hidden" || State.paused || this.asleep) return;
       this.engine.blink();
       this.closedAwakeUntil = performance.now() + 400;
       this.ensureRunning();
@@ -1019,12 +1029,17 @@ export class Island {
   private tickIdleLife() {
     const life = this.idleLife;
     const t = performance.now();
-    if (t - life.polledAt > 2000) {
+    // Asleep, the PC's idle time is asked every second, so he wakes as soon as you're back.
+    if (t - life.polledAt > (this.asleep ? 900 : 2000)) {
       life.polledAt = t;
       void Bridge.userIdleSeconds().then((s) => { life.seconds = typeof s === "number" ? s : 0; });
     }
     const calm = !State.paused && !State.mochiOnDesktop && State.effectiveState === "idle"
       && !this.engine.isDancing && !(State.mode === "expanded" && State.view === "greeting");
+    const withHim = State.mode === "hidden" && this.closedShows && closedIsland(State.settings.closedIsland) === "mochi";
+    // A minute after the notch was last touched (hovered, clicked, opened or folded); music wakes
+    // him too: he'd rather dance.
+    this.setAsleep(fallsAsleep((t - State.lastActivity) / 1000, calm, withHim));
     const phase: IdlePhase = calm ? idlePhase(life.seconds) : "awake";
     if (phase !== life.phase) {
       life.phase = phase;
@@ -1053,6 +1068,24 @@ export class Island {
     }
   }
 
+  /** What the engine shows: asleep, his Sleeping; otherwise what's going on. */
+  private engineState() {
+    return this.asleep ? "sleeping" : State.effectiveState;
+  }
+
+  /** Falls asleep or wakes: the closed pill shrinks round him or grows back, on the notch's curve. */
+  private setAsleep(on: boolean) {
+    if (on === this.asleep) return;
+    this.asleep = on;
+    this.sleepZ.classList.toggle("on", on);
+    this.engine.setState(this.engineState());
+    if (State.mode === "hidden") {
+      this.animateGeometry(on);
+      if (this.collapsed) this.sendCollapsedSize();
+    }
+    this.wakeFor(NOTCH_MS + 200);
+  }
+
   /** Keeps his frames going for `ms`, on the closed pill too. */
   private wakeFor(ms: number) {
     if (State.mode === "hidden") this.closedAwakeUntil = Math.max(this.closedAwakeUntil, performance.now() + ms);
@@ -1063,12 +1096,14 @@ export class Island {
   wakeFromClosed() {
     if (State.mode !== "hidden") return;
     Sound.resume();
+    State.lastActivity = performance.now();
     this.fsm.mouseEntered();
   }
 
   /** Tells Rust the folded window's size: the closed island's, or none (the strip). */
   private sendCollapsedSize(force = false) {
-    const size = this.closedShows ? { w: this.closedW, h: CLOSED_H } : { w: 0, h: 0 };
+    const size = !this.closedShows ? { w: 0, h: 0 }
+      : this.asleep ? { w: ASLEEP_W, h: ASLEEP_H } : { w: this.closedW, h: CLOSED_H };
     if (!force && size.w === this.collapsedTo.w && size.h === this.collapsedTo.h) return;
     this.collapsedTo = size;
     if (size.w > 0) void Bridge.setCollapsed(true, size.w, size.h);
@@ -1119,6 +1154,7 @@ export class Island {
     // pointer coming onto it is all there is to hear, and it wakes the island.
     const wake = () => {
       Sound.resume();
+      State.lastActivity = performance.now();
       if (State.mode === "hidden") this.fsm.mouseEntered();
     };
     this.wakeStrip.addEventListener("mouseenter", wake);
@@ -1329,7 +1365,7 @@ export class Island {
     this.confusedRecovery = window.setTimeout(() => {
       this.confusedRecovery = null;
       State.stateOverride = null;
-      this.engine.setState(State.effectiveState);
+      this.engine.setState(this.engineState());
       if (State.view === "confused") {
         const fallback = State.defaultView();
         this.setView(this.prevViewBeforeConfused === "confused" ? fallback : this.prevViewBeforeConfused);
@@ -1416,8 +1452,12 @@ export class Island {
         !this.botCx.settled || !this.botCy.settled || !this.botSize.settled ||
         greetingActive || this.engine.busy || UploadSeq.isActive || viewAnimating;
 
-    if (busy) {
+    // Asleep: only his breathing and his z's move, about 12 frames a second is plenty.
+    const sleeping = State.mode === "hidden" && this.asleep;
+    if (busy && !(sleeping && !settling && !botMoving)) {
       requestAnimationFrame(this.frame);
+    } else if (sleeping) {
+      window.setTimeout(() => requestAnimationFrame(this.frame), 80);
     } else {
       this.running = false;
       Sound.idle();
@@ -1660,7 +1700,7 @@ export class Island {
     this.updateClock();
 
     syncMiniBotStates(State.tasks);
-    this.engine.setState(State.effectiveState);
+    this.engine.setState(this.engineState());
   }
 
   /** The clock sits in the middle of the compact island, where the notch is on a Mac. */
