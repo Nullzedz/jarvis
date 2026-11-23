@@ -71,6 +71,11 @@ export interface AgentRow {
   since: number;
   /** What it asks you, if it does: a command to allow, or a question to answer in the notch. */
   ask: { requestId: string; command: string; question: boolean } | null;
+  /** Its latest steps, oldest first (three at most), for the Agents page's open card. */
+  steps?: string[];
+  /** Where it runs, for Open terminal. */
+  sessionId?: string | null;
+  cwd?: string | null;
 }
 
 /** Asking you first, then those at work, then the ones done; otherwise as they came. */
@@ -131,4 +136,41 @@ export interface ConnectionRow {
 export function rankConnections<T extends Pick<ConnectionRow, "live" | "headline">>(rows: readonly T[]): T[] {
   const rank = (r: T) => (r.live ? (r.headline ? 0 : 1) : 2);
   return rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map(({ r }) => r);
+}
+
+// ── How closely he watches each agent (the Agents page's rings; Home's widget draws the same) ──
+
+/** 0 Watch closely, 1 Normal, 2 Quiet. */
+export type Watch = 0 | 1 | 2;
+const WATCH_KEY = "jarvis.agents.watch";
+
+/** The rings you set, by agent id (kept in the window's shared storage). */
+export function loadWatch(): Record<string, Watch> {
+  try {
+    const v = JSON.parse(localStorage.getItem(WATCH_KEY) ?? "{}");
+    if (!v || typeof v !== "object") return {};
+    const out: Record<string, Watch> = {};
+    for (const [k, n] of Object.entries(v)) if (n === 0 || n === 1 || n === 2) out[k] = n;
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+export function saveWatch(id: string, ring: Watch) {
+  try {
+    localStorage.setItem(WATCH_KEY, JSON.stringify({ ...loadWatch(), [id]: ring }));
+  } catch { /* not remembered */ }
+}
+
+/** Its ring: the one you dragged it to, else where its state puts it (orbitRing). */
+export function watchOf(watch: Readonly<Record<string, Watch>>, r: Pick<AgentRow, "id" | "state" | "ask">): Watch {
+  return watch[r.id] ?? orbitRing(r);
+}
+
+/** The ring nearest a point, from its distance to the centre (rings' radii inner to outer). */
+export function ringAt(distance: number, radii: readonly number[]): Watch {
+  let best = 0;
+  radii.forEach((r, i) => { if (Math.abs(distance - r) < Math.abs(distance - radii[best])) best = i; });
+  return best as Watch;
 }

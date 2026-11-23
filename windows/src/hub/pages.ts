@@ -11,6 +11,8 @@ import { flowSettingsPage } from "./pages/flowsettings";
 import { voicePage } from "./pages/voice";
 import { mailBannedPage, mailOverviewPage, mailRulesPage, mailVIPPage } from "./pages/mail";
 
+import { sessionsPage } from "./pages/sessions";
+
 export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   dictation: dictationPage,
   notes: notesPage,
@@ -24,4 +26,5 @@ export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   mailRules: mailRulesPage,
   mailBanned: mailBannedPage,
   mailVIP: mailVIPPage,
+  sessions: sessionsPage,
 };

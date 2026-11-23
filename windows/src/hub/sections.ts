@@ -18,7 +18,7 @@ export interface Section {
 export const SECTIONS: Section[] = [
   { id: "home", name: () => t("Home"), color: "#8e8e93", pages: ["home"] },
   { id: "jarvis", name: () => "JARVIS", color: "#bf5af2", pages: ["voice", "chat"] },
-  { id: "agents", name: () => t("Agents"), color: "#30d158", pages: ["agents", "phone"] },
+  { id: "agents", name: () => t("Agents"), color: "#30d158", pages: ["sessions", "agents", "phone"] },
   { id: "notes", name: () => t("Notes"), color: "#ff9f0a", pages: ["dictation", "notes", "insights", "dictionary", "snippets", "styles", "flowsettings"] },
   { id: "mail", name: () => "Mail", color: "#0a84ff", pages: ["mailOverview", "mailRules", "mailBanned", "mailVIP"], windowsOnly: true },
   { id: "connections", name: () => t("Connections"), color: "#64d2ff", pages: ["integrations"] },

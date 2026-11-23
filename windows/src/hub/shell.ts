@@ -20,7 +20,7 @@ import { searchSettings, type SettingsSearchHit } from "./search";
 export type PageId =
   | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
-  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP";
+  | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions";
 
 interface PageDef {
   id: PageId;
@@ -60,7 +60,9 @@ export const MAIL_PAGES: PageDef[] = [
 ];
 
 const HOME_PAGE: PageDef = { id: "home", icon: "grid", title: () => t("Home") };
-const ALL = [HOME_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+/** The Agents section's first tab: his orbit and the sessions (#65). */
+const SESSIONS_PAGE: PageDef = { id: "sessions", icon: "terminal", title: () => t("Sessions") };
+const ALL = [HOME_PAGE, SESSIONS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
 
 /** What a page gets to draw itself and reach the rest of the window. */
 export interface HubContext {
@@ -241,6 +243,35 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     side.append(railItem(sec));
   }
   side.append(h("div", { class: "spacer" }), railItem(SECTIONS.find((x) => x.id === "settings")!), statusLine);
+  // It opens as soon as the pointer settles on it, not as it flies across on its way to the
+  // screen's edge: a slow move inside opens it at once, a pointer that stops opens it after a
+  // blink (90 ms); one that crosses fast has left before either. From the keyboard, at once.
+  const SETTLE_MS = 90, SLOW = 0.5; // px per ms
+  let settle = 0;
+  let last: { x: number; y: number; t: number } | null = null;
+  const openRail = () => { window.clearTimeout(settle); side.classList.add("open"); };
+  side.addEventListener("pointerenter", (e) => {
+    last = { x: e.clientX, y: e.clientY, t: performance.now() };
+    settle = window.setTimeout(openRail, SETTLE_MS);
+  });
+  side.addEventListener("pointermove", (e) => {
+    const now = performance.now();
+    if (last && now > last.t) {
+      const speed = Math.hypot(e.clientX - last.x, e.clientY - last.y) / (now - last.t);
+      if (speed < SLOW) openRail();
+      else { window.clearTimeout(settle); settle = window.setTimeout(openRail, SETTLE_MS); }
+    }
+    last = { x: e.clientX, y: e.clientY, t: now };
+  });
+  side.addEventListener("pointerleave", (e) => {
+    window.clearTimeout(settle);
+    last = null;
+    // Up into his visor and the window's dots: the sidebar stays open (winctl.ts closes it with them).
+    if ((e.relatedTarget as Element | null)?.closest?.(".jv-winctl")) return;
+    side.classList.remove("open");
+  });
+  side.addEventListener("focusin", () => side.classList.add("open"));
+  side.addEventListener("focusout", () => { if (!side.matches(":focus-within")) side.classList.remove("open"); });
 
   // Settings search: Ctrl K anywhere in the window.
   const searchInput = h("input", {

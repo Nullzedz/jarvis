@@ -9,7 +9,7 @@ import { t } from "../i18n/i18n";
 import { emitToWindow, onEvent } from "../core/bridge";
 import { visor } from "../theme/theme";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, agentsSize, minutesBetween, orbitAngle, orbitRing, rankRows,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, agentsSize, loadWatch, minutesBetween, orbitAngle, rankRows, watchOf,
   type AgentRow,
 } from "../core/agents";
 
@@ -29,6 +29,7 @@ function el<K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, 
 
 /** The solar system: rings, the planets on them, JARVIS in the middle. */
 function orbit(rows: readonly AgentRow[], size: number): SVGSVGElement {
+  const watch = loadWatch();
   const svg = el("svg", { viewBox: "-120 -120 240 240", width: size, height: size, class: "jv-orbit", "aria-hidden": "true" });
   const defs = el("defs", {});
   const grad = el("linearGradient", { id: "jvOrbitBody", x1: 0, y1: 0, x2: 0, y2: 1 });
@@ -39,7 +40,7 @@ function orbit(rows: readonly AgentRow[], size: number): SVGSVGElement {
     el("circle", { r: 76, fill: "none", stroke: "#2c2c2e" }),
     el("circle", { r: 48, fill: "rgba(10,132,255,.07)", stroke: "rgba(10,132,255,.35)" }));
   for (const ring of [0, 1, 2] as const) {
-    const on = rows.filter((r) => orbitRing(r) === ring);
+    const on = rows.filter((r) => watchOf(watch, r) === ring);
     const g = el("g", { class: `spin r${ring + 1}` });
     on.forEach((r, i) => {
       const a = orbitAngle(i, on.length, ring);
@@ -120,7 +121,11 @@ export function agentsWidget(body: HTMLElement): () => void {
   void emitToWindow("island", AGENTS_WANTED);
   // "4 min" moves on with the clock.
   const tick = window.setInterval(draw, 30_000);
+  // A planet moved to another ring on the Agents page.
+  const onStore = (e: StorageEvent) => { if (e.key === "jarvis.agents.watch") draw(); };
+  window.addEventListener("storage", onStore);
   return () => {
+    window.removeEventListener("storage", onStore);
     window.clearInterval(tick);
     void off.then((f) => f());
   };

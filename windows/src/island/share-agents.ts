@@ -29,6 +29,9 @@ export function shareAgents(host: { decide(d: "allow" | "deny"): void; show(view
       ask: req && req.pillId === task.id
         ? { requestId: req.requestId, command: req.command || req.tool, question: !!req.questions }
         : null,
+      steps: task.steps.slice(Math.max(0, task.stepIndex - 2), task.stepIndex + 1),
+      sessionId: task.sessionId ?? null,
+      cwd: task.sessionCwd ?? null,
     }));
   };
   // Home's Connections widget: every service pill, whether it's connected, and its headline.
