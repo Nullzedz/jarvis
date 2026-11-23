@@ -250,6 +250,53 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-code .p { color: #636366; }
 .jv-card .foot { display: flex; justify-content: flex-end; }
 .jv-stack-empty { margin: 0; color: var(--jv-t2); font-size: 14px; }
+/* ── JARVIS · Conversation (#67): the demo's glowing panel and the bubbles ── */
+.jv-talk { display: grid; grid-template-columns: .9fr 1.1fr; gap: 26px; height: calc(100vh - 110px); min-height: 520px; }
+.jv-glow { border-radius: 26px; background: #08080a; padding: 22px; display: flex; flex-direction: column; align-items: center; min-height: 0;
+  box-shadow: inset 0 0 0 2px rgba(191,90,242,.85), inset 0 0 34px 8px rgba(10,132,255,.35), inset 0 0 70px 12px rgba(255,55,95,.1); animation: jv-glow 4s ease-in-out infinite; }
+@keyframes jv-glow { 50% { box-shadow: inset 0 0 0 2px rgba(10,132,255,.85), inset 0 0 40px 10px rgba(191,90,242,.35), inset 0 0 70px 12px rgba(255,55,95,.12); } }
+.jv-glow > .jv-chip { align-self: flex-start; }
+.jv-glow .mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 0; min-height: 0; }
+.jv-glow .mid .jv-visor { margin-bottom: 22px; }
+.jv-wv { display: flex; align-items: center; gap: 5px; height: 70px; }
+.jv-wv i { width: 5px; height: 8px; border-radius: 3px; background: #bf5af2; display: block; transition: height .12s ease; }
+.jv-heard { margin: 16px 0 0; font-size: 15px; color: #e5e5ea; text-align: center; max-width: 34ch; }
+.jv-glow .foot { width: 100%; }
+.jv-glow .foot > .cap { margin: 0 0 8px; }
+.jv-talk .jv-voicecard { width: 100%; display: flex; align-items: center; gap: 10px; background: #1c1c1e; border: 0; border-radius: 16px; padding: 12px 14px; box-shadow: inset 0 0 0 2px var(--jv-blue);
+  text-align: left; color: var(--jv-t1); font: inherit; cursor: pointer; }
+.jv-voicecard .play { width: 28px; height: 28px; border-radius: 50%; background: #2c2c2e; display: grid; place-items: center; font-size: 10px; flex: none; }
+.jv-voicecard .x { flex: 1; min-width: 0; }
+.jv-voicecard .nm { margin: 0; font-weight: 500; }
+.jv-voicecard .cap, .jv-glow .cap { margin: 0; font-size: 12px; color: var(--jv-t2); }
+.jv-talk .jv-onlyme { width: 100%; border-radius: 0; box-shadow: none; display: flex; align-items: center; justify-content: space-between; padding: 12px 2px 0; border: 0; background: none; color: var(--jv-t1); font: 14px var(--font); cursor: pointer; }
+.jv-talk .jv-onlyme:hover, .jv-talk .jv-onlyme:active { background: none; box-shadow: none; }
+.jv-switch { width: 40px; height: 24px; border-radius: 999px; background: #3a3a3c; position: relative; transition: background .2s ease; flex: none; }
+.jv-switch i { position: absolute; left: 2px; top: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .2s var(--jv-ease); }
+.jv-switch.on { background: #30d158; }
+.jv-switch.on i { transform: translateX(16px); }
+.jv-talk .right { display: flex; flex-direction: column; min-height: 0; }
+.jv-talk .right .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.jv-talk .right .top .cap { font-size: 12px; color: var(--jv-t2); }
+.jv-convo { flex: 1; min-height: 0; overflow-y: auto; }
+.jv-convo-empty { margin: 0; color: var(--jv-t2); font-size: 14px; }
+.jv-bub { max-width: 70%; width: fit-content; border-radius: 20px; padding: 10px 15px; font-size: 14px; line-height: 1.4; margin: 0 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.jv-bub.you { background: var(--jv-blue); color: #fff; margin-left: auto; border-bottom-right-radius: 6px; }
+.jv-bub.him { background: #1c1c1e; color: #e5e5ea; border-bottom-left-radius: 6px; }
+.jv-bub.him.wide { max-width: 86%; }
+.jv-bub.typing { color: var(--jv-t2); }
+.jv-bub-draw { border-radius: 12px; background: #0e0f11; height: 120px; margin-top: 8px; display: grid; place-items: center; overflow: hidden; }
+.jv-bub-draw img { max-width: 100%; max-height: 100%; }
+.jv-talkask { display: flex; align-items: center; gap: 12px; background: #1c1c1e; border-radius: 999px; padding: 8px 8px 8px 20px; margin-top: 14px; }
+.jv-talkask .q { flex: 1; background: none; border: 0; outline: none; color: var(--jv-t1); font: 15px var(--font); }
+.jv-talkask .talk { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--jv-blue); display: grid; place-items: center; cursor: pointer; }
+.jv-talkask .talk { padding: 0; color: #fff; transition: background .2s ease, transform .15s var(--jv-ease); }
+.jv-talkask .talk svg { width: 17px; height: 17px; fill: currentColor; }
+.jv-talkask .talk:active { transform: scale(.92); }
+.jv-talkask .talk.on { background: #ff453a; animation: jv-mic 1.4s ease-in-out infinite; }
+@keyframes jv-mic { 50% { box-shadow: 0 0 0 6px rgba(255, 69, 58, .25); } }
+.jv-talkask .talk:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .jv-glow { animation: none; } }
 @media (max-width: 900px) { .jv-bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* The settings window styles every <section> as a card; the front page's are not. */
 .jv-home > section { background: none; border: 0; border-radius: 0; box-shadow: none; margin: 0 auto; }

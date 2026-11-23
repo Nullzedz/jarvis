@@ -80,7 +80,10 @@ pub fn requirements_met() -> bool {
 /// Starts or stops listening to follow the preference.
 pub fn sync(app: &AppHandle) {
     // JARVIS: voice training listens too, even with « Hey JARVIS » off.
-    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice) || print::training_active();
+    // And the JARVIS page's microphone, while that page is open, even with background listening off.
+    let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice)
+        || print::training_active()
+        || IN_APP.load(Ordering::Relaxed);
     let mut running = RUNNING.lock().unwrap();
     match (wanted && requirements_met(), running.is_some()) {
         (true, false) => {
@@ -124,7 +127,47 @@ pub fn restart(app: &AppHandle) {
 }
 
 fn show(app: &AppHandle, view: Option<VoiceView>) {
+    // Talking from the JARVIS page: the page shows it all, so the pill stays out of sight
+    // (it still speaks his answer).
+    if view.is_some() && PAGE_TAKE.load(Ordering::Relaxed) {
+        return;
+    }
     pill::update(app, |s| s.voice = view);
+}
+
+/// The JARVIS page is open: send your voice's level (`voice-level`) for its waveform (#67).
+static LEVEL_WATCHED: AtomicBool = AtomicBool::new(false);
+
+/// The JARVIS page's microphone button: a tap of the talk keys (hands-free; again, it stops).
+static MIC_TAP: AtomicBool = AtomicBool::new(false);
+/// The take (and its answer) began from the JARVIS page's microphone: the pill isn't shown.
+static PAGE_TAKE: AtomicBool = AtomicBool::new(false);
+
+/// The JARVIS page is open and you pressed its microphone: his voice runs while it stays open,
+/// even with background listening (« Hey JARVIS ») off.
+static IN_APP: AtomicBool = AtomicBool::new(false);
+
+/// "ok", or "model" when the voice model isn't downloaded yet (nothing can hear you).
+#[tauri::command]
+pub fn voice_tap(app: AppHandle) -> String {
+    if !requirements_met() {
+        return "model".into();
+    }
+    if !IN_APP.swap(true, Ordering::Relaxed) {
+        sync(&app);
+    }
+    MIC_TAP.store(true, Ordering::Relaxed);
+    "ok".into()
+}
+
+/// The JARVIS page shows (`on`) or is left: your voice's level for its waveform; leaving it, the
+/// microphone it opened closes again unless background listening is on.
+#[tauri::command]
+pub fn voice_level_watch(app: AppHandle, on: bool) {
+    LEVEL_WATCHED.store(on, Ordering::Relaxed);
+    if !on && IN_APP.swap(false, Ordering::Relaxed) {
+        sync(&app);
+    }
 }
 
 // ── JARVIS: push-to-talk (talk.rs) ─────────────────────────────────────────────
@@ -178,7 +221,12 @@ fn reader() -> (mpsc::Sender<(u64, Vec<f32>, bool)>, mpsc::Receiver<(u64, String
         .spawn(move || {
             for (id, audio, last) in job_rx {
                 // As dictation reads it: the take as recorded, not amplified.
-                let text = speech::transcribe(&audio).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                let mut text = speech::transcribe(&audio).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                // A quiet microphone: Parakeet hears nothing in the take as recorded, so the
+                // question is read once more, louder (as voice training does).
+                if last && text.is_empty() && !audio.is_empty() {
+                    text = speech::transcribe(&wake::boost(&audio)).map(|t| t.text.trim().to_string()).unwrap_or_default();
+                }
                 if out.send((id, text, last)).is_err() {
                     break;
                 }
@@ -258,12 +306,17 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             continue;
         }
 
-        // The keys.
-        let (chord, other) = talk::keys();
+        // The keys (or the JARVIS page's microphone button: one tap, so hands-free).
+        let (mut chord, other) = talk::keys();
+        let tapped = MIC_TAP.swap(false, Ordering::Relaxed);
+        if tapped {
+            chord = true;
+        }
         match talk.step(now, chord, other) {
             Some(talk::Event::Begin) => {
                 // A held Win or Alt, let go, would open the Start menu or the app's menu bar.
-                if shortcut::needs_mask(shortcut::Which::Talk) {
+                PAGE_TAKE.store(tapped, Ordering::Relaxed);
+                if !tapped && shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
                 trail = Some(ink::Trail::start(&app));
@@ -338,7 +391,7 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                         t.voice_at = Some(now);
                     }
                 }
-                if print::training_active() && level_emit.elapsed() > Duration::from_millis(100) {
+                if (print::training_active() || LEVEL_WATCHED.load(Ordering::Relaxed)) && level_emit.elapsed() > Duration::from_millis(100) {
                     let level = (rms / (vad.threshold() * 4.0)).min(1.0);
                     let _ = app.emit("voice-level", level);
                     level_emit = Instant::now();
@@ -420,6 +473,9 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         if why == "nothing said" {
             // Parakeet makes words up from silence: a take with no voice in it is dropped.
             crate::log::line(if done.follow_up { "voice: no follow-up" } else { "voice: talk keys, nothing said" });
+            if PAGE_TAKE.load(Ordering::Relaxed) && !done.follow_up {
+                let _ = app.emit_to("settings", "jarvis-missed", "nothing");
+            }
             // After an answer, the answer stays and fades on its own (hide_at).
             if !done.follow_up {
                 show(&app, None);
@@ -438,6 +494,9 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
         let question = question.filter(|q| q.chars().any(char::is_alphanumeric));
         let Some(question) = question else {
             crate::log::line(format!("voice: talk keys ({why}), nothing understood"));
+            if PAGE_TAKE.load(Ordering::Relaxed) {
+                let _ = app.emit_to("settings", "jarvis-missed", "unclear");
+            }
             show(&app, None);
             continue;
         };
@@ -532,6 +591,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         explain::close_all(app);
     }
     show(app, Some(VoiceView { phase: "thinking".into(), heard: question.to_string(), ..Default::default() }));
+    crate::last_answer::heard(app, question);
     let watching = watch_for_stop(app);
     let asked = Instant::now();
     let speech = Speech::start(app, question, asked);
@@ -556,7 +616,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         explain::show(app, question, &brain::spoken_text(&line), &w, seen, false);
     }
     let said = speech.finish();
-    crate::last_answer::set(app, &said);
+    crate::last_answer::set(app, question, &said);
     watching.store(true, Ordering::Relaxed);
     if STOPPED.load(Ordering::Relaxed) {
         return (said, true);

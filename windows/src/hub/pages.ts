@@ -12,6 +12,7 @@ import { voicePage } from "./pages/voice";
 import { mailBannedPage, mailOverviewPage, mailRulesPage, mailVIPPage } from "./pages/mail";
 
 import { sessionsPage } from "./pages/sessions";
+import { talkPage } from "./pages/talk";
 
 export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   dictation: dictationPage,
@@ -27,4 +28,5 @@ export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   mailBanned: mailBannedPage,
   mailVIP: mailVIPPage,
   sessions: sessionsPage,
+  talk: talkPage,
 };

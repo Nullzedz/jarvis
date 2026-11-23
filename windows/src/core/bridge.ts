@@ -290,6 +290,16 @@ export const Bridge = {
   clipboardHistory: () => call<ClipEntry[]>("clipboard_history"),
   /** JARVIS: his last answer, in memory only (last_answer.rs); null until he has answered. */
   lastAnswer: () => call<string | null>("last_answer"),
+  /** JARVIS: today's conversation, oldest first, in memory only (last_answer.rs). */
+  conversation: () => call<{ you: string; him: string; at: number }[]>("conversation"),
+  /** JARVIS: send your voice's level (`voice-level`) while the JARVIS page shows its waveform. */
+  voiceLevelWatch: (on: boolean) => call<void>("voice_level_watch", { on }),
+  /**
+   * JARVIS: the JARVIS page's microphone: a tap of the talk keys (hands-free; again, it stops). It
+   * opens the microphone while the page is open even with background listening off; "model" when
+   * he can't hear you yet (no voice model, or no Claude).
+   */
+  voiceTap: () => call<"ok" | "model">("voice_tap"),
   /** JARVIS: the windows he drew (his_windows.rs), in memory only. */
   hisWindows: () => call<HisWindows>("his_windows"),
   /** JARVIS: this month's mail counts for Home (mail_month): per day, today per hour; null without Outlook. */

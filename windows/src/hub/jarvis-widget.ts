@@ -16,7 +16,7 @@ export function listeningChip(s: Pick<FlowStatus, "prefs" | "models">): { color:
 }
 
 /** The line under his answer: which voice he answers with. */
-async function voiceLine(s: Pick<FlowStatus, "prefs">): Promise<string> {
+export async function voiceLine(s: Pick<FlowStatus, "prefs">): Promise<string> {
   const p = s.prefs;
   switch (p.voiceOutput) {
     case "jarvis": {
