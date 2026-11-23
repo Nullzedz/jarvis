@@ -57,6 +57,7 @@ export class Glide {
   private from: number;
   private start = 0;
   private end = 0;
+  private ease: (t: number) => number = notchCurve;
 
   constructor(value: number) {
     this.value = value;
@@ -70,7 +71,8 @@ export class Glide {
   }
 
   /** Glides to `v`, arriving at `endAt` (a performance.now() time). */
-  to(v: number, endAt: number, now = performance.now()) {
+  to(v: number, endAt: number, now = performance.now(), ease: (t: number) => number = notchCurve) {
+    this.ease = ease;
     this.from = this.value;
     this.target = v;
     this.start = now;
@@ -84,7 +86,7 @@ export class Glide {
   step(_dt?: number, now = performance.now()) {
     if (this.value === this.target) return;
     const p = clamp((now - this.start) / (this.end - this.start), 0, 1);
-    this.value = p >= 1 ? this.target : lerp(this.from, this.target, notchCurve(p));
+    this.value = p >= 1 ? this.target : lerp(this.from, this.target, this.ease(p));
   }
 }
 
@@ -172,8 +174,8 @@ export class Tracked {
   }
 
   /** JARVIS: the notch prototype's motion, both ways (0.42 s, cubic-bezier(.32,.72,0,1)). */
-  tweenTo(v: number, now = performance.now()) {
-    this.curveTowards(v, NOTCH_MS, now);
+  tweenTo(v: number, now = performance.now(), ms = NOTCH_MS) {
+    this.curveTowards(v, ms, now);
     this.useNotchCurve = true;
   }
 

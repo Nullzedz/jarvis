@@ -1,7 +1,10 @@
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
-import { Tracked, Glide, NOTCH_MS, Ease, clamp } from "../core/anim";
+import { Tracked, Glide, NOTCH_MS, Ease, clamp, closeCurve, notchCurve } from "../core/anim";
+
+/** How long the closed pill takes to shrink round him as he falls asleep (#82): slower, gentler. */
+const SLEEP_MS = 900;
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload, type NowPlaying } from "../core/bridge";
 import { Focus, focusLeftMs } from "../core/focus";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
@@ -123,6 +126,8 @@ export class Island {
   private botSize = new Glide(10);
   /** When the notch's current move ends (performance.now() time). */
   private geomEnd = 0;
+  /** The curve the notch is moving on now: he rides it with the same one, so he stays centred. */
+  private geomEase: (t: number) => number = notchCurve;
 
   private engine = new BotEngine();
   private greeting = new Greeting();
@@ -607,11 +612,14 @@ export class Island {
   }
 
   reveal() {
+    // Sent to sleep (#82): work going on doesn't wake him; only what needs you (alert) does.
+    if (this.sleepAsked) return;
     this.fsm.reveal();
   }
 
   /** Music started playing: the compact island, without the peek sound (musicReveal). */
   revealSilently() {
+    if (this.sleepAsked) return;
     this.silentReveal = true;
     this.fsm.reveal();
     this.silentReveal = false;
@@ -921,16 +929,19 @@ export class Island {
     return { w, h, r };
   }
 
-  private animateGeometry(shrinking: boolean) {
+  private animateGeometry(shrinking: boolean, ms = NOTCH_MS) {
     const { w, h, r } = this.targetSize();
     // JARVIS: one motion both ways, the notch prototype's: width, height and corners together.
     void shrinking;
     const now = performance.now();
     if (w !== this.width.value || h !== this.height.value || r !== this.radius.value) {
-      this.width.tweenTo(w, now);
-      this.height.tweenTo(h, now);
-      this.radius.tweenTo(r, now);
-      this.geomEnd = now + NOTCH_MS;
+      // The usual motion on the notch's curve; a slower one (falling asleep) eases in and out.
+      const go = (g: Tracked, v: number) => (ms === NOTCH_MS ? g.tweenTo(v, now) : g.curveTowards(v, ms, now));
+      go(this.width, w);
+      go(this.height, h);
+      go(this.radius, r);
+      this.geomEase = ms === NOTCH_MS ? notchCurve : closeCurve;
+      this.geomEnd = now + ms;
     }
     this.ensureRunning();
   }
@@ -1202,10 +1213,15 @@ export class Island {
       return;
     }
     this.sleepAsked = true;
-    if (State.mode === "expanded") this.collapse();
+    // Folded all the way at once, not to the compact island (which waits a minute to close): only
+    // the closed island takes his small sleeping shape. A card waiting for an answer stays reachable.
+    if (State.pendingApproval) this.collapse();
+    else if (State.mode !== "hidden") this.fsm.forceHidden();
+    // He yawns as the pill closes round him: one motion, no timer (the folded window's timers
+    // run late, which left the pill waiting, then shrinking with a jolt).
     this.engine.triggerEmote("yawn", 2.4);
+    this.setAsleep(true);
     this.wakeFor(2400);
-    window.setTimeout(() => { if (this.sleepAsked) this.setAsleep(true); }, 900);
   }
 
   /** Falls asleep or wakes: the closed pill shrinks round him or grows back, on the notch's curve. */
@@ -1222,8 +1238,16 @@ export class Island {
     this.sleepZ.classList.toggle("on", on);
     this.engine.setState(this.engineState());
     if (State.mode === "hidden") {
-      this.animateGeometry(on);
-      if (this.collapsed) this.sendCollapsedSize();
+      // #82: falling asleep, the pill shrinks round him slowly (0.7 s) and the window follows only
+      // once it has, so nothing cuts the motion short; waking, the window grows first, then the pill.
+      const ms = on ? SLEEP_MS : NOTCH_MS;
+      this.animateGeometry(on, ms);
+      if (this.collapsed) {
+        if (on) window.setTimeout(() => { if (this.asleep && this.collapsed) this.sendCollapsedSize(); }, ms + 40);
+        else this.sendCollapsedSize();
+      }
+      this.wakeFor(ms + 200);
+      return;
     }
     this.wakeFor(NOTCH_MS + 200);
   }
@@ -1635,8 +1659,10 @@ export class Island {
       this.botCy.set(p.cy);
       this.botSize.set(size);
     } else {
-      const endAt = this.geomEnd > now ? this.geomEnd : now + NOTCH_MS;
-      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, now); };
+      const moving = this.geomEnd > now;
+      const endAt = moving ? this.geomEnd : now + NOTCH_MS;
+      const ease = moving ? this.geomEase : notchCurve;
+      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, now, ease); };
       glide(this.botCx, p.cx);
       glide(this.botCy, p.cy);
       glide(this.botSize, size);
