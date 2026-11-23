@@ -68,26 +68,32 @@ const EYE_H = 0.27;
 const EYE_P = 0; // JARVIS: the eye rests dead centre
 const MINI_INK = "rgb(16,19,26)"; // #10131A
 
-// JARVIS Visor: a dark helmet visor with a single light-bar eye.
-// JARVIS: a white visor; the eye and a halo around the shell carry the mood.
-export const VISOR_TOP: RGB = [1, 1, 1]; // #FFFFFF
-export const VISOR_BOTTOM: RGB = [0.89, 0.898, 0.918]; // #E3E5EA
+// JARVIS design A, "the object": a matte white squircle lit from above, with a real
+// eye slot cut into it and one light bar living inside the slot (docs/jarvis/design/SPEC.md §3).
+export const VISOR_TOP: RGB = [0.965, 0.969, 0.976]; // #F6F7F9
+export const VISOR_MID: RGB = [0.925, 0.933, 0.945]; // #ECEEF1, at 70%
+export const VISOR_BOTTOM: RGB = [0.863, 0.875, 0.894]; // #DCDFE4
+const SLOT_TOP = "#0b0f17";
+const SLOT_BOTTOM = "#1b2433";
+const SLOT_RIM = "rgba(201,205,212,0.9)"; // #C9CDD4
 /** The visor has no hands: Mochi's wave left with Mochi. */
 const NO_HANDS = true;
-export const VISOR_LIGHT: RGB = [0.216, 0.541, 0.867]; // #378ADD — the idle eye, deep enough on white
+export const VISOR_LIGHT: RGB = [0.039, 0.518, 1]; // #0A84FF — the idle eye
 
+// The eye's colour says the state (SPEC §3): idle and question blue, working green,
+// thinking purple, searching teal, needs you orange, error red, love pink, rate limit and sleep grey.
 const C = {
-  idle: [0.902, 0.914, 0.933] as RGB,
-  working: [0.231, 0.62, 1] as RGB,
-  thinking: [0.545, 0.361, 0.965] as RGB,
-  searching: [0.388, 0.396, 0.949] as RGB,
-  approval: [0.961, 0.647, 0.141] as RGB,
-  question: [0.133, 0.827, 0.933] as RGB,
-  error: [0.957, 0.314, 0.369] as RGB,
-  finished: [0.204, 0.831, 0.6] as RGB,
-  ratelimit: [0.984, 0.573, 0.235] as RGB,
-  sleeping: [0.58, 0.635, 0.722] as RGB,
-  dizzy: [0.957, 0.447, 0.714] as RGB,
+  idle: [0.039, 0.518, 1] as RGB, // #0A84FF
+  working: [0.188, 0.82, 0.345] as RGB, // #30D158
+  thinking: [0.749, 0.353, 0.949] as RGB, // #BF5AF2
+  searching: [0.392, 0.824, 1] as RGB, // #64D2FF
+  approval: [1, 0.624, 0.039] as RGB, // #FF9F0A
+  question: [0.039, 0.518, 1] as RGB, // #0A84FF
+  error: [1, 0.271, 0.227] as RGB, // #FF453A
+  finished: [0.188, 0.82, 0.345] as RGB, // #30D158
+  ratelimit: [0.557, 0.557, 0.576] as RGB, // #8E8E93
+  sleeping: [0.557, 0.557, 0.576] as RGB, // #8E8E93
+  dizzy: [1, 0.216, 0.373] as RGB, // #FF375F
 };
 
 const base = {
@@ -936,20 +942,21 @@ export class BotEngine {
       const halo = this.haloV * (1 - this.morph);
       if (halo > 0.02) {
         x.save();
-        x.strokeStyle = rgba(this.col, halo);
-        x.lineWidth = Math.max(1.5, R * 0.07);
-        x.shadowColor = rgba(this.col, 1);
-        x.shadowBlur = R * 0.3;
+        // A thin ring in the state colour, never a glow (glows read "too AI").
+        x.strokeStyle = rgba(this.col, halo * 0.8);
+        x.lineWidth = Math.max(1.25, R * 0.045);
         x.scale(1 + 0.09 * 1.14, 1 + 0.09 * 1.4);
         x.stroke(body);
         x.restore();
       }
       x.save();
-      x.shadowColor = "rgba(0,0,0,0.45)";
-      x.shadowBlur = R * 0.22;
-      x.shadowOffsetY = R * 0.07;
+      // Only a faint contact shadow: the light comes from above.
+      x.shadowColor = "rgba(0,0,0,0.28)";
+      x.shadowBlur = R * 0.08;
+      x.shadowOffsetY = R * 0.03;
       const g = x.createLinearGradient(0, -ry, 0, ry);
       g.addColorStop(0, rgba(VISOR_TOP));
+      g.addColorStop(0.7, rgba(VISOR_MID));
       g.addColorStop(1, rgba(VISOR_BOTTOM));
       x.fillStyle = g;
       x.fill(body);
@@ -967,14 +974,14 @@ export class BotEngine {
       x.globalAlpha = this.bodyColor ? pumpkin : 1;
     }
 
-    // Glass: a bright line across the top of the shell.
+    // The white top edge, where the light catches the shell.
     if (!this.bodyColor && R > 10) {
       x.strokeStyle = "rgba(255,255,255,0.95)";
-      x.lineWidth = Math.max(1, R * 0.05);
+      x.lineWidth = Math.max(1, R * 0.03);
       x.lineCap = "round";
       x.beginPath();
-      x.moveTo(-rx * 0.62, -ry * 0.66);
-      x.quadraticCurveTo(0, -ry * 0.78, rx * 0.62, -ry * 0.66);
+      x.moveTo(-rx * 0.5, -ry * 0.835);
+      x.lineTo(rx * 0.5, -ry * 0.835);
       x.stroke();
     }
     x.restore();
@@ -1003,11 +1010,35 @@ export class BotEngine {
     eyePitch = (((eyePitch + Math.PI) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
     const cp = Math.cos(eyePitch);
     if (Math.cos(eyeYaw) * cp > 0.04) {
-      const ex = Math.sin(eyeYaw) * cp * rx * 0.7;
       const ey = -Math.sin(eyePitch) * ry * 0.8 + (this.morph > 0 ? ry * 0.14 * this.morph : 0);
       const fx = lerp(Math.max(0.3, Math.cos(eyeYaw)), 1, this.morph * 0.7);
       const eyeMult = this.isMini ? 1.6 : 1.0;
+      // The slot is cut into the shell and turns with the head; the bar glances inside it.
+      const slotA = this.isMini ? 0 : 1 - this.morph;
+      const sw = rx * 1.21, sh = R * 0.34;
+      const sx = Math.sin(eyeYaw) * cp * rx * 0.25;
+      const room = Math.max(0, sw / 2 - (R * 0.95 * this.es) / 2 - R * 0.08);
+      const ex = slotA > 0.02 ? sx + Math.sin(eyeYaw) * cp * room * 1.6 : Math.sin(eyeYaw) * cp * rx * 0.7;
+      const inSlot = slotA > 0.02 && !["happy", "flat", "spiral", "heart", "star"].includes(shape);
+      if (slotA > 0.02) {
+        x.save();
+        x.globalAlpha *= slotA;
+        roundRectPath(x, sx - (sw * fx) / 2, ey - sh / 2, sw * fx, sh, sh / 2);
+        const sg = x.createLinearGradient(0, ey - sh / 2, 0, ey + sh / 2);
+        sg.addColorStop(0, SLOT_TOP);
+        sg.addColorStop(1, SLOT_BOTTOM);
+        x.fillStyle = sg;
+        x.fill();
+        x.strokeStyle = SLOT_RIM;
+        x.lineWidth = Math.max(0.75, R * 0.014);
+        x.stroke();
+        x.restore();
+      }
       x.save();
+      if (inSlot) {
+        roundRectPath(x, sx - (sw * fx) / 2, ey - sh / 2, sw * fx, sh, sh / 2);
+        x.clip();
+      }
       x.translate(ex, ey);
       x.scale(fx, 1);
       this.drawVisorEye(x, shape, R * eyeMult * this.es, ink);
