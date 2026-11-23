@@ -297,6 +297,10 @@ export const Bridge = {
   userIdleSeconds: () => call<number>("user_idle_seconds"),
   /** Whether anything plays music in Windows' media panel; "music-playing" says when it changes. */
   musicPlaying: () => call<boolean>("music_playing"),
+  /** What a music app plays now (Apple Music, Spotify…; never a browser); "now-playing" says when it changes. */
+  nowPlaying: () => call<NowPlaying | null>("now_playing"),
+  /** ⏮ ⏯ ⏭ on that player. */
+  mediaControl: (action: "previous" | "playPause" | "next") => call<boolean>("media_control", { action }),
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),
@@ -633,6 +637,17 @@ export const Bridge = {
   /** The release's page on github.com. */
   updateOpenPage: () => call<void>("update_open_page"),
 };
+
+/** JARVIS: what a music app plays now (src-tauri/src/presence.rs). */
+export interface NowPlaying {
+  /** "Apple Music", "Spotify", "TIDAL"… */
+  app: string;
+  title: string;
+  artist: string;
+  playing: boolean;
+  /** The cover as a data URL. */
+  art: string | null;
+}
 
 export type SpotifyAction = "playPause" | "next" | "previous" | "seek" | "shuffle" | "repeat" | "volume";
 

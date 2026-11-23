@@ -8,6 +8,7 @@ import {
 } from "./pills";
 import type { CodexPlanUsage, PlanUsage } from "./plan";
 import { Focus } from "./focus";
+import type { NowPlaying } from "./bridge";
 import type { ProviderId } from "./providers";
 import type { FileDiff } from "./diff";
 import type { Bindings } from "./shortcuts";
@@ -306,6 +307,8 @@ class AppState {
 
   /** JARVIS: anything plays music in Windows' media panel (src-tauri/src/presence.rs). */
   anyMusic = false;
+  /** JARVIS: what a music app plays now (Apple Music, Spotify, TIDAL…). */
+  media: NowPlaying | null = null;
 
   /** JARVIS: music plays, from any player: he dances. */
   get dancingMusic(): boolean {

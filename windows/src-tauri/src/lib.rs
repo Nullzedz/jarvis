@@ -949,6 +949,8 @@ pub fn run() {
             webview_menu::context_zone,
             presence::user_idle_seconds,
             presence::music_playing,
+            presence::now_playing,
+            presence::media_control,
             boot,
             gcal::gcal_connected,
             gcal::gcal_connect,

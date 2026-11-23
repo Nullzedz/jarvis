@@ -2,7 +2,7 @@
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
 import { Tracked, Glide, NOTCH_MS, Ease, clamp } from "../core/anim";
-import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload } from "../core/bridge";
+import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload, type NowPlaying } from "../core/bridge";
 import { Focus, focusLeftMs } from "../core/focus";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
 import {
@@ -1039,6 +1039,8 @@ export class Island {
   private startIdleLife() {
     window.setInterval(() => this.tickIdleLife(), 1000);
     void onEvent<boolean>("music-playing", (on) => { State.anyMusic = on; State.notify(); });
+    void onEvent<NowPlaying | null>("now-playing", (np) => { State.media = np; State.notify(); });
+    void Bridge.nowPlaying().then((np) => { State.media = np ?? null; State.notify(); });
     State.subscribe(() => this.watchEvents());
     void Bridge.musicPlaying().then((on) => { State.anyMusic = on === true; State.notify(); });
   }
