@@ -41,6 +41,7 @@ import type { ViewCommand } from "./shortcuts";
 import { DRAG_THRESHOLD } from "../mochi/desktop-logic";
 import { Updates } from "./update";
 import { UPDATE_BLUE, showsUpdateHint } from "../whats-new/whats-new";
+import { shareAgents } from "./share-agents";
 
 const BOT_OVERHANG = 40;
 const UPDATE_BLUE_RGB = hexToRGB(UPDATE_BLUE);
@@ -353,6 +354,7 @@ export class Island {
         }
       },
     };
+    shareAgents({ decide: (d) => actions.decide(d), show: (view) => this.alert(view) });
 
     this.wakeStrip = h("div", { id: "wake-strip" });
     this.closedDot = h("span", { class: "dot" });

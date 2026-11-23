@@ -24,7 +24,8 @@ export interface AgentsHost {
 /** When each agent's current state began, to say "4 min" or "done 12 min ago". */
 const since = new Map<string, { state: BotStateName; at: number }>();
 
-function stamp(task: AgentTask, now: number): number {
+/** When this agent's current state began; stamped as it changes (shared with Home, island/share-agents.ts). */
+export function stampSince(task: AgentTask, now: number): number {
   const s = since.get(task.id);
   if (!s || s.state !== task.state) {
     since.set(task.id, { state: task.state, at: now });
@@ -45,7 +46,7 @@ export function buildAgents(host: AgentsHost): ViewHost {
     vis.style.setProperty("--eye", agentEye(task.state));
     const asked = State.pendingApproval?.pillId === task.id ? State.pendingApproval : null;
     const done = task.state === "finished" || task.state === "idle";
-    const mins = minutesBetween(stamp(task, now), now);
+    const mins = minutesBetween(stampSince(task, now), now);
 
     let line: HTMLElement;
     const side: HTMLElement[] = [];
@@ -103,7 +104,7 @@ export function buildAgents(host: AgentsHost): ViewHost {
     sync() {
       // Every agent's state is stamped as it changes, even while the tab isn't shown.
       const now = Date.now();
-      for (const a of State.tasks) stamp(a, now);
+      for (const a of State.tasks) stampSince(a, now);
       if (State.mode === "expanded" && State.view === "agents") paint();
     },
     fitHeight: () => contentHeight(el),
