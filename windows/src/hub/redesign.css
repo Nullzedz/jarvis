@@ -204,7 +204,7 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-thumbs .th img { width: 100%; height: 100%; object-fit: contain; }
 .jv-thumbs .th .form { font-size: 11px; color: var(--jv-t2); text-transform: capitalize; padding: 0 6px; text-align: center; }
 .jv-conn { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
-.jv-dtiles { display: flex; gap: 10px; min-width: 0; overflow: hidden; }
+.jv-hometiles { display: flex; gap: 10px; min-width: 0; overflow: hidden; }
 .jv-hometile { width: 64px; height: 64px; border-radius: 16px; padding: 8px; display: flex; flex-direction: column; justify-content: space-between; font-size: 10.5px; line-height: 1.2;
   flex: none; background: #f2f2f7; color: #1c1c1e; box-sizing: border-box; overflow: hidden; }
 .jv-hometile .dot { width: 12px; height: 12px; border-radius: 50%; }

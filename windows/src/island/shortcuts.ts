@@ -32,6 +32,8 @@ export interface ShortcutHost {
   flyOutOrHome(): void;
   /** Hands Ctrl+O / Ctrl+E to the view on screen (the Mac posts notifications). */
   viewCommand(command: ViewCommand): void;
+  /** JARVIS (#82): asleep now and until woken, or awake if he sleeps. */
+  sleepToggle(): void;
 }
 
 /** What the open view is asked to do: open the highlighted item, toggle the diff. */
@@ -130,6 +132,10 @@ export function runGlobalShortcut(host: ShortcutHost, action: string, resume: ()
       }
       if (!State.mochiOnDesktop) resume();
       host.flyOutOrHome();
+      break;
+
+    case "sleepToggle":
+      host.sleepToggle();
       break;
 
     // wardrobeToggle never comes this way (Rust sends `open-wardrobe`), and

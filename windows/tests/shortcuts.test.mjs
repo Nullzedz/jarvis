@@ -17,6 +17,8 @@ import { DEFAULT_SETTINGS, State } from "../src/core/state.ts";
 const MAC_IDS = [
   "toggleIsland", "openChat", "goToAlert", "jumpToTerminal", "attachFrontWindow",
   "nextPill", "prevPill", "muteToggle", "desktopToggle", "wardrobeToggle",
+  // JARVIS's own, after the Mac's (#82).
+  "sleepToggle",
 ];
 
 // ── Defaults (testDefaultsExhaustive, testAllDefaultsHaveModifier, testNoDefaultDuplicates) ──
@@ -80,7 +82,7 @@ test("only the island toggle is off by default; the one not ported yet is reserv
   }
   assert.deepEqual(activeKeys({}).map(([id]) => id), [
     "openChat", "goToAlert", "jumpToTerminal", "nextPill", "prevPill", "muteToggle", "desktopToggle",
-    "wardrobeToggle",
+    "wardrobeToggle", "sleepToggle",
   ]);
   // The Mac's ⌃⌥D, on the same letter.
   assert.equal(SHORTCUTS.find((d) => d.id === "desktopToggle").defaultKeys, "Ctrl+Alt+D");
@@ -540,4 +542,12 @@ test("island keys: the highlight walks the list on screen, Ctrl+O opens it, Ctrl
   did = [];
   runIslandKey(host, { kind: "diff" });
   assert.deepEqual(did, ["view:toggleDiff"]);
+});
+
+test("the Sleep shortcut puts him to sleep or wakes him (#82)", () => {
+  let asked = 0;
+  const host = { sleepToggle: () => { asked++; } };
+  runGlobalShortcut(host, "sleepToggle", () => {});
+  assert.equal(asked, 1);
+  assert.equal(SHORTCUTS.find((d) => d.id === "sleepToggle").defaultKeys, "Ctrl+Alt+Z");
 });

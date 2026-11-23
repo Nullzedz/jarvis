@@ -12780,6 +12780,21 @@
       "ru": "Всё о вырезе вверху экрана: его вкладки, значки и поведение.",
       "tr": "Ekranınızın üstündeki çentik hakkında her şey: sekmeleri, hapları ve nasıl davrandığı.",
       "zh-Hans": "屏幕顶部刘海的一切：标签、胶囊和它的行为方式。"
+    },
+    "Put JARVIS to sleep or wake him": {
+      "ar": "إخلاد JARVIS إلى النوم أو إيقاظه",
+      "bn": "JARVIS-কে ঘুম পাড়ান বা জাগান",
+      "de": "JARVIS schlafen legen oder wecken",
+      "es": "Dormir o despertar a JARVIS",
+      "fr": "Endormir ou réveiller JARVIS",
+      "hi": "JARVIS को सुलाएँ या जगाएँ",
+      "id": "Tidurkan atau bangunkan JARVIS",
+      "ja": "JARVIS を眠らせる／起こす",
+      "ko": "JARVIS 재우기 또는 깨우기",
+      "pt-BR": "Pôr o JARVIS para dormir ou acordá-lo",
+      "ru": "Усыпить или разбудить JARVIS",
+      "tr": "JARVIS’i uyut veya uyandır",
+      "zh-Hans": "让 JARVIS 睡觉或唤醒他"
     }
   }
 }
