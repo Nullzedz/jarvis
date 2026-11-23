@@ -38,46 +38,37 @@ test("SettingsSearch - match against box, title, and labels (Mac contract parity
   assert.equal(m(""), null);
 });
 
-test("SettingsSearch - searchSettings searches entries across Flow, Notch and Mail", () => {
-  const pageTitles = {
-    dictation: "Dictation",
-    flowsettings: "Settings",
-    general: "General",
-    agents: "Agents",
-    mailOverview: "Overview",
-    mailRules: "Rules",
-    mailBanned: "Banned words",
-    mailVIP: "VIP",
-  };
-  const getPageTitle = (p) => pageTitles[p] ?? p;
+test("SettingsSearch - finds settings and pages by today's names (#84)", () => {
+  const titles = { prefs: "Settings", mail: "Mail", mailOverview: "Sorting", integrations: "Connections", notes: "Notetaker", dictation: "Dictation" };
+  const getPageTitle = (p) => titles[p] ?? p;
+  const ids = (q) => searchSettings(q, getPageTitle).map((h) => h.entry.id);
 
-  // Search by box name
-  const resKeys = searchSettings("keys", getPageTitle);
-  assert.ok(resKeys.length > 0);
-  assert.ok(resKeys.some((h) => h.entry.id === "flow.keys"));
+  // The names the window shows, and words people search for.
+  assert.ok(ids("auto-close").includes("s.autoclose"));
+  assert.ok(ids("version").includes("s.version"));
+  assert.ok(ids("microphone").includes("s.voice"));
+  assert.ok(ids("api key").includes("s.apikey"));
+  assert.ok(ids("volume").includes("s.volume"));
+  assert.ok(ids("hands-free").includes("s.dictation"));
+  assert.ok(ids("github").includes("c.all"));
+  assert.ok(ids("banned").includes("m.sort"));
+  assert.ok(ids("snippets").includes("n.dictation"));
 
-  // Search by term inside box
-  const resHandsfree = searchSettings("handsfree", getPageTitle);
-  assert.ok(resHandsfree.length > 0);
-  assert.ok(resHandsfree.some((h) => h.entry.id === "flow.keys"));
+  // Settings results say which group they live in and where to land.
+  for (const e of SETTINGS_ENTRIES.filter((x) => x.page === "prefs")) {
+    assert.ok(e.where && e.group?.startsWith("group-"), `${e.id} has no group`);
+  }
 
-  // Search by sound in general
-  const resSound = searchSettings("sound", getPageTitle);
-  assert.ok(resSound.some((h) => h.entry.id === "general.sound"));
-
-  // Search Mail entries
-  const resMail = searchSettings("rules", getPageTitle);
-  assert.ok(resMail.some((h) => h.entry.id === "mail.rules"));
-
-  const resBanned = searchSettings("banned", getPageTitle);
-  assert.ok(resBanned.some((h) => h.entry.id === "mail.banned"));
-
-  // Empty query returns empty array
   assert.deepEqual(searchSettings("", getPageTitle), []);
   assert.deepEqual(searchSettings("   ", getPageTitle), []);
-
-  // Unknown query returns empty array
   assert.deepEqual(searchSettings("nonexistentgibberishqueryxyz", getPageTitle), []);
+});
+
+test("SettingsSearch - no result shows a code name like hub.mail.autosort (#84)", () => {
+  const dotted = /^[a-z][\w-]*(\.[\w-]+)+$/;
+  for (const e of SETTINGS_ENTRIES) {
+    for (const text of [e.title, ...e.terms, e.where ?? ""]) assert.ok(!dotted.test(text), `${e.id}: "${text}"`);
+  }
 });
 
 test("SettingsSearch - SETTINGS_ENTRIES integrity and completeness", () => {

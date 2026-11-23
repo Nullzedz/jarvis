@@ -5,6 +5,7 @@
 // they are missing or old, one tiny Claude Code question refreshes them, as the notch does.
 
 import { h, clear } from "../views/dom";
+import { t } from "../i18n/i18n";
 import { Bridge, onEvent } from "../core/bridge";
 import { PLAN_TEXT, parseClaudePlan, type PlanUsage } from "../core/plan";
 
@@ -61,7 +62,8 @@ const clock = (ms: number) => new Date(ms).toLocaleTimeString(undefined, { hour:
 export function renderPlan(box: HTMLElement, u: PlanUsage | null) {
   clear(box);
   const line = (n: number | undefined, color: string, label: string) =>
-    h("p", {}, h("b", { style: `color:${color}`, text: pct(n) }), document.createTextNode(` ${label}`));
+    // "42% used · 5 hours": a bare 42% didn't say whether it was used or left (#84).
+    h("p", {}, h("b", { style: `color:${color}`, text: pct(n) }), document.createTextNode(` ${t("used")} · ${label}`));
   const resets = u?.fiveHour?.resetsAt;
   box.append(rings(u), h("div", { class: "nums" },
     line(u?.fiveHour?.usedPct, OUTER.color, PLAN_TEXT.fiveHours),

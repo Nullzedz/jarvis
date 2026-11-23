@@ -215,7 +215,9 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       const exact = el && !(t.fallback && el.matches(`[data-anchor="${CSS.escape(t.fallback)}"]`));
       if (!exact && tries++ < 12) { window.setTimeout(attempt, 100); return; }
       if (!el) { scroll.scrollTop = 0; return; }
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Straight there (a smooth ride down a long Settings page takes seconds); the light marks it.
+      const top = el.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+      scroll.scrollTop = Math.max(0, top - scroll.clientHeight / 2 + el.offsetHeight / 2);
       el.classList.remove("jv-lit");
       void el.offsetWidth;
       el.classList.add("jv-lit");
@@ -239,6 +241,8 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     const sec = sectionOf(current);
     for (const [id, el] of rail) el.classList.toggle("on", id === sec.id);
     document.body.classList.toggle("at-home", current === "home");
+    // Hidden on Home (redesign.css), so out of reach of Tab and the pointer as well (#84).
+    side.inert = current === "home";
     updateSearchRowHighlights();
     const token = ++rendering;
     home?.destroy();
@@ -273,7 +277,8 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
         const pd = ALL.find((p) => p.id === id)!;
         tabs.append(h("button", { class: id === current ? "on" : "", role: "tab", "aria-selected": String(id === current), text: pd.title(), onclick: () => void show(id) }));
       }
-      scroll.append(tabs);
+      // The section says its name beside its tabs (#84, N3): with the sidebar folded, nothing else did.
+      scroll.append(h("div", { class: "jv-sechead" }, h("h1", { class: "jv-sectitle", text: sec.name() }), tabs));
     }
     scroll.append(page_);
     if (targetAnchor || label || fallback) {
@@ -290,9 +295,10 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
   const side = h("nav", { class: "jv-rail", "aria-label": "JARVIS" });
   // His visor in this corner is the window's controls (winctl.ts); the sidebar keeps his name beside it.
   side.append(h("div", { class: "jv-rlogo" }, h("span", { class: "jv-rlogo-slot" }), h("span", { class: "n", text: "JARVIS" })));
-  const go = (id: Section["id"]) => {
-    const sec = SECTIONS.find((x) => x.id === id) ?? SECTIONS[0];
-    void show(sec.pages[0]);
+  /** A section (its first tab), or one page of a section: Home's Dictation opens Notes › Dictation (#84). */
+  const go = (id: Section["id"] | PageId) => {
+    const sec = SECTIONS.find((x) => x.id === id);
+    void show(sec ? sec.pages[0] : (id as PageId));
   };
   const railItem = (sec: Section) => {
     const g = h("span", { class: "g", style: `--c:${sec.color}` });
@@ -306,35 +312,53 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     side.append(railItem(sec));
   }
   side.append(h("div", { class: "spacer" }), railItem(SECTIONS.find((x) => x.id === "settings")!), statusLine);
-  // It opens as soon as the pointer settles on it, not as it flies across on its way to the
-  // screen's edge: a slow move inside opens it at once, a pointer that stops opens it after a
-  // blink (90 ms); one that crosses fast has left before either. From the keyboard, at once.
-  const SETTLE_MS = 90, SLOW = 0.5; // px per ms
-  let settle = 0;
-  let last: { x: number; y: number; t: number } | null = null;
-  const openRail = () => { window.clearTimeout(settle); side.classList.add("open"); };
-  side.addEventListener("pointerenter", (e) => {
-    last = { x: e.clientX, y: e.clientY, t: performance.now() };
-    settle = window.setTimeout(openRail, SETTLE_MS);
-  });
-  side.addEventListener("pointermove", (e) => {
-    const now = performance.now();
-    if (last && now > last.t) {
-      const speed = Math.hypot(e.clientX - last.x, e.clientY - last.y) / (now - last.t);
-      if (speed < SLOW) openRail();
-      else { window.clearTimeout(settle); settle = window.setTimeout(openRail, SETTLE_MS); }
-    }
-    last = { x: e.clientX, y: e.clientY, t: now };
+  // #84, hover intent (docs/jarvis/design/UX-PRINCIPLES.md H1, H2): it opens when the pointer
+  // RESTS on it (no move for 300 ms), never as it crosses on its way to the window's edge or
+  // overshoots a tab by a few pixels. Leaving towards the page closes it at once, so it never
+  // covers what you're reaching for; leaving any other way waits 350 ms, so a slip doesn't shut
+  // it. From the keyboard, at once.
+  const REST_MS = 300, GRACE_MS = 350;
+  let rest = 0, grace = 0;
+  const openRail = () => { window.clearTimeout(rest); window.clearTimeout(grace); side.classList.add("open"); };
+  const closeRail = () => { window.clearTimeout(rest); window.clearTimeout(grace); side.classList.remove("open"); };
+  side.addEventListener("pointermove", () => {
+    window.clearTimeout(grace);
+    window.clearTimeout(rest);
+    if (!side.classList.contains("open")) rest = window.setTimeout(openRail, REST_MS);
   });
   side.addEventListener("pointerleave", (e) => {
-    window.clearTimeout(settle);
-    last = null;
-    // Up into his visor and the window's dots: the sidebar stays open (winctl.ts closes it with them).
-    if ((e.relatedTarget as Element | null)?.closest?.(".jv-winctl")) return;
-    side.classList.remove("open");
+    window.clearTimeout(rest);
+    if (!side.classList.contains("open")) return;
+    // Up into his visor and the window's dots while they're out: the sidebar stays (winctl.ts closes both).
+    if ((e.relatedTarget as Element | null)?.closest?.(".jv-wc.open")) return;
+    const intoPage = e.clientX >= side.getBoundingClientRect().right - 2;
+    window.clearTimeout(grace);
+    if (intoPage) closeRail();
+    else grace = window.setTimeout(closeRail, GRACE_MS);
   });
-  side.addEventListener("focusin", () => side.classList.add("open"));
-  side.addEventListener("focusout", () => { if (!side.matches(":focus-within")) side.classList.remove("open"); });
+  side.addEventListener("focusin", openRail);
+  side.addEventListener("focusout", () => { if (!side.matches(":focus-within")) closeRail(); });
+
+  // Keys (#84, N4): Esc closes what's open (the sidebar, then a sub-page through its Back link);
+  // Alt+Left goes back the same way; Ctrl+, opens Settings.
+  addEventListener("keydown", (e) => {
+    if (e.defaultPrevented) return;
+    const typing = (e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable='true']");
+    const back = () => {
+      const b = [...scroll.querySelectorAll<HTMLElement>(".back")].find((x) => x.offsetParent !== null);
+      if (b) { b.click(); return true; }
+      return false;
+    };
+    if (e.key === "Escape" && !typing) {
+      if (side.classList.contains("open")) { closeRail(); (document.activeElement as HTMLElement | null)?.blur?.(); return; }
+      if (back()) e.preventDefault();
+    } else if (e.altKey && e.key === "ArrowLeft") {
+      if (back()) e.preventDefault();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === ",") {
+      e.preventDefault();
+      void show("prefs");
+    }
+  });
 
   // Settings search: Ctrl K anywhere in the window.
   const searchInput = h("input", {
@@ -379,7 +403,21 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     }
   });
 
+  let searchSel = 0;
+  function lightSearchRow() {
+    [...resultsContainer.querySelectorAll<HTMLElement>(".hub-search-row")].forEach((r, i) => {
+      r.classList.toggle("sel", i === searchSel);
+      if (i === searchSel) r.scrollIntoView({ block: "nearest" });
+    });
+  }
+  /** Opens a result: its page, landing on its row (the matched label, else its title), else its group. */
+  function openHit(hit: SettingsSearchHit) {
+    closeSearch();
+    void show(hit.entry.page, undefined, hit.label ?? t(hit.entry.title), hit.entry.group);
+  }
+
   function renderSearchResults() {
+    searchSel = 0;
     clear(resultsContainer);
     searchRows.clear();
     const query = searchInput.value.trim();
@@ -405,33 +443,34 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       row.append(icon(pageDef?.icon ?? "sliders"));
       const textContainer = h("div", { class: "hub-search-row-text" });
       const rowTitle = h("div", { class: "hub-search-row-title", text: hit.label ?? t(hit.entry.title) });
+      // Where it lives today: "Settings › Notch", "Mail › Sorting", then the box when a label matched.
+      const place = [pageDef?.title() ?? "", hit.entry.where ? t(hit.entry.where) : ""].filter(Boolean).join(" › ");
       const rowSubtitle = h("div", {
         class: "hub-search-row-subtitle",
-        text: hit.label
-          ? `${pageDef?.title() ?? ""} › ${t(hit.entry.title)}`
-          : (pageDef?.title() ?? ""),
+        text: hit.label ? `${place} › ${t(hit.entry.title)}` : place,
       });
       textContainer.append(rowTitle, rowSubtitle);
       row.append(textContainer);
-      row.addEventListener("click", () => {
-        closeSearch();
-        void show(hit.entry.page, hit.entry.id, hit.label ?? t(hit.entry.title));
-      });
+      row.addEventListener("click", () => openHit(hit));
       searchRows.set(hit.entry.id, row);
       resultsContainer.append(row);
     }
+    lightSearchRow();
   }
 
   searchInput.addEventListener("input", renderSearchResults);
+  // Arrow keys move through the results, Enter opens the one lit (#84).
   searchInput.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       closeSearch();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!searchHits.length) return;
+      e.preventDefault();
+      searchSel = (searchSel + (e.key === "ArrowDown" ? 1 : -1) + searchHits.length) % searchHits.length;
+      lightSearchRow();
     } else if (e.key === "Enter") {
-      if (searchHits.length > 0) {
-        const first = searchHits[0].entry;
-        closeSearch();
-        void show(first.page, first.id, t(first.title));
-      }
+      const hit = searchHits[searchSel] ?? searchHits[0];
+      if (hit) openHit(hit);
     }
   });
 

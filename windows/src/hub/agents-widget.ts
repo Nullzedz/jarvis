@@ -9,9 +9,10 @@ import { t } from "../i18n/i18n";
 import { emitToWindow, onEvent } from "../core/bridge";
 import { visor } from "../theme/theme";
 import {
-  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_DECIDE, AGENT_SHOW, agentEye, agentsSize, loadWatch, minutesBetween, orbitAngle, rankRows, watchOf,
+  AGENTS_SNAPSHOT, AGENTS_WANTED, AGENT_SHOW, agentEye, loadWatch, minutesBetween, orbitAngle, rankRows, watchOf,
   type AgentRow,
 } from "../core/agents";
+import { agentName, approveBar } from "./approve-bar";
 
 const NS = "http://www.w3.org/2000/svg";
 /** The rings' radii in the 240 × 240 drawing, inner to outer (the demo's RR). */
@@ -51,7 +52,10 @@ function orbit(rows: readonly AgentRow[], size: number): SVGSVGElement {
   }
   // JARVIS: the white shell, the slot, his blue eye glancing.
   const eye = el("rect", { x: -9, y: -2.5, width: 18, height: 5, rx: 2.5, fill: "#0a84ff" });
-  eye.append(el("animate", { attributeName: "x", values: "-9;-14;-9;-4;-9", dur: "7s", repeatCount: "indefinite" }));
+  // His glance stops with Windows' animation effects off (#84: reduced motion).
+  if (!matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    eye.append(el("animate", { attributeName: "x", values: "-9;-14;-9;-4;-9", dur: "7s", repeatCount: "indefinite" }));
+  }
   svg.append(
     el("rect", { x: -30, y: -21, width: 60, height: 42, rx: 14, fill: "url(#jvOrbitBody)" }),
     el("rect", { x: -19, y: -5, width: 38, height: 10, rx: 5, fill: "#0b0f17", stroke: "#c9cdd4", "stroke-width": 0.8 }),
@@ -59,15 +63,26 @@ function orbit(rows: readonly AgentRow[], size: number): SVGSVGElement {
   return svg;
 }
 
+/** What the orbit shows: which planet on which ring, in which colour. Same key, same drawing. */
+function orbitKey(rows: readonly AgentRow[]): string {
+  const watch = loadWatch();
+  return rows.map((r) => `${r.id}:${r.state}:${watchOf(watch, r)}`).join("|");
+}
+
 /** Draws the widget's inside into `box`. */
 export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = Date.now()) {
-  clear(box);
+  // #84: the orbit is kept while its planets are the same: redrawn, its rings would start turning
+  // again from the top (the planets jumped back every 30 s and on every update).
   const ranked = rankRows(rows);
-  // Small while little runs, bigger as more do (the card spans one row or two).
-  const big = agentsSize(ranked) === "big";
+  const key = orbitKey(ranked);
+  // Kept in place, never taken out: an animation restarts when its element leaves the page.
+  const keep = box.dataset.orbit === key && !!box.querySelector("svg.jv-orbit");
+  if (!keep) clear(box);
+  box.dataset.orbit = key;
+  // Always the demo's big square (#84): resizing with the number of agents reshuffled the bento.
   const card = box.closest(".jv-w");
-  card?.classList.toggle("big", big);
-  card?.classList.toggle("wide", !big);
+  card?.classList.add("big");
+  card?.classList.remove("wide");
   const asking = ranked.find((r) => r.ask) ?? null;
   const list = h("div", { class: "jv-aglist" });
 
@@ -90,24 +105,23 @@ export function renderAgents(box: HTMLElement, rows: readonly AgentRow[], now = 
       ? h("span", { class: "s ask", text: t("Needs you") })
       : h("span", { class: "s", text: r.state === "idle" ? "" : done ? t("Done") : mins < 1 ? t("just now") : t("{n} min", { n: mins }) });
     list.append(h("div", { class: "jv-agrow" }, v,
-      h("div", { class: "x" }, h("p", { class: "t", text: r.title }), h("p", { class: "d", text: what })), side));
+      h("div", { class: "x" }, h("p", { class: "t", text: agentName(r, ranked) }), h("p", { class: "d", text: what })), side));
   }
   if (ranked.length > max) list.append(h("p", { class: "jv-ag-more", text: t("+ {n} more", { n: ranked.length - max }) }));
-  box.append(h("div", { class: "jv-agmain" }, orbit(ranked, big ? 180 : 120), list));
-
-  // The approval bar: the one asking you, and your answer.
-  if (asking?.ask) {
-    const ask = asking.ask;
-    const send = (d: "allow" | "deny") => (e: Event) => { quiet(e); void emitToWindow("island", AGENT_DECIDE, { requestId: ask.requestId, d }); };
-    const text = h("span", { class: "x" }, h("b", { text: asking.title }), document.createTextNode(" "),
-      h("span", { class: "d", text: ask.question ? t("has a question") : t("wants to run {command}", { command: ask.command }) }));
-    const bar = h("div", { class: "jv-wapprove" }, h("span", { class: "dot" }), text,
-      ...(ask.question
-        ? [h("button", { class: "jv-btn blue", text: t("Answer"), onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "question"); } })]
-        : [h("button", { class: "jv-btn", text: t("Deny"), onclick: send("deny") }), h("button", { class: "jv-btn blue", text: t("Allow"), onclick: send("allow") })]));
-    bar.addEventListener("keydown", quiet);
-    box.append(bar);
+  // A new session from here any time, not only while none runs (#84).
+  else if (ranked.length > 0 && !asking) {
+    list.append(h("button", { class: "jv-chipbtn jv-ag-new", text: `+ ${t("New session")}`, onclick: (e: Event) => { quiet(e); void emitToWindow("island", AGENT_SHOW, "launch"); } }));
   }
+  if (keep) {
+    box.querySelector(".jv-aglist")?.replaceWith(list);
+    box.querySelector(".jv-wapprove")?.remove();
+  } else {
+    box.append(h("div", { class: "jv-agmain" }, orbit(ranked, 180), list));
+  }
+
+  // The approval bar: every request waiting, one at a time, and your answer at once.
+  const bar = approveBar(ranked, "home", () => renderAgents(box, rows));
+  if (bar) box.append(bar);
 }
 
 /** Fills `body` and keeps it current; returns a function that stops it. */

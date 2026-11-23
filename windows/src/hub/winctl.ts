@@ -79,6 +79,9 @@ export function windowControls(): HTMLElement {
     if (!onFace(e.clientX, e.clientY)) return;
     open(true);
   });
+  // From the keyboard: Tab onto a dot shows them all; leaving them puts them away (#84).
+  wc.addEventListener("focusin", () => open(true));
+  wc.addEventListener("focusout", (e) => { if (!wc.contains(e.relatedTarget as Node | null)) open(false); });
   // Leaving the window (towards its edge, say) sends no more moves: close then too.
   document.addEventListener?.("mouseout", (e) => { if (!(e as MouseEvent).relatedTarget) open(false); });
   window.addEventListener?.("blur", () => open(false));

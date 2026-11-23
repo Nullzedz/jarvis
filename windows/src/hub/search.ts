@@ -13,6 +13,9 @@ export interface SettingsSearchEntry {
   title: string;
   /** The labels inside the box (catalog keys). */
   terms: string[];
+  /** Settings: the group it lives in (shown in the result), and that group's anchor to land on. */
+  where?: string;
+  group?: string;
 }
 
 export interface SettingsSearchHit {
@@ -80,78 +83,52 @@ export function match(
   return { kind: "label", label: labels[bestIndex] };
 }
 
+/**
+ * Every setting and page as the window shows them today (#84): their real names, the place they
+ * live (`where`, a group of Settings or a tab) and, for Settings, the group anchor to land on when
+ * the row itself isn't found. Results land on the row named by the hit (shell.ts landOn).
+ */
 export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
-  // Flow
-  { id: "flow.history", page: "dictation", title: "hub.history", terms: ["hub.page.dictation"] },
-  { id: "flow.notes", page: "notes", title: "hub.page.notes", terms: ["notes.live", "notes.key-points"] },
-  { id: "flow.insights", page: "insights", title: "hub.page.insights", terms: [] },
-  { id: "flow.dictionary", page: "dictionary", title: "hub.page.dictionary", terms: ["hub.replacements"] },
-  { id: "flow.snippets", page: "snippets", title: "hub.page.snippets", terms: [] },
-  { id: "flow.styles", page: "styles", title: "hub.page.styles", terms: ["hub.cleanup", "hub.style-default", "hub.style-apps"] },
-  {
-    id: "flow.keys",
-    page: "flowsettings",
-    title: "hub.settings.keys",
-    terms: ["flow.enable", "hub.settings.hold", "flow.edge", "hub.settings.handsfree", "Hands-free with one press", "hub.settings.paste-again", "hub.settings.cancel"],
-  },
-  { id: "flow.ai", page: "flowsettings", title: "flow.ai.title", terms: ["flow.prompt-mode", "flow.translate"] },
-  { id: "flow.permission", page: "flowsettings", title: "hub.settings.permission", terms: ["flow.accessibility-open"] },
-  { id: "flow.recognition", page: "flowsettings", title: "hub.settings.recognition", terms: ["Dictation language"] },
-  { id: "flow.summary", page: "flowsettings", title: "hub.page.notes", terms: ["notes.engine"] },
-  { id: "flow.app", page: "flowsettings", title: "hub.settings.app", terms: ["hub.settings.dock", "hub.settings.open-at-launch"] },
-  { id: "flow.privacy", page: "flowsettings", title: "hub.settings.privacy", terms: ["hub.settings.keep"] },
-
-  // Notch → General
-  { id: "general.demo", page: "general", title: "demo.groupbox.title", terms: [] },
-  { id: "general.sound", page: "general", title: "Sound", terms: ["Enable sounds", "Volume", "Open sounds folder", "Reload sounds"] },
-  { id: "general.behavior", page: "general", title: "Behavior", terms: ["Open on hover", "Close after", "Hide after", "alerts.all-pills"] },
-  { id: "general.display", page: "general", title: "Display", terms: ["Show JARVIS on", "Screen with the notch", "Main screen (menu bar)", "Follow the mouse"] },
-  { id: "general.vitals", page: "general", title: "vitals.title", terms: ["vitals.toggle"] },
-  { id: "general.hotkey", page: "general", title: "Hotkey", terms: ["Show island with shortcut", "Shortcut"] },
-  { id: "general.startup", page: "general", title: "Startup", terms: ["Launch at Mac startup"] },
-  { id: "general.update", page: "general", title: "update.settings.title", terms: [] },
-  { id: "general.recap", page: "general", title: "Weekly recap", terms: ["Keep a history of my coding sessions", "Hide project names in shared images", "Clear history"] },
-  { id: "general.language", page: "general", title: "Language", terms: ["Restart JARVIS"] },
-
-  // Notch → Pills, Agents, Chat, Integrations, Phone, Voice, Shortcuts
-  { id: "pills.main", page: "pills", title: "settings.main-pill", terms: ["Active pills"] },
-  { id: "agents.claude", page: "agents", title: "hooks.claude-code.title", terms: ["Answer questions and permissions from terminal sessions in the notch"] },
-  { id: "agents.claude-desktop", page: "agents", title: "claude-desktop.chat.title", terms: [] },
-  { id: "agents.gemini", page: "agents", title: "hooks.gemini.title", terms: [] },
-  { id: "agents.antigravity", page: "agents", title: "hooks.antigravity.title", terms: ["Approve commands from the notch"] },
-  { id: "agents.codex", page: "agents", title: "hooks.codex.title", terms: [] },
-  { id: "agents.copilot", page: "agents", title: "hooks.copilot.title", terms: [] },
-  { id: "agents.muse", page: "agents", title: "hooks.muse.title", terms: [] },
-  { id: "agents.opencode", page: "agents", title: "plugin.opencode.title", terms: [] },
-  { id: "agents.amp", page: "agents", title: "plugin.amp.title", terms: [] },
-  { id: "agents.hermes", page: "agents", title: "plugin.hermes.title", terms: ["plugin.hermes.approvals"] },
-  { id: "agents.plan", page: "agents", title: "plan.title", terms: ["plan.show-in-notch", "Show Codex plan in the notch"] },
-  { id: "chat.subscriptions", page: "chat", title: "chat.subscriptions.title", terms: ["chat.subscriptions.use"] },
-  { id: "chat.anthropic", page: "chat", title: "chat.anthropic-api.title", terms: ["chat.model", "Anthropic", "Claude"] },
-  { id: "chat.others", page: "chat", title: "chat.other-providers.title", terms: ["Google AI", "OpenAI", "DeepSeek", "Gemini"] },
-  { id: "chat.local", page: "chat", title: "chat.local.title", terms: ["Ollama", "LM Studio"] },
-  {
-    id: "integrations.all",
-    page: "integrations",
-    title: "Integrations",
-    terms: [
-      "Stripe", "GitHub", "Vercel", "n8n", "Notion", "Resend", "Cal.com", "WhatsApp", "Spotify", "Crypto",
-      "Linear", "X", "YouTube", "Figma", "OpenWeather", "Railway", "Supabase", "Hugging Face", "Sentry", "PostHog", "Twilio",
-    ],
-  },
-  { id: "phone.android", page: "phone", title: "phone.title", terms: ["phone.status", "phone.pairing", "phone.approvals"] },
-  { id: "voice.wake", page: "voice", title: "«\u202FOK Coucou\u202F» — voice wake word", terms: ["Enable voice command", "Request permissions"] },
-  { id: "voice.language", page: "voice", title: "Language", terms: ["voice.listen-language", "voice.language"] },
-  { id: "voice.tts", page: "voice", title: "voice.tts-engine", terms: ["voice.tts-gender", "voice.tts-test"] },
-  { id: "voice.history", page: "voice", title: "voice.history-title", terms: [] },
-  { id: "shortcuts.global", page: "shortcuts", title: "shortcut.group.global", terms: [] },
-  { id: "shortcuts.island", page: "shortcuts", title: "shortcut.group.island", terms: [] },
-
+  // Settings › General
+  { id: "s.startup", page: "prefs", where: "General", group: "group-general", title: "Launch at startup", terms: [] },
+  { id: "s.recap", page: "prefs", where: "General", group: "group-general", title: "Weekly recap", terms: ["Keep a history of my coding sessions", "Clear history"] },
+  { id: "s.updates", page: "prefs", where: "General", group: "group-general", title: "Updates", terms: ["Check now"] },
+  { id: "s.language", page: "prefs", where: "General", group: "group-general", title: "Language", terms: [] },
+  // Settings › Notch
+  { id: "s.tabs", page: "prefs", where: "Notch", group: "group-island", title: "Tabs in the notch", terms: ["Focus", "Calendar", "Clipboard", "Reminders", "Overview", "Drop"] },
+  { id: "s.pills", page: "prefs", where: "Notch", group: "group-island", title: "Active pills", terms: ["Main tool"] },
+  { id: "s.hover", page: "prefs", where: "Notch", group: "group-island", title: "Open on hover", terms: [] },
+  { id: "s.alerts", page: "prefs", where: "Notch", group: "group-island", title: "Open for every pill’s alerts", terms: [] },
+  { id: "s.clock", page: "prefs", where: "Notch", group: "group-island", title: "Show clock in the island", terms: [] },
+  { id: "s.closed", page: "prefs", where: "Notch", group: "group-island", title: "Closed island shows", terms: [] },
+  { id: "s.autoclose", page: "prefs", where: "Notch", group: "group-island", title: "Auto-close", terms: ["Close after"] },
+  { id: "s.screen", page: "prefs", where: "Notch", group: "group-island", title: "Island lives on", terms: ["Screen", "Display", "Monitor"] },
+  // Settings › Shortcuts, Sound
+  { id: "s.shortcuts", page: "prefs", where: "Shortcuts", group: "group-shortcuts", title: "Shortcuts", terms: ["Open or close the island", "Open the chat", "Put JARVIS to sleep or wake him", "Next pill", "Previous pill", "Open the terminal", "Keyboard"] },
+  { id: "s.sound", page: "prefs", where: "Sound", group: "group-sound", title: "Sound", terms: ["Open sounds folder", "Reload sounds"] },
+  { id: "s.volume", page: "prefs", where: "Sound", group: "group-sound", title: "Volume", terms: [] },
+  // Settings › Voice, Dictation (drawn in place from their own pages)
+  { id: "s.voice", page: "prefs", where: "Voice", group: "group-voice", title: "Voice", terms: ["Hey JARVIS", "Wake word", "Answer only my voice", "Microphone", "Your voice level", "Ask", "Talk"] },
+  { id: "s.dictation", page: "prefs", where: "Dictation", group: "group-dictation", title: "Dictation", terms: ["Dictation language", "Voice model", "Parakeet", "Hands-free with one press", "Keep the history", "Notetaker"] },
+  // Settings › Agents, phone, accounts, privacy, about
+  { id: "s.claude", page: "prefs", where: "Agents", group: "group-agents", title: "Claude Code", terms: ["Hooks"] },
+  { id: "s.agents", page: "prefs", where: "Agents", group: "group-agents", title: "Other agents", terms: ["Codex", "Cursor", "Gemini CLI", "Copilot CLI", "OpenCode", "Amp", "Hermes", "Antigravity"] },
+  { id: "s.plan", page: "prefs", where: "Agents", group: "group-agents", title: "Plan usage", terms: [] },
+  { id: "s.phone", page: "prefs", where: "Android phone", group: "group-phone", title: "Your phone", terms: ["Android phone", "Pairing", "Approvals"] },
+  { id: "s.apikey", page: "prefs", where: "Accounts and keys", group: "group-accounts", title: "API key", terms: ["Claude", "Anthropic", "Key"] },
+  { id: "s.subs", page: "prefs", where: "Accounts and keys", group: "group-accounts", title: "Your AI subscriptions", terms: [] },
+  { id: "s.providers", page: "prefs", where: "Accounts and keys", group: "group-accounts", title: "Chat providers", terms: ["OpenAI", "Google AI", "DeepSeek", "Gemini"] },
+  { id: "s.local", page: "prefs", where: "Accounts and keys", group: "group-accounts", title: "Local models", terms: ["Ollama", "LM Studio"] },
+  { id: "s.privacy", page: "prefs", where: "Privacy", group: "group-privacy", title: "Privacy", terms: ["Telemetry"] },
+  { id: "s.version", page: "prefs", where: "About", group: "group-about", title: "Version", terms: ["About"] },
+  // Connections
+  { id: "c.all", page: "integrations", title: "Connections", terms: ["Stripe", "GitHub", "GitLab", "Gitea", "Vercel", "n8n", "Notion", "Resend", "Cal.com", "WhatsApp", "Spotify", "Token"] },
   // Mail
-  { id: "mail.autosort", page: "mailOverview", title: "hub.mail.autosort", terms: ["hub.mail.journal", "hub.mail.sent", "hub.mail.undo"] },
-  { id: "mail.rules", page: "mailRules", title: "hub.mail.rules", terms: ["hub.mail.field.sender", "hub.mail.field.subject", "hub.mail.do.junk"] },
-  { id: "mail.banned", page: "mailBanned", title: "hub.mail.banned", terms: [] },
-  { id: "mail.vip", page: "mailVIP", title: "hub.mail.vip", terms: [] },
+  { id: "m.month", page: "mail", title: "Mail", terms: ["Waiting on you", "Files today", "When mail arrives"] },
+  { id: "m.sort", page: "mailOverview", title: "Sort new messages automatically", terms: ["Journal", "Sent by Coucou", "VIP", "Banned words", "Rules"] },
+  // Notes
+  { id: "n.notetaker", page: "notes", title: "Notetaker", terms: ["Record", "Transcript"] },
+  { id: "n.dictation", page: "dictation", title: "Dictation", terms: ["Dictionary", "Snippets", "Styles", "History", "Replacements", "Clean up with Claude"] },
 ];
 
 /**

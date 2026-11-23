@@ -198,10 +198,16 @@ export function renderConnections(box: HTMLElement, rows: readonly ConnectionRow
   const ranked = rankConnections(rows);
   const live = ranked.filter((r) => r.live).length;
   const tiles = h("div", { class: "jv-hometiles" });
+  // With nothing set up, a sentence that says where to go, not "0 of 0 live" (#84).
+  if (!ranked.length) {
+    box.append(h("p", { class: "jv-wsub", text: t("No connections yet. Connect GitHub, Stripe, Spotify and more in Connections.") }));
+    return;
+  }
   for (const r of ranked.slice(0, 4)) {
-    tiles.append(h("div", { class: `jv-hometile${r.live ? "" : " off"}` },
+    // One line each, with an ellipsis: a long name no longer pushes its status out of the tile (#84).
+    tiles.append(h("div", { class: `jv-hometile${r.live ? "" : " off"}`, title: r.name },
       h("span", { class: "dot", style: `background:${r.live ? r.color : "#636366"}` }),
-      h("span", {}, document.createTextNode(r.name), h("br"),
+      h("span", { class: "tx" }, h("span", { class: "nm", text: r.name }),
         h("b", { class: r.live ? "" : "warn", text: r.live ? r.headline ?? t("On") : t("Off") }))));
   }
   box.append(tiles, h("div", { class: "n" }, big(String(live), t("of {n} live", { n: ranked.length }))));

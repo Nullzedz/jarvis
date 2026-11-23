@@ -47,6 +47,8 @@ body.at-home .hub-scroll { padding: 0; }
 .jv-home { position: relative; width: 100%; }
 /* The page's column; .jv-home itself spans the window so the dots start on a whole pixel. */
 .jv-home > .jv-hero, .jv-home > .jv-below { max-width: 980px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
+/* #84: the shorthand above wiped the hero's room for the dock; the greeting is centred above it. */
+.jv-home > .jv-hero { padding-bottom: 120px; }
 /* The first screen is not flat black: a faint lift at the top, and printed dots that stay clear of him. No light. */
 .jv-home::before, .jv-texture { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100vh; pointer-events: none; }
 .jv-home::before { background: linear-gradient(180deg, #0c0c0e 0%, #000 55%); }
@@ -85,7 +87,7 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-tab.on { color: var(--jv-blue); background: rgba(255, 255, 255, .1); cursor: default; }
 .jv-tab:focus-visible, .jv-askdock:focus-visible, .jv-tool:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
 /* Ask, docked beside the bar as iOS docks Search; its blue button is the one tinted action. */
-.jv-askdock { display: flex; align-items: center; gap: 10px; width: 300px; height: 64px; padding: 0 8px 0 20px; border: 0; border-radius: 32px; cursor: text;
+.jv-askdock { display: flex; align-items: center; gap: 10px; width: 300px; height: 64px; padding: 0 8px 0 20px; border: 0; border-radius: 32px; cursor: pointer;
   background: var(--glass); -webkit-backdrop-filter: var(--glass-fx); backdrop-filter: var(--glass-fx); box-shadow: var(--glass-edge), 0 10px 30px rgba(0, 0, 0, .45);
   color: #c7c7cc; font: 15px var(--font); text-align: left; transition: transform .25s var(--jv-ease); }
 .jv-askdock:active { transform: scale(.98); }
@@ -820,3 +822,25 @@ span.jv-chipbtn:hover { background: #2c2c2e; }
 .jv-rooms button:focus-visible, .jv-ht:focus-visible, .jv-md:focus-visible, .jv-mp:focus-visible, .jv-sdrill:focus-visible, .jv-wchip:focus-visible,
 .jv-dcol:focus-visible, .jv-dhist:focus-visible, .jv-snav .lnk:focus-visible, .jv-ri:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
 .jv-talkask .q:focus-visible, .jv-wsearch:focus-within, .jv-snav .search:focus-within { box-shadow: 0 0 0 2px rgba(10, 132, 255, .5); }
+
+/* ── #84: navigation ── */
+.jv-sechead { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
+.jv-sechead .jv-tabs { margin: 0; }
+.jv-sectitle { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--jv-t1); }
+.hub-search-row.sel { background: var(--jv-s2); }
+/* The window drags from the whole empty top edge, not a 10 px strip; tabs start below it. */
+.jv-dragedge { height: 22px; }
+/* The dots are 13 px to see but 25 px to hit. */
+.jv-dot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+/* Back links are at least 24 px tall to hit. */
+.jv-sub .back, .jv-msort > .back, .jv-connpg > .back, .jv-mfull .back, .jv-walltop .back, .jv-dict-full .back { min-height: 24px; display: inline-flex; align-items: center; }
+
+/* ── #84: Home ── */
+.jv-hometile .tx { display: block; min-width: 0; }
+.jv-hometile .nm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-wapprove .said { font-size: 13px; color: var(--jv-green); font-weight: 500; padding: 0 8px; }
+.jv-wapprove .pg { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--jv-t2); flex: none; }
+.jv-pg, .jv-pg:hover:not(:disabled) { width: 24px; height: 24px; border-radius: 50%; border: 0; padding: 0; background: #3a3a3c; color: var(--jv-t1); font: 13px var(--font); cursor: pointer; display: grid; place-items: center; }
+.jv-pg:hover:not(:disabled) { background: #48484a; }
+.jv-ag-new { align-self: flex-start; margin-top: 6px; }
+.jv-plan .when { white-space: normal; overflow: visible; text-overflow: clip; }

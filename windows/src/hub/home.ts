@@ -14,10 +14,11 @@ import { jarvisWidget } from "./jarvis-widget";
 import { planWidget } from "./plan-widget";
 import { connectionsWidget, dictationWidget, mailWidget, notetakerWidget, windowsWidget } from "./glance-widgets";
 import type { Section } from "./sections";
+import type { PageId } from "./shell";
 
 /** The squares' line icons, on a 24×24 grid. */
 const DOCK_ICONS: Record<string, string> = {
-  jarvis: "M3 12h2l2-6 4 12 3-9 2 5h5",
+  jarvis: "M6.5 5h11A4.5 4.5 0 0 1 22 9.5v5a4.5 4.5 0 0 1-4.5 4.5h-11A4.5 4.5 0 0 1 2 14.5v-5A4.5 4.5 0 0 1 6.5 5zM8.5 12h7",
   agents: "M4 17l6-5-6-5M12 19h8",
   windows: "M3 4h18v16H3zM3 9h18",
   notes: "M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4",
@@ -47,7 +48,7 @@ const FILLED: Record<string, string> = {
   home: "M12 3.2 2.8 11a1 1 0 0 0 1.3 1.5L5 11.8V19a2 2 0 0 0 2 2h3.2v-5.2a1.8 1.8 0 0 1 3.6 0V21H17a2 2 0 0 0 2-2v-7.2l.9.7A1 1 0 0 0 21.2 11z",
   jarvis: "M6.5 5h11A4.5 4.5 0 0 1 22 9.5v5a4.5 4.5 0 0 1-4.5 4.5h-11A4.5 4.5 0 0 1 2 14.5v-5A4.5 4.5 0 0 1 6.5 5zM8 10.6a1.4 1.4 0 0 0 0 2.8h8a1.4 1.4 0 0 0 0-2.8z",
   agents: "M5 3h14a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zm1.7 5.3a1 1 0 0 0-.4 1.4L8.4 12l-2.1 2.3a1 1 0 0 0 1.4 1.4l2.8-3a1 1 0 0 0 0-1.4l-2.8-3a1 1 0 0 0-1 0zM12 14.5a1 1 0 0 0 0 2h5a1 1 0 0 0 0-2z",
-  notes: "M12 2a3.5 3.5 0 0 1 3.5 3.5v6a3.5 3.5 0 0 1-7 0v-6A3.5 3.5 0 0 1 12 2zM5.5 10.5a1 1 0 0 1 1 1 5.5 5.5 0 0 0 11 0 1 1 0 1 1 2 0 7.5 7.5 0 0 1-6.5 7.4V21a1 1 0 1 1-2 0v-2.1a7.5 7.5 0 0 1-6.5-7.4 1 1 0 0 1 1-1z",
+  notes: "M15.3 3.3a2.2 2.2 0 0 1 3.1 0l2.3 2.3a2.2 2.2 0 0 1 0 3.1L9.8 19.6a2 2 0 0 1-1 .55l-4.3.95a1 1 0 0 1-1.2-1.2l.95-4.3a2 2 0 0 1 .55-1z",
   mail: "M4 5h16a2 2 0 0 1 2 2v.4l-10 6.1L2 7.4V7a2 2 0 0 1 2-2zm-2 4.7 9.5 5.8a1 1 0 0 0 1 0L22 9.7V17a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z",
   connections: "M8.5 2.5a1 1 0 0 1 1 1V7h5V3.5a1 1 0 1 1 2 0V7H18a1 1 0 0 1 1 1v3.5a6 6 0 0 1-6 6v3a1 1 0 1 1-2 0v-3a6 6 0 0 1-6-6V8a1 1 0 0 1 1-1h1.5V3.5a1 1 0 0 1 1-1z",
   settings: "M10.3 2h3.4l.5 2.6a7.6 7.6 0 0 1 1.8 1l2.5-.9 1.7 2.9-2 1.8a7.7 7.7 0 0 1 0 2.1l2 1.8-1.7 2.9-2.5-.9a7.6 7.6 0 0 1-1.8 1l-.5 2.7h-3.4l-.5-2.7a7.6 7.6 0 0 1-1.8-1l-2.5.9-1.7-2.9 2-1.8a7.7 7.7 0 0 1 0-2.1l-2-1.8 1.7-2.9 2.5.9a7.6 7.6 0 0 1 1.8-1zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z",
@@ -74,7 +75,7 @@ const TABS: { id: Section["id"]; name: () => string }[] = [
   { id: "home", name: () => t("Home") },
   { id: "jarvis", name: () => "JARVIS" },
   { id: "agents", name: () => t("Agents") },
-  { id: "notes", name: () => t("Dictation") },
+  { id: "notes", name: () => t("Notes") },
   { id: "mail", name: () => "Mail" },
 ];
 
@@ -84,19 +85,21 @@ const TABS: { id: Section["id"]; name: () => string }[] = [
  * headed by its coloured icon, its name and ›, and opening its section. Their insides come one by
  * one in the next steps.
  */
-const GLANCE: { id: string; name: () => string; color: string; to: Section["id"] | null; size: "wide" | "big" | "small" }[] = [
+// #84: each widget opens where its name says: Dictation the Dictation tab, the Notetaker its own;
+// the plan opens Agents, where the plan's chip lives, instead of being a dead end.
+const GLANCE: { id: string; name: () => string; color: string; to: Section["id"] | PageId | null; size: "wide" | "big" | "small" }[] = [
   { id: "agents", name: () => t("Agents"), color: "#30d158", to: "agents", size: "big" },
   { id: "jarvis", name: () => "JARVIS", color: "#bf5af2", to: "jarvis", size: "wide" },
-  { id: "plan", name: () => t("Claude plan"), color: "#3a3a3c", to: null, size: "small" },
+  { id: "plan", name: () => t("Claude plan"), color: "#3a3a3c", to: "agents", size: "small" },
   { id: "notetaker", name: () => t("Notetaker"), color: "#ff453a", to: "notes", size: "small" },
   { id: "mail", name: () => "Mail", color: "#0a84ff", to: "mail", size: "wide" },
-  { id: "notes", name: () => t("Dictation"), color: "#ff9f0a", to: "notes", size: "wide" },
+  { id: "notes", name: () => t("Dictation"), color: "#ff9f0a", to: "dictation", size: "wide" },
   { id: "windows", name: () => t("His windows"), color: "#5e5ce6", to: "jarvis", size: "wide" },
   { id: "connections", name: () => t("Connections"), color: "#64d2ff", to: "connections", size: "wide" },
 ];
 
 /** The widgets, each with an empty body (`data-body`) for its step to fill. */
-export function glance(go: (section: Section["id"]) => void): HTMLElement {
+export function glance(go: (to: Section["id"] | PageId) => void): HTMLElement {
   const bento = h("div", { class: "jv-bento" });
   for (const w of GLANCE) {
     const ic = h("span", { class: "ic" }, sectionIcon(w.id, 14));
@@ -109,7 +112,12 @@ export function glance(go: (section: Section["id"]) => void): HTMLElement {
       card.setAttribute("tabindex", "0");
       card.classList.add("opens");
       card.addEventListener("click", () => go(to));
-      card.addEventListener("keydown", (e) => { if (e.key === "Enter") go(to); });
+      // Enter or Space on the card itself (#84): a key on a button inside it is that button's.
+      card.addEventListener("keydown", (e) => {
+        if (e.target !== card || (e.key !== "Enter" && e.key !== " ")) return;
+        e.preventDefault();
+        go(to);
+      });
     }
     bento.append(card);
   }
@@ -130,7 +138,7 @@ export interface HomeHandle {
   destroy(): void;
 }
 
-export function homePage(ctx: HubContext, go: (section: Section["id"]) => void): HomeHandle {
+export function homePage(ctx: HubContext, go: (to: Section["id"] | PageId) => void): HomeHandle {
   const date = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
   const hero = h("section", { class: "jv-hero" },
     h("div", { class: "jv-center" },

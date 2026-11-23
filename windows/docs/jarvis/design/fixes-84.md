@@ -11,18 +11,18 @@ Working list for PR #85 (main window only; the island comes after). Ticked as th
 - [x] Settings at 820 px: nav stays left, controls stay right.
 - [x] Settings nav highlight reaches Privacy/About; drill page lights its group.
 - [x] demoRows: an empty <label> counts as no name (rows fold into the setting above).
-- [ ] Sidebar stuck open over the logo row (winctl hit box while dots hidden).
+- [x] Sidebar stuck open over the logo row (winctl hit box while dots hidden).
 - [ ] Listener/timer leaks: Dictation History onLeave on sub ctx; shell race (onLeave/listeners of a superseded render); phone page isConnected interval; Settings redraw listeners (notch-tabs storage, voice onEvent, flowsettings).
 - [ ] Mail full views scroll the right container (.hub-scroll) and Back restores.
 - [ ] Notetaker: don't pull back into the recording; red "Recording · back to it" pill.
-- [ ] Home "New session" Enter (card keydown only when target is the card); Space opens cards too.
+- [x] Home "New session" Enter (card keydown only when target is the card); Space opens cards too.
 - [ ] Read-along: pieces of <= 2 sentences, timed by length, gap at pauses/speaker changes.
 - [ ] Home: orbit not rebuilt on every tick; Agents card fixed demo size; hero padding (greeting above dock); tile names ellipsis; empty Connections sentence; plan widget sizes/labels.
 - [ ] Pages: Agents card stack animates (no rebuild); Notetaker no flicker on notes-changed; fixed heights -> flex fill (Mail, Talk, Agents); word-wall search keeps focus; Mail stale day/month requests; waveforms scaleY; Dictation columns top-aligned; dright chip on the tabs line; talk "…" timeout + Try again; Connections "Checking…"; Sorting "Turn on" stays on the page.
 - [ ] Hidden rail on Home out of Tab order; reduced motion for orbit/stars/eye.
 
 ## Usability: signifiers and mapping
-- [ ] Home "Dictation" tab + widget open Notetaker: go() takes a page; one name for the section.
+- [x] Home "Dictation" tab + widget open Notetaker: go() takes a page; one name for the section.
 - [ ] Mail Overview small "Waiting" card: ↩ ✓ ↗ spans look like buttons, do nothing.
 - [ ] Mail colours: non-VIP sender pills green = "waiting"; Home "waiting" orange = VIP; pick one.
 - [ ] Dictation columns "+" doesn't add (and on Styles can't): use "›" or focus the add field.
@@ -30,28 +30,28 @@ Working list for PR #85 (main window only; the island comes after). Ticked as th
 - [ ] Connections setup: colour dot vs key-status dot look identical: label/words.
 - [ ] Talk "His voice": Change › teleports to Settings with no way back; ▶ navigates; onlyMe switch navigates.
 - [ ] Status chips look like button chips; "In use" span styled as button.
-- [ ] One icon per section everywhere (Notes pencil vs mic; JARVIS pulse vs visor).
+- [x] One icon per section everywhere (Notes pencil vs mic; JARVIS pulse vs visor).
 - [ ] "His windows" widget opens the conversation (no windows view).
-- [ ] Ask dock: cursor text but it's a button; pulse icon looks like a separate control.
+- [x] Ask dock: cursor text but it's a button; pulse icon looks like a separate control.
 - [ ] Rail status line collapsed looks like a switch.
 - [ ] Mail next-month › on current month: dead span looks enabled.
 - [ ] Notetaker Today: clickable notes and plain events look the same; red = failed and upcoming.
 - [ ] Rename note hidden (tooltip only); speaker rename too.
 - [ ] Help text paths that don't exist: "Hey JARVIS tab", "Notch → Chat", "Settings → Privacy" (history).
-- [ ] Plan widget: "42%" used or left? not clickable but looks like the others.
+- [x] Plan widget: "42%" used or left? not clickable but looks like the others.
 - [ ] Voice card's permanent blue ring reads as selected.
 - [ ] Dictation column previews highlight unselected items (sel).
 - [x] Settings General rows split from their setting (Clear history, "You have").
 
 ## Usability: tasks Home → Notes
 - [x] Returning to Home lands at the top (restore scroll).
-- [ ] Three names for Notes (Notes / Dictation / Notetaker).
-- [ ] Plan widget dead end; reset line cut.
-- [ ] Empty widgets say what to do (Connections, Plan).
+- [x] Three names for Notes (Notes / Dictation / Notetaker).
+- [x] Plan widget dead end; reset line cut.
+- [x] Empty widgets say what to do (Connections, Plan).
 - [ ] Home top-right plug/gear unlabelled.
-- [ ] Only the first pending approval can be answered (one bar per request / 1 of 2).
-- [ ] Two agents in one folder indistinguishable (add the app).
-- [ ] No feedback after Allow/Deny.
+- [x] Only the first pending approval can be answered (one bar per request / 1 of 2).
+- [x] Two agents in one folder indistinguishable (add the app).
+- [x] No feedback after Allow/Deny.
 - [ ] Home agent rows open Agents with that agent in front.
 - [ ] Agents approval bar under the fold.
 - [ ] No permanent "New session" on Agents page / Home header.
@@ -61,9 +61,9 @@ Working list for PR #85 (main window only; the island comes after). Ticked as th
 - [ ] Dictation: setup (turn on, download model) only in History -> top of Dictation tab; styles do nothing with clean-up off (say so / switch near); removals without undo; copy without feedback; replacement syntax hidden (two-field add); per-app styles wording; two tab levels look the same; History heading duplicated + promo.
 
 ## Usability: tasks Mail, Connections, Settings, wording
-- [ ] Ctrl K: raw keys (hub.mail.autosort...): index real English labels; test no dotted keys.
-- [ ] Ctrl K lands wrong (moved pages): land on row/group (shell landOn, done in part).
-- [ ] Ctrl K index out of date (Close after, Launch at Mac startup; "auto-close", "version", "microphone", "api key", "token" not found); breadcrumbs name gone pages: build from rendered rows/tiles.
+- [x] Ctrl K: raw keys (hub.mail.autosort...): index real English labels; test no dotted keys.
+- [x] Ctrl K lands wrong (moved pages): land on row/group (shell landOn, done in part).
+- [x] Ctrl K index out of date (Close after, Launch at Mac startup; "auto-close", "version", "microphone", "api key", "token" not found); breadcrumbs name gone pages: build from rendered rows/tiles.
 - [ ] Ctrl K has no visible way in; two searches with different indexes.
 - [ ] Connections: 4-pill limit silent (disable + WhatsApp sentence + which 4); "pill" undefined; tile "Off · turn on" suggests one-click.
 - [ ] Key Save feedback only a dot (use Accounts notices, label the status dot).
@@ -78,17 +78,17 @@ Working list for PR #85 (main window only; the island comes after). Ticked as th
 - [ ] Wording: Mail hard-coded untranslatable; Mochi-era strings; ALL CAPS subheads; one verb per act; Save vs instant apply (keys lost unsaved); Back links one pattern + Esc/Alt+Left; empty states with an action.
 
 ## Usability: navigation and chrome
-- [ ] Rail opens on almost any entry: zero-speed bug (pointerenter seeds `last`, same timestamp => speed 0). Judge speed over >= 40 ms, ignore dt < 4 ms.
-- [ ] No real dwell: open after ~300 ms of rest/slow average inside the rail (keyboard focus stays instant).
-- [ ] Open rail covers page tabs/back links and catches clicks: close on a rightward exit past the collapsed edge.
-- [ ] No close grace: close after ~300-400 ms off rail and dots; cancel if the pointer comes back.
-- [ ] Home: rail buttons invisible but tabbable (inert on Home).
-- [ ] Window dots invisible but tabbable (done: visibility); open on focusin.
-- [ ] Rail focus ring invisible (done: focus-visible).
-- [ ] Ctrl K: arrows through results; visible search button with the shortcut.
+- [x] Rail opens on almost any entry: zero-speed bug (pointerenter seeds `last`, same timestamp => speed 0). Judge speed over >= 40 ms, ignore dt < 4 ms.
+- [x] No real dwell: open after ~300 ms of rest/slow average inside the rail (keyboard focus stays instant).
+- [x] Open rail covers page tabs/back links and catches clicks: close on a rightward exit past the collapsed edge.
+- [x] No close grace: close after ~300-400 ms off rail and dots; cancel if the pointer comes back.
+- [x] Home: rail buttons invisible but tabbable (inert on Home).
+- [x] Window dots invisible but tabbable (done: visibility); open on focusin.
+- [x] Rail focus ring invisible (done: focus-visible).
+- [x] Ctrl K: arrows through results; visible search button with the shortcut.
 - [ ] Window chrome: drag on all empty top chrome; dots hit area >= 24 px; hovering the visor force-opens the rail (wc-open); "Full screen" tooltip says Maximise.
-- [ ] Esc closes rail/dots; Esc or Alt+Left = Back; Ctrl+, opens Settings.
-- [ ] Notes and Mail pages show their section name.
-- [ ] Settings back link >= 24 px tall.
+- [x] Esc closes rail/dots; Esc or Alt+Left = Back; Ctrl+, opens Settings.
+- [x] Notes and Mail pages show their section name.
+- [x] Settings back link >= 24 px tall.
 - [ ] Option to keep the sidebar expanded.
 - [ ] Home: tabbed-to tiles hidden under the dock (scroll-padding).
