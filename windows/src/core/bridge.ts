@@ -293,6 +293,10 @@ export const Bridge = {
   clipboardClear: () => call<void>("clipboard_clear"),
   /** The right press about to open the webview's menu was on this Home square (null: elsewhere). */
   contextZone: (slot: number | null) => call<void>("context_zone", { slot }),
+  /** Seconds since the last keyboard or mouse input on the PC (src-tauri/src/presence.rs). */
+  userIdleSeconds: () => call<number>("user_idle_seconds"),
+  /** Whether anything plays music in Windows' media panel; "music-playing" says when it changes. */
+  musicPlaying: () => call<boolean>("music_playing"),
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),

@@ -196,18 +196,19 @@ export function stepDanceLevel(level: number, dancing: boolean, dt: number): num
 
 /**
  * The 112-BPM bounce at `seconds`, for a body of radius R and a dance `level`
- * (0…1): a sideways sway, a hop, a tilt, and a squash on landing.
+ * (0…1): a sideways sway, a hop, a tilt, and a squash on landing. JARVIS: livelier than
+ * Mochi's, with a slow side-step across each bar of four beats.
  */
 export function danceTransform(seconds: number, level: number, R: number) {
   const beat = (seconds * 112) / 60;
   const hop = Math.abs(Math.sin(Math.PI * beat));
   const land = Math.pow(1 - hop, 6);
   return {
-    dx: 0.08 * R * Math.sin(Math.PI * beat) * level,
-    dy: -0.2 * R * hop * level,
-    rotate: 0.1 * Math.sin(Math.PI * beat) * level,
-    sx: 1 + 0.045 * land * level,
-    sy: 1 - 0.06 * land * level,
+    dx: (0.13 * Math.sin(Math.PI * beat) + 0.1 * Math.sin((Math.PI * beat) / 4)) * R * level,
+    dy: -0.26 * R * hop * level,
+    rotate: 0.15 * Math.sin(Math.PI * beat) * level,
+    sx: 1 + 0.06 * land * level,
+    sy: 1 - 0.08 * land * level,
   };
 }
 
@@ -505,6 +506,32 @@ export class BotEngine {
       this.eyeOverrideUntil = 0;
     }
     this.miniNextBehavior = now() + 0.8 + Math.random() * 1.7;
+  }
+
+  /** JARVIS: drowsy after a long while with no input (core/idle.ts): eye half-lidded and dimmer. */
+  drowsy = false;
+  setDrowsy(on: boolean) {
+    this.drowsy = on;
+  }
+
+  /** JARVIS: one of his little idle bits from the character sheet (the look is the island's). */
+  playBit(bit: "hop" | "wink" | "stretch" | "tilt") {
+    switch (bit) {
+      case "hop":
+        this.anim("sy", [[0.94, 120, Ease.out], [1.04, 160, Ease.out], [1, 320, Ease.back]]);
+        this.anim("oy", [[0, 120, Ease.lin], [-0.28, 200, Ease.out], [0, 360, Ease.back]]);
+        break;
+      case "wink":
+        this.triggerEmote("wink", 1.2);
+        break;
+      case "stretch":
+        this.anim("sy", [[1.08, 500, Ease.inOut], [1.08, 400, Ease.lin], [1, 500, Ease.inOut]]);
+        this.anim("sx", [[0.96, 500, Ease.inOut], [0.96, 400, Ease.lin], [1, 500, Ease.inOut]]);
+        break;
+      case "tilt":
+        this.anim("tilt", [[-0.12, 300, Ease.out], [-0.12, 900, Ease.lin], [0, 400, Ease.inOut]]);
+        break;
+    }
   }
 
   triggerEmote(emote: BotEmoteName, duration = 1.8) {
@@ -941,7 +968,10 @@ export class BotEngine {
 
   /** The light bar's colour: JARVIS blue at rest, the state colour when something happens. */
   private get eyeLight(): RGB {
-    return mix3(VISOR_LIGHT, this.col, Math.min(1, this.tint / 0.7));
+    const light = mix3(VISOR_LIGHT, this.col, Math.min(1, this.tint / 0.7));
+    // JARVIS: drowsy, the light dims toward grey.
+    if (this.drowsy && this.state === "idle") return mix3(light, [0.39, 0.39, 0.4], 0.45);
+    return light;
   }
 
   private drawBody(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
@@ -1008,6 +1038,8 @@ export class BotEngine {
 
   private drawEyes(x: CanvasRenderingContext2D, body: Path2D, R: number, rx: number, ry: number) {
     let shape: EyeShape = this.eyeOverride ?? this.cfg.eye;
+    // JARVIS: drowsy, the eye sits half-lidded (an emote or a state still wins).
+    if (this.drowsy && !this.eyeOverride && this.state === "idle" && !this.isMini) shape = "tired";
     // Dancing: happy eyes in the calm states.
     if (this.isDancing && this.dancingLevel > 0.15 && !this.isMini && (this.state === "idle" || this.state === "finished")) {
       shape = "happy";
