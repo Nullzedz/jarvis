@@ -1578,6 +1578,7 @@ export class Island {
       focusId: State.focusTask?.id,
     }));
 
+    this.engine.danceRoom = this.danceRoom();
     this.engine.update(dt);
     // Cleared in device pixels, the whole canvas. At a fractional scale (150 %)
     // the canvas is a whole number of pixels but `hCss * dpr` is not: clearing
@@ -1590,6 +1591,34 @@ export class Island {
     this.engine.applyDance(ctx, w, hCss);
     this.engine.draw(ctx, w, hCss);
     ctx.restore();
+  }
+
+  /**
+   * JARVIS: the room he has to dance in, px from his resting outline: sideways and upward.
+   * On Home it's his card, up to where its text starts (140 px in); elsewhere the notch itself.
+   * A few px are kept free, so he never touches an edge.
+   */
+  private danceRoom(): { x: number; up: number } | null {
+    if (!this.engine.isDancing && this.engine.dancingLevel <= 0.001) return null;
+    const R = this.botSize.value * 0.3; // his canvas is diameter / 0.6; R = diameter / 2
+    const halfW = R, halfH = R * 0.7, cx = this.botCx.value, cy = this.botCy.value;
+    const keep = 4;
+    if (State.mode === "expanded" && State.view === "overview") {
+      const card = this.islandEl.querySelector<HTMLElement>(".overview .left > .card, .overview .left .card");
+      if (card) {
+        const c = card.getBoundingClientRect(), isl = this.islandEl.getBoundingClientRect();
+        const left = c.left - isl.left, top = c.top - isl.top;
+        return {
+          x: Math.max(0, Math.min(cx - halfW - left, left + 140 - (cx + halfW)) - keep),
+          up: Math.max(0, cy - halfH - top - keep),
+        };
+      }
+    }
+    const end = this.targetSize();
+    return {
+      x: Math.max(0, Math.min(cx - halfW, end.w - (cx + halfW)) - keep),
+      up: Math.max(0, cy - halfH - keep / 2),
+    };
   }
 
   /** BotCanvasView.lookX / lookY — tanh of the distance to the bot. */

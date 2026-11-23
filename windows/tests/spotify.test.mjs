@@ -11,7 +11,7 @@ import {
   IDLE_SPOTIFY, SPOTIFY_ID, Spotify, currentArtwork, desktopDances, formatTime, isAd, islandDances,
   musicPlaying, spotifyPosition, volumeLevel, withPlaying,
 } from "../src/core/spotify.ts";
-import { BotEngine, danceTransform, stepDanceLevel } from "../src/mochi/engine.ts";
+import { BotEngine, danceFit, danceTransform, stepDanceLevel } from "../src/mochi/engine.ts";
 import { registerSpotifyHandlers } from "../src/island/spotify.ts";
 import { buildSpotifyCard, buildSpotifyPill } from "../src/views/spotify.ts";
 import { DEFAULT_SETTINGS, State } from "../src/core/state.ts";
@@ -303,4 +303,21 @@ test("the pill shows play/pause and next on hover, only with a track", () => {
   assert.equal(Spotify.state.playing, false);
   pill.el.fire("mouseleave");
   assert.ok(!pill.el.classList.contains("controls"));
+});
+
+test("JARVIS's dance fits the room he has: shrinks just enough, never grows", () => {
+  const R = 50;
+  assert.equal(danceFit(null, R), 1, "no room given: full dance");
+  assert.equal(danceFit({ x: 100, up: 100 }, R), 1, "plenty of room: full dance, never more");
+  assert.ok(Math.abs(danceFit({ x: 0.22 * R, up: 100 }, R) - 0.5) < 1e-9, "half the sideways reach: half the dance");
+  assert.ok(Math.abs(danceFit({ x: 100, up: 0.205 * R }, R) - 0.5) < 1e-9, "half the upward reach: half the dance");
+  assert.equal(danceFit({ x: 0, up: 100 }, R), 0, "no room at all: he stands still");
+  // The fitted dance never reaches past the room.
+  const room = { x: 9, up: 12 };
+  const k = danceFit(room, R);
+  for (let s = 0; s < 3; s += 0.01) {
+    const d = danceTransform(s, k, R);
+    assert.ok(Math.abs(d.dx) + Math.abs(d.rotate) * 1.4 * R <= room.x + 1e-6);
+    assert.ok(-d.dy + Math.abs(d.rotate) * R <= room.up + 1e-6);
+  }
 });
