@@ -10729,21 +10729,6 @@
       "tr": "Hesaplar ve anahtarlar",
       "zh-Hans": "账户和密钥"
     },
-    "Choose what the notch's tab bar shows, and in what order.": {
-      "ar": "اختر ما يعرضه شريط علامات التبويب في النوتش وبأي ترتيب.",
-      "bn": "নচের ট্যাব বারে কী দেখাবে এবং কোন ক্রমে, তা বেছে নিন।",
-      "de": "Wähle, was die Tab-Leiste der Notch zeigt und in welcher Reihenfolge.",
-      "es": "Elige qué muestra la barra de pestañas del notch y en qué orden.",
-      "fr": "Choisissez ce qu'affiche la barre d'onglets de l'encoche, et dans quel ordre.",
-      "hi": "चुनें कि नॉच की टैब बार क्या और किस क्रम में दिखाए।",
-      "id": "Pilih apa yang ditampilkan bilah tab notch, dan urutannya.",
-      "ja": "ノッチのタブバーに表示する内容と順番を選びます。",
-      "ko": "노치의 탭 막대에 무엇을 어떤 순서로 표시할지 선택하세요.",
-      "pt-BR": "Escolha o que a barra de abas do notch mostra e em que ordem.",
-      "ru": "Выберите, что показывает панель вкладок выреза и в каком порядке.",
-      "tr": "Çentiğin sekme çubuğunun ne göstereceğini ve hangi sırayla göstereceğini seçin.",
-      "zh-Hans": "选择刘海标签栏显示什么以及顺序。"
-    },
     "Codex, Cursor and the rest: what JARVIS follows.": {
       "ar": "Codex وCursor والبقية: ما يتابعه JARVIS.",
       "bn": "Codex, Cursor এবং বাকিরা: JARVIS যা অনুসরণ করে।",
@@ -10803,21 +10788,6 @@
       "ru": "Как он вас слышит и как отвечает.",
       "tr": "Sizi nasıl duyduğu ve nasıl yanıtladığı.",
       "zh-Hans": "他如何听你说话、如何回答。"
-    },
-    "Island": {
-      "ar": "الجزيرة",
-      "bn": "আইল্যান্ড",
-      "de": "Insel",
-      "es": "Isla",
-      "fr": "Île",
-      "hi": "आइलैंड",
-      "id": "Pulau",
-      "ja": "アイランド",
-      "ko": "아일랜드",
-      "pt-BR": "Ilha",
-      "ru": "Остров",
-      "tr": "Ada",
-      "zh-Hans": "灵动岛"
     },
     "Its hooks, so JARVIS sees what it does and can answer its questions.": {
       "ar": "خطافاته، ليرى JARVIS ما يفعله ويجيب على أسئلته.",
@@ -10923,21 +10893,6 @@
       "ru": "ИИ, которые может использовать чат острова, с вашими ключами.",
       "tr": "Adanın sohbetinin kendi anahtarlarınızla kullanabileceği yapay zekâlar.",
       "zh-Hans": "灵动岛聊天可用你自己的密钥调用的 AI。"
-    },
-    "The black island at the top of your screen.": {
-      "ar": "الجزيرة السوداء أعلى شاشتك.",
-      "bn": "আপনার স্ক্রিনের উপরে কালো আইল্যান্ড।",
-      "de": "Die schwarze Insel oben auf deinem Bildschirm.",
-      "es": "La isla negra en la parte superior de tu pantalla.",
-      "fr": "L'île noire en haut de votre écran.",
-      "hi": "आपकी स्क्रीन के ऊपर काला आइलैंड।",
-      "id": "Pulau hitam di bagian atas layar Anda.",
-      "ja": "画面上部の黒いアイランド。",
-      "ko": "화면 상단의 검은 아일랜드.",
-      "pt-BR": "A ilha preta no topo da sua tela.",
-      "ru": "Чёрный остров в верхней части экрана.",
-      "tr": "Ekranınızın üstündeki siyah ada.",
-      "zh-Hans": "屏幕顶部的黑色灵动岛。"
     },
     "The status line relay that reads your Claude plan's limits.": {
       "ar": "مرحّل شريط الحالة الذي يقرأ حدود خطة Claude.",
@@ -12810,6 +12765,21 @@
       "zh-Hans": {
         "other": "{count} 个词"
       }
+    },
+    "Everything about the notch at the top of your screen: its tabs, its pills and how it behaves.": {
+      "ar": "كل ما يخص النوتش أعلى شاشتك: تبويباته وشاراته وطريقة عمله.",
+      "bn": "আপনার স্ক্রিনের ওপরের নচের সবকিছু: এর ট্যাব, পিল আর এটি কীভাবে চলে।",
+      "de": "Alles zur Notch oben auf deinem Bildschirm: ihre Tabs, ihre Pillen und wie sie sich verhält.",
+      "es": "Todo sobre el notch en la parte superior de tu pantalla: sus pestañas, sus píldoras y cómo se comporta.",
+      "fr": "Tout sur l’encoche en haut de votre écran : ses onglets, ses pastilles et son comportement.",
+      "hi": "आपकी स्क्रीन के ऊपर नॉच के बारे में सब कुछ: इसके टैब, इसकी पिल और यह कैसे चलता है।",
+      "id": "Semua tentang notch di atas layar Anda: tabnya, pilnya, dan cara kerjanya.",
+      "ja": "画面上部のノッチのすべて：タブ、ピル、動作。",
+      "ko": "화면 위 노치의 모든 것: 탭, 알약, 동작 방식.",
+      "pt-BR": "Tudo sobre o notch no topo da tela: suas abas, suas pílulas e como ele se comporta.",
+      "ru": "Всё о вырезе вверху экрана: его вкладки, значки и поведение.",
+      "tr": "Ekranınızın üstündeki çentik hakkında her şey: sekmeleri, hapları ve nasıl davrandığı.",
+      "zh-Hans": "屏幕顶部刘海的一切：标签、胶囊和它的行为方式。"
     }
   }
 }

@@ -786,3 +786,6 @@ span.jv-mrb { opacity: .9; }
 .jv-wdetail .jv-sinput { flex: 1; }
 .jv-wdetail .jv-sinput.area { min-height: 84px; resize: vertical; font: 13px/1.5 ui-monospace, Consolas, monospace; }
 .jv-chipbtn.inuse { cursor: default; } .jv-chipbtn.inuse .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--jv-green); display: inline-block; }
+
+/* #80: the Notch group's parts (tabs, pills, behaviour) */
+.jv-sgroup .jv-psub { margin: 26px 0 6px; font-size: 13px; font-weight: 600; color: var(--jv-t2); text-transform: none; letter-spacing: 0; }

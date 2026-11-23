@@ -1842,6 +1842,9 @@ export class Island {
 
   // ── DOM sync ────────────────────────────────────────────────────────────────
 
+  /** The open view's height when last measured (syncDom). */
+  private lastFit = 0;
+
   private syncDom() {
     const expanded = State.mode === "expanded";
     const greetingActive = expanded && State.view === "greeting";
@@ -1867,6 +1870,16 @@ export class Island {
       const on = name === State.view;
       view.el.classList.toggle("on", on);
       if (on) view.sync();
+    }
+    // #80: the notch never makes you scroll. A view whose content arrives after it opened (Focus's
+    // music and reminders, a list that fills in) is measured again and the notch grows to fit.
+    // Not while it is still moving: a view that stretches with the notch would feed back into itself.
+    if (expanded && performance.now() > this.geomEnd) {
+      const fit = this.views.get(State.view)?.fitHeight?.();
+      if (fit != null && fit > 0 && Math.abs(fit - this.lastFit) > 1) {
+        this.lastFit = fit;
+        this.animateGeometry(false);
+      }
     }
 
     // The chat and the launch card are the views with a text field, so they
