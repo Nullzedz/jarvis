@@ -32,6 +32,7 @@ import { MAIL_ID } from "../core/mail";
 import { buildMailCard } from "./mail";
 import { buildCalendar } from "./gcal";
 import { buildClipboard, buildNotes, buildReminders } from "./pocket";
+import { buildWidgets } from "./widgets";
 import { buildLive } from "./live";
 import * as Live from "../core/live";
 import type { Outfit, OutfitSelection } from "../mochi/wardrobe";
@@ -127,7 +128,7 @@ function stack(padLeft: number, padRight: number, ...children: Node[]): HTMLElem
 // ── Header ────────────────────────────────────────────────────────────────────
 
 export function buildHeader(actions: ViewActions): ViewHost {
-  const tabHome = h("button", { class: "tab", title: tl("Overview"), onclick: () => go("overview") }, svg(ICONS.house, 17));
+  const tabHome = h("button", { class: "tab", title: t("Home"), onclick: () => go("overview") }, svg(ICONS.house, 17));
   const tabChat = h("button", { class: "tab", title: tl("Ask"), onclick: () => go("prompt") }, svg(ICONS.bubbleRound, 19));
   const tabDrop = h("button", { class: "tab", title: tl("Drop"), onclick: () => go("upload") }, svg(ICONS.plus, 16));
   // A new Claude Code session, in a project, from here (Mac: the terminal tab).
@@ -138,7 +139,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   );
   // JARVIS: the calendar (src/views/gcal.ts).
   const tabCalendar = h("button", { class: "tab", title: tl("Calendar"), onclick: () => go("calendar") }, svg(ICONS.calendar, 17, { stroke: 1.7 }));
-  // JARVIS: the bigger notch's own tabs (SPEC §7).
+  // JARVIS: the bigger notch's own tabs (SPEC §7). Overview: the prototype's four squares.
+  const tabWidgets = h("button", { class: "tab", title: t("Overview"), onclick: () => go("widgets") }, svg("M5 3.5h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9 10.5H5A1.5 1.5 0 0 1 3.5 9V5A1.5 1.5 0 0 1 5 3.5zM15 3.5h4A1.5 1.5 0 0 1 20.5 5v4a1.5 1.5 0 0 1-1.5 1.5h-4A1.5 1.5 0 0 1 13.5 9V5A1.5 1.5 0 0 1 15 3.5zM5 13.5h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9 20.5H5A1.5 1.5 0 0 1 3.5 19v-4A1.5 1.5 0 0 1 5 13.5zM15 13.5h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4a1.5 1.5 0 0 1 1.5-1.5z", 17, { stroke: 1.7 }));
   const tabReminders = h("button", { class: "tab", title: t("Reminders"), onclick: () => go("reminders") }, svg("M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM8.2 12.2l2.6 2.6 5-5.6", 17, { stroke: 1.7 }));
   const tabNotes = h("button", { class: "tab", title: t("Notes"), onclick: () => go("notes") }, svg("M6 3.5h12v17H6zM9.5 8.5h5M9.5 12h5M9.5 15.5h3", 17, { stroke: 1.7 }));
   const tabClipboard = h("button", { class: "tab", title: t("Clipboard"), onclick: () => go("clipboard") }, svg("M7 5h10a1.5 1.5 0 0 1 1.5 1.5v13A1.5 1.5 0 0 1 17 21H7a1.5 1.5 0 0 1-1.5-1.5v-13A1.5 1.5 0 0 1 7 5zM9.5 3.5h5v3h-5z", 17, { stroke: 1.7 }));
@@ -162,7 +164,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
   const el = h(
     "div",
     { id: "header" },
-    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabReminders, tabNotes, tabClipboard),
+    h("div", { class: "tabs" }, tabHome, tabChat, tabDrop, tabLaunch, tabCalendar, tabWidgets, tabReminders, tabNotes, tabClipboard),
     h("div", { class: "header-actions" }, planPills, gearBtn, soundBtn, closeBtn),
   );
   const headerActions = el.lastElementChild as HTMLElement;
@@ -176,6 +178,7 @@ export function buildHeader(actions: ViewActions): ViewHost {
       tabDrop.classList.toggle("on", v === "upload");
       tabLaunch.classList.toggle("on", v === "launch");
       tabCalendar.classList.toggle("on", v === "calendar");
+      tabWidgets.classList.toggle("on", v === "widgets");
       tabReminders.classList.toggle("on", v === "reminders");
       tabNotes.classList.toggle("on", v === "notes");
       tabClipboard.classList.toggle("on", v === "clipboard");
@@ -915,6 +918,7 @@ export function buildViews(
   map.set("reminders", buildReminders(pocket));
   map.set("notes", buildNotes(pocket));
   map.set("clipboard", buildClipboard(pocket));
+  map.set("widgets", buildWidgets({ setView: (x) => actions.setView(x), blip: () => actions.blip(), resize: onChatHeightChange }));
   map.set("live", buildLive(actions, onChatHeightChange));
   // Not in the Windows v1: sending a file by email, window attach + web result.
   map.set("mail", buildPlaceholder(tl("Sending by email isn't in this version."), ""));

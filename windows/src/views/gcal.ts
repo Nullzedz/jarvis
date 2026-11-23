@@ -154,9 +154,9 @@ const timeText = (d: Date) => d.toLocaleTimeString(language(), { hour: "2-digit"
 const TONE: Record<Tone, string> = { blue: "#0a84ff", teal: "#30d158", amber: "#ff9f0a", purple: "#bf5af2" };
 const MINE = "#64d2ff"; // what you add here (the prototype's quick-add colour)
 
-interface MyEvent { id: string; title: string; start: number; time: string | null }
+export interface MyEvent { id: string; title: string; start: number; time: string | null }
 const MINE_KEY = "jarvis.events";
-function myEvents(): MyEvent[] {
+export function myEvents(): MyEvent[] {
   try {
     const v = JSON.parse(localStorage.getItem(MINE_KEY) ?? "[]");
     return Array.isArray(v) ? v : [];

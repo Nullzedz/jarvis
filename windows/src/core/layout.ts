@@ -34,7 +34,9 @@ export type IslandViewName =
   // JARVIS: the bigger notch's Reminders and Notes tabs (src/views/pocket.ts).
   | "reminders"
   | "notes"
-  | "clipboard";
+  | "clipboard"
+  // JARVIS: the prototype's Overview, its widget tiles (src/views/widgets.ts).
+  | "widgets";
 
 export type BotStateName =
   | "idle"
@@ -125,6 +127,7 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   reminders: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   notes: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   clipboard: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  widgets: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -184,7 +187,7 @@ export function botPosition(
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
       // The full-width tabs: he steps aside, out of sight.
-      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard") {
+      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard" || view === "widgets") {
         return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
       }
       if (view === "uploading") {
