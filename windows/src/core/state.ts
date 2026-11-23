@@ -7,6 +7,7 @@ import {
   slotColor, toggleDeclared, type Declared, type HostOs, type PillDefinition,
 } from "./pills";
 import type { CodexPlanUsage, PlanUsage } from "./plan";
+import { Focus } from "./focus";
 import type { ProviderId } from "./providers";
 import type { FileDiff } from "./diff";
 import type { Bindings } from "./shortcuts";
@@ -553,6 +554,7 @@ class AppState {
    */
   defaultView(): IslandViewName {
     if (this.pendingApproval) return this.pendingApproval.questions ? "question" : "approval";
+    if (Focus.get()) return "focusing";
     return this.tasks.length === 0 ? "empty" : "overview";
   }
 }

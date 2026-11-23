@@ -36,7 +36,10 @@ export type IslandViewName =
   | "notes"
   | "clipboard"
   // JARVIS: the prototype's Overview, its widget tiles (src/views/widgets.ts).
-  | "widgets";
+  | "widgets"
+  // JARVIS: the Focus tab, and focus mode while a session runs (src/views/focus.ts).
+  | "focus"
+  | "focusing";
 
 export type BotStateName =
   | "idle"
@@ -128,6 +131,8 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
   notes: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   clipboard: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
   widgets: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  focus: { height: 160, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
+  focusing: { height: 214, botX: 46, botY: 16, botDiameter: 6, agentMode: "none" },
 };
 
 // The upload views above are only the fallback geometry. Once a file is actually
@@ -187,7 +192,7 @@ export function botPosition(
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
       // The full-width tabs: he steps aside, out of sight.
-      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard" || view === "widgets") {
+      if (view === "calendar" || view === "reminders" || view === "notes" || view === "clipboard" || view === "widgets" || view === "focus" || view === "focusing") {
         return { cx: layout.botX, cy: layout.botY ?? 16, diameter: layout.botDiameter, opacity: 0 };
       }
       if (view === "uploading") {
