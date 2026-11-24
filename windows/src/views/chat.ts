@@ -256,11 +256,15 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
     body.classList.toggle("picking", picker.isOpen);
     drawModelButton();
   });
-  body.append(chipRow, log, picker.el, modelRow, bar);
+  // #86: a new chat shows three things to ask (the island demo); one fills the field.
+  const sugg = h("div", { class: "chat-sugg" },
+    ...[N_("What's on today?"), N_("Summarise my mail"), N_("Play some focus music")].map((q) =>
+      h("button", { text: t(q), onclick: () => { input.value = t(q); input.focus(); } })));
+  body.append(chipRow, log, picker.el, modelRow, bar, sugg);
   void loadSubscriptions().then(() => drawModelButton());
 
-  const el = h("div", { class: "view" }, h("div", { class: "card wash chat-card" }, body));
-  (el.querySelector(".card") as HTMLElement).style.setProperty("--wash", "rgba(99,102,241,0.5)");
+  // #86: no glow behind it (Apple design logic), and only as tall as what it holds.
+  const el = h("div", { class: "view" }, h("div", { class: "card chat-card" }, body));
 
   let sending = false;
   let renderedCount = -1;
@@ -352,6 +356,16 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
 
   return {
     el,
+    // A new chat is as tall as its rows (#86: a fixed 240 px, mostly empty); a conversation
+    // keeps growing as before (chatPromptHeight).
+    fitHeight: () => {
+      if (State.chatHistory.length > 0 || picker.isOpen || State.stateOverride === "thinking") return 0;
+      const rows = ([...body.children] as HTMLElement[]).filter((k) => getComputedStyle(k).display !== "none");
+      const cs = getComputedStyle(body);
+      const gap = parseFloat(cs.rowGap) || 0;
+      const pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      return Math.ceil(pad + rows.reduce((n, k) => n + k.offsetHeight, 0) + gap * Math.max(0, rows.length - 1) + 2);
+    },
     sync() {
       const file = State.droppedFile;
       const wantChip = file?.name ?? "";
@@ -376,6 +390,7 @@ export function buildPrompt(onHeightChange: () => void): ViewHost {
       drawModelButton();
 
       input.placeholder = t(State.chatHistory.length === 0 ? STRINGS.placeholderFirst : STRINGS.placeholderNext);
+      sugg.style.display = State.chatHistory.length === 0 && !thinking ? "" : "none";
       input.disabled = sending;
     },
     focus() {

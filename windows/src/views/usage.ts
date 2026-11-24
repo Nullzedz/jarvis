@@ -23,7 +23,8 @@ import { language, tl } from "../i18n/i18n";
 /** The Claude pill is in the header: overview, turned on, relay in. */
 export function claudePillVisible(): boolean {
   const s = State.settings;
-  return State.view === "overview" && s.showPlanInNotch && s.planRelayInstalled;
+  // #86: in every tab, as in the notch prototype (it was Home's only).
+  return State.view !== "focusing" && s.showPlanInNotch && s.planRelayInstalled;
 }
 
 /** The compact island's Claude plan gauge: compact mode, turned on, relay in. */
@@ -34,13 +35,13 @@ export function claudeCompactPillVisible(): boolean {
 
 /** The Codex pill is in the header: overview, turned on (nothing to install). */
 export function codexPillVisible(): boolean {
-  return State.view === "overview" && State.settings.showCodexPlanInNotch;
+  return State.view !== "focusing" && State.settings.showCodexPlanInNotch;
 }
 
 /** A plan card is open and either of its pills (header or compact) is enabled. */
 export function planCardOpen(): boolean {
   if (!State.showingPlanDetail) return false;
-  if (State.planDetailIsCodex) return codexPillVisible();
+  if (State.planDetailIsCodex) return State.view === "overview" && codexPillVisible();
   const s = State.settings;
   return State.view === "overview" && (s.showPlanInNotch || s.showPlanInCompactIsland) && s.planRelayInstalled;
 }
@@ -147,7 +148,7 @@ export interface PlanPill {
 }
 
 /** One pill: colour dot and label, lit while hovered or while its card is open. */
-export function buildPlanPill(codex: boolean): PlanPill {
+export function buildPlanPill(codex: boolean, goHome: () => void = () => {}): PlanPill {
   const label = h("span", { class: "plan-pill-label" });
   const dotEl = h("i", { class: "plan-pill-dot" });
   const isOpen = () => State.showingPlanDetail && State.planDetailIsCodex === codex;
@@ -155,7 +156,9 @@ export function buildPlanPill(codex: boolean): PlanPill {
     class: "plan-pill",
     title: codex ? tl("Codex plan usage") : tl("Claude plan usage"),
     onclick: () => {
-      const open = isOpen();
+      // From another tab, its card opens on Home.
+      if (State.view !== "overview") goHome();
+      const open = isOpen() && State.view === "overview";
       State.planDetailIsCodex = codex;
       State.showingPlanDetail = !open;
       if (codex) refreshCodexPlanUsage();

@@ -107,7 +107,9 @@ export class IslandStateMachine {
 
   click() {
     this.byHover = false;
-    if (this.state !== "petit") return;
+    // #86: a click on the closed pill opens it as a click (the long fold), whether or not the
+    // hover wake got there first; before, which one won was luck (3 s or 10 s).
+    if (this.state !== "petit" && this.state !== "hidden") return;
     this.cancelTimers();
     this.transition("home");
   }

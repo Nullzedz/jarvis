@@ -13864,6 +13864,51 @@
       "ru": "Выберите, что показывает панель вкладок острова и в каком порядке. «Главная» всегда первая; скрытая вкладка открывается из обзора.",
       "tr": "Adanın sekme çubuğunun neyi hangi sırayla göstereceğini seçin. Ana Sayfa hep ilk sırada; gizli sekme Genel Bakış'tan açılır.",
       "zh-Hans": "选择岛的标签栏显示什么、按什么顺序。主页总在最前；隐藏的标签仍可从概览打开。"
+    },
+    "What's on today?": {
+      "ar": "ماذا لديّ اليوم؟",
+      "bn": "আজ কী আছে?",
+      "de": "Was steht heute an?",
+      "es": "¿Qué hay hoy?",
+      "fr": "Qu'est-ce qu'il y a aujourd'hui ?",
+      "hi": "आज क्या है?",
+      "id": "Ada apa hari ini?",
+      "ja": "今日の予定は？",
+      "ko": "오늘 일정은?",
+      "pt-BR": "O que tem pra hoje?",
+      "ru": "Что сегодня?",
+      "tr": "Bugün ne var?",
+      "zh-Hans": "今天有什么安排？"
+    },
+    "Summarise my mail": {
+      "ar": "لخّص بريدي",
+      "bn": "আমার মেইলের সারাংশ দাও",
+      "de": "Fasse meine Mails zusammen",
+      "es": "Resume mi correo",
+      "fr": "Résume mes e-mails",
+      "hi": "मेरे मेल का सारांश दो",
+      "id": "Ringkas email saya",
+      "ja": "メールを要約して",
+      "ko": "메일 요약해 줘",
+      "pt-BR": "Resuma meus e-mails",
+      "ru": "Кратко перескажи мою почту",
+      "tr": "E-postalarımı özetle",
+      "zh-Hans": "总结我的邮件"
+    },
+    "Play some focus music": {
+      "ar": "شغّل موسيقى للتركيز",
+      "bn": "মনোযোগের জন্য গান চালাও",
+      "de": "Spiel Musik zum Konzentrieren",
+      "es": "Pon música para concentrarme",
+      "fr": "Mets de la musique pour me concentrer",
+      "hi": "फ़ोकस के लिए संगीत चलाओ",
+      "id": "Putar musik untuk fokus",
+      "ja": "集中できる音楽をかけて",
+      "ko": "집중용 음악 틀어 줘",
+      "pt-BR": "Toque uma música para foco",
+      "ru": "Включи музыку для концентрации",
+      "tr": "Odaklanmak için müzik çal",
+      "zh-Hans": "放点专注音乐"
     }
   }
 }

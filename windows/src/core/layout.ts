@@ -2,6 +2,8 @@
 // + IslandRootView.botPosition. All values are logical pixels, identical to the
 // macOS app's points.
 
+import { CLOSED_BOT_D, CLOSED_H } from "./closed";
+
 export type IslandMode = "hidden" | "compact" | "expanded";
 
 export type IslandViewName =
@@ -145,6 +147,17 @@ export const VIEW_LAYOUTS: Record<IslandViewName, ViewLayout> = {
 /** JARVIS: the live code view folded to its summary once the session is done. */
 export const LIVE_FOLDED_H = 128;
 
+/** #86: the tabs sit in the notch prototype's .inner: 12 px in at the top, 16 at the sides and
+ *  bottom, a 32 px tab row and 12 px under it. The cards ported from the Mac (approval, drop,
+ *  launch, greeting…) keep their own 8/10/10 and 34 px header, which their drawings are tied to. */
+export const TAB_INSET = { top: 12, bar: 32, gap: 12, side: 16, bottom: 16 } as const;
+const TABBED = new Set<IslandViewName>(["overview", "calendar", "widgets", "reminders", "notes", "clipboard", "focus", "agents", "prompt", "settings"]);
+export function tabbedView(view: IslandViewName): boolean {
+  return TABBED.has(view);
+}
+/** How much more room the prototype's insets take than the Mac's: 14 above, 6 below, 6 a side. */
+const TAB_EXTRA = { top: TAB_INSET.top + TAB_INSET.bar + TAB_INSET.gap - 42, bottom: TAB_INSET.bottom - 10, side: TAB_INSET.side - 10 };
+
 /** The question view with options to pick from: room for two rows of them. */
 export const QUESTION_PICKER_H = 200;
 
@@ -164,10 +177,11 @@ export function islandSize(
       // slides into the top edge of the screen instead of sitting there as a bar.
       return { w: NOTCH_W, h: 0 };
     case "compact":
-      return { w: COMPACT_W, h: NOTCH_H };
+      // #86: the closed pill's height (34), so the compact→closed step after a ✕ doesn't jump 2 px.
+      return { w: COMPACT_W, h: CLOSED_H };
     case "expanded": {
       const h = view === "prompt" ? chatPromptHeight(chatCount) : VIEW_LAYOUTS[view].height;
-      return { w: EXPANDED_W, h };
+      return { w: EXPANDED_W, h: tabbedView(view) ? h + TAB_EXTRA.top + TAB_EXTRA.bottom : h };
     }
   }
 }
@@ -191,7 +205,7 @@ export function botPosition(
       return { cx: 46, cy: 16, diameter: 6, opacity: 0 };
     case "compact":
       // JARVIS: his visor alone, in the middle of the closed pill.
-      return { cx: COMPACT_W / 2, cy: 16, diameter: 20, opacity: 1 };
+      return { cx: COMPACT_W / 2, cy: CLOSED_H / 2, diameter: CLOSED_BOT_D, opacity: 1 };
     case "expanded": {
       const layout = VIEW_LAYOUTS[view];
       // The full-width tabs: he steps aside, out of sight.
@@ -206,14 +220,17 @@ export function botPosition(
           opacity: 1,
         };
       }
+      const tabbed = tabbedView(view);
       if (layout.botY != null) {
-        return { cx: layout.botX, cy: layout.botY, diameter: layout.botDiameter, opacity: 1 };
+        return tabbed
+          ? { cx: layout.botX + TAB_EXTRA.side, cy: layout.botY + TAB_EXTRA.top, diameter: layout.botDiameter, opacity: 1 }
+          : { cx: layout.botX, cy: layout.botY, diameter: layout.botDiameter, opacity: 1 };
       }
       // Centre of the fixed 84 pt card (8 pt top inset + 34 pt header → content at y = 42)
-      const headerBottom = 42;
+      const headerBottom = tabbed ? 42 + TAB_EXTRA.top : 42;
       const cardH = 84;
       const cy = headerBottom + (islandH - headerBottom - cardH) / 2 + cardH / 2;
-      return { cx: layout.botX, cy, diameter: layout.botDiameter, opacity: 1 };
+      return { cx: tabbed ? layout.botX + TAB_EXTRA.side : layout.botX, cy, diameter: layout.botDiameter, opacity: 1 };
     }
   }
 }

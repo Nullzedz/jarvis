@@ -4,7 +4,6 @@
 import { Tracked, Glide, NOTCH_MS, Ease, clamp, closeCurve, notchCurve } from "../core/anim";
 
 /** How long the closed pill takes to shrink round him as he falls asleep (#82): slower, gentler. */
-const SLEEP_MS = 900;
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload, type NowPlaying } from "../core/bridge";
 import { Focus, focusLeftMs } from "../core/focus";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
@@ -14,7 +13,7 @@ import {
 import {
   EXPANDED_CORNER, NOTCH_W, PANEL_H, PANEL_W, STAGE_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
-  islandSize,
+  islandSize, tabbedView, TAB_INSET,
   QUESTION_PICKER_H,
   type BotEmoteName, type BotStateName, type IslandMode, type IslandViewName,
 } from "../core/layout";
@@ -126,6 +125,10 @@ export class Island {
   private botSize = new Glide(10);
   /** When the notch's current move ends (performance.now() time). */
   private geomEnd = 0;
+  /** When it started: he rides it from the same moment, not from his next frame (#86). */
+  private geomStart = 0;
+  /** The asleep pill's slow frame, waiting: waking cuts it short so he moves with the pill. */
+  private sleepFrame = 0;
   /** The curve the notch is moving on now: he rides it with the same one, so he stays centred. */
   private geomEase: (t: number) => number = notchCurve;
 
@@ -917,9 +920,10 @@ export class Island {
     // JARVIS: a tab that knows its own height gets a notch just that tall (the prototype's fit()):
     // the content's top padding and the tab bar, the content, the bottom padding; never past the window.
     const fit = State.mode === "expanded" ? this.views.get(State.view)?.fitHeight?.() : undefined;
-    // Focus mode has no tab bar: its 34 px aren't counted.
-    const bar = State.view === "focusing" ? 0 : 34;
-    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, 8 + bar + fit + 10)));
+    // Focus mode has no tab bar: its 34 px aren't counted. The tabs have the prototype's insets (#86).
+    const around = tabbedView(State.view) ? TAB_INSET.top + TAB_INSET.bar + TAB_INSET.gap + TAB_INSET.bottom
+      : 8 + (State.view === "focusing" ? 0 : 34) + 10;
+    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, around + fit)));
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
     }
@@ -942,6 +946,7 @@ export class Island {
       go(this.radius, r);
       this.geomEase = ms === NOTCH_MS ? notchCurve : closeCurve;
       this.geomEnd = now + ms;
+      this.geomStart = now;
     }
     this.ensureRunning();
   }
@@ -1244,9 +1249,16 @@ export class Island {
     this.sleepZ.classList.toggle("on", on);
     this.engine.setState(this.engineState());
     if (State.mode === "hidden") {
-      // #82: falling asleep, the pill shrinks round him slowly (0.7 s) and the window follows only
-      // once it has, so nothing cuts the motion short; waking, the window grows first, then the pill.
-      const ms = on ? SLEEP_MS : NOTCH_MS;
+      // #82/#86: one quick motion both ways, the notch's (0.42 s). Falling asleep, the window follows
+      // only once the pill has shrunk, so nothing cuts the motion short; waking, the window grows first.
+      const ms = NOTCH_MS;
+      // Waking: his next frame comes now, not after the asleep pill's slow wait, so he is blue and
+      // centred from the pill's first frame (#86: he lagged it for about 150 ms, still grey).
+      if (!on && this.sleepFrame) {
+        window.clearTimeout(this.sleepFrame);
+        this.sleepFrame = 0;
+        this.running = false;
+      }
       this.animateGeometry(on, ms);
       if (this.collapsed) {
         if (on) window.setTimeout(() => { if (this.asleep && this.collapsed) this.sendCollapsedSize(); }, ms + 40);
@@ -1637,7 +1649,7 @@ export class Island {
     if (busy && !(sleeping && !settling && !botMoving)) {
       requestAnimationFrame(this.frame);
     } else if (sleeping) {
-      window.setTimeout(() => requestAnimationFrame(this.frame), 80);
+      this.sleepFrame = window.setTimeout(() => { this.sleepFrame = 0; requestAnimationFrame(this.frame); }, 80);
     } else {
       this.running = false;
       Sound.idle();
@@ -1668,7 +1680,8 @@ export class Island {
       const moving = this.geomEnd > now;
       const endAt = moving ? this.geomEnd : now + NOTCH_MS;
       const ease = moving ? this.geomEase : notchCurve;
-      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, now, ease); };
+      const from = moving ? Math.min(now, this.geomStart) : now;
+      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, from, ease); };
       glide(this.botCx, p.cx);
       glide(this.botCy, p.cy);
       glide(this.botSize, size);
@@ -1905,6 +1918,7 @@ export class Island {
     // While the drop sequence owns the body its buttons are painted on the canvas
     // underneath, so only the header may keep taking clicks up here.
     this.contentEl.style.pointerEvents = live && !this.uploadActive ? "auto" : "none";
+    this.contentEl.classList.toggle("tabbed", expanded && tabbedView(State.view));
     this.header.el.style.pointerEvents = live ? "auto" : "none";
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
 

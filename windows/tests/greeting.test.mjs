@@ -66,7 +66,7 @@ test("he slides to the side to wave, then comes back to the middle", () => {
 
 test("he lands where the compact island's Mochi sits", () => {
   const end = greetingPose(10, 5);
-  assert.equal(end.y, NOTCH_H / 2);
+  assert.equal(end.y, 34 / 2); // #86: the compact pill is the closed one, 34 tall
   assert.equal(end.x, GREETING_W / 2 - COMPACT_W / 2 + 40);
   assert.equal(end.minis, 1);
 });

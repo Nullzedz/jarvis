@@ -81,15 +81,27 @@ test("coming back before the 3 s are up keeps it open", () => {
   assert.equal(fsm.state, "home");
 });
 
-test("a click opens the compact island, and only the compact island", () => {
-  fsm.click();
-  assert.equal(fsm.state, "hidden");
+test("a click opens the compact island", () => {
   fsm.reveal();
   fsm.click();
   assert.equal(fsm.state, "home");
   fsm.click();
   assert.equal(fsm.state, "home");
   assert.deepEqual(transitions, ["hidden>petit", "petit>home"]);
+});
+
+test("#86: a click on the closed pill opens it as a click, even if the hover wake came first", () => {
+  fsm.click();
+  assert.equal(fsm.state, "home");
+  fsm.mouseLeft();
+  seconds(4);
+  assert.equal(fsm.state, "home", "a click-opened island doesn't fold after the hover's 3 s");
+  fsm.forceHidden();
+  fsm.mouseEntered();
+  fsm.click();
+  fsm.mouseLeft();
+  seconds(4);
+  assert.equal(fsm.state, "home");
 });
 
 test("the open island folds 15 s after the mouse leaves", () => {

@@ -207,12 +207,14 @@ test("both pills are off by default, so the header is as it shipped", () => {
   assert.equal(codexPillVisible(), false);
 });
 
-test("the Claude pill needs the switch and the relay, and the overview", () => {
+test("the Claude pill needs the switch and the relay, in every tab but Focus (#86)", () => {
   State.settings.showPlanInNotch = true;
   assert.equal(claudePillVisible(), false);
   State.settings.planRelayInstalled = true;
   assert.equal(claudePillVisible(), true);
   State.view = "prompt";
+  assert.equal(claudePillVisible(), true);
+  State.view = "focusing";
   assert.equal(claudePillVisible(), false);
 });
 
@@ -227,10 +229,12 @@ test("the compact Claude pill needs compact mode, the switch and the relay", () 
   assert.equal(claudeCompactPillVisible(), false);
 });
 
-test("the Codex pill needs only its switch, on the overview", () => {
+test("the Codex pill needs only its switch, in every tab but Focus (#86)", () => {
   State.settings.showCodexPlanInNotch = true;
   assert.equal(codexPillVisible(), true);
   State.view = "settings";
+  assert.equal(codexPillVisible(), true);
+  State.view = "focusing";
   assert.equal(codexPillVisible(), false);
 });
 
