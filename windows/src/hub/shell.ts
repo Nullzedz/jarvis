@@ -41,9 +41,9 @@ export const FLOW_PAGES: PageDef[] = [
 ];
 
 export const NOTCH_PAGES: PageDef[] = [
-  { id: "general", icon: "gear", title: () => t("General"), subtitle: () => t("Mochi, his sounds and how the island behaves.") },
+  { id: "general", icon: "gear", title: () => t("General"), subtitle: () => t("JARVIS, his sounds and how the island behaves.") },
   { id: "pills", icon: "grid", title: () => t("Active pills"), subtitle: () => t("The pills shown in the island, their order and their colours.") },
-  { id: "agents", icon: "terminal", title: () => t("Agents"), subtitle: () => t("Claude Code, Codex and the other agents Mochi follows.") },
+  { id: "agents", icon: "terminal", title: () => t("Agents"), subtitle: () => t("Claude Code, Codex and the other agents JARVIS follows.") },
   { id: "chat", icon: "chat", title: () => t("Chat"), subtitle: () => t("The AI of the island's chat, with your own keys.") },
   { id: "voice", icon: "wave", title: () => "Hey JARVIS" },
   { id: "integrations", icon: "puzzle", title: () => t("Integrations"), subtitle: () => t("Stripe, GitHub, Vercel, n8n, Notion and the rest.") },
@@ -226,10 +226,25 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     attempt();
   }
 
+  const leaveNote = h("div", { class: "jv-toast", role: "status" });
+  document.body.append(leaveNote);
+  let leaveAt = 0;
   /** Home's scroll when it was left, so coming back lands where you were. */
   let homeScroll = 0;
 
   async function show(page: PageId, targetAnchor?: string, label?: string, fallback?: string) {
+    // A key typed but not saved: the first try to leave says so; leaving again drops it (#84).
+    const unsaved = [...(scroll.querySelectorAll?.<HTMLInputElement>('input[type="password"]') ?? [])].find((i) => i.value.trim() && !i.dataset.warned);
+    if (unsaved) {
+      unsaved.dataset.warned = "1";
+      unsaved.focus();
+      leaveNote.textContent = t("This key isn't saved yet. Save it, or leave again to drop it.");
+      leaveNote.classList.add("on");
+      window.clearTimeout(leaveAt);
+      leaveAt = window.setTimeout(() => leaveNote.classList.remove("on"), 5000);
+      return;
+    }
+    leaveNote.classList.remove("on");
     const moved = MOVED[page];
     if (moved) return show(moved[0], targetAnchor, label, moved[1] || fallback);
     const def = ALL.find((p) => p.id === page) ?? HOME_PAGE;

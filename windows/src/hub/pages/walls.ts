@@ -261,7 +261,7 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
       const s = snippets.find((x) => `s:${x.id}` === it.key)!;
       if (editing) {
         const tr = h("input", { class: "jv-sinput", value: s.trigger, placeholder: t("What you say, e.g. my signature") }) as HTMLInputElement;
-        const tx = h("textarea", { class: "jv-sinput area", placeholder: t("The text Coucou pastes") }) as HTMLTextAreaElement;
+        const tx = h("textarea", { class: "jv-sinput area", placeholder: t("The text JARVIS pastes") }) as HTMLTextAreaElement;
         tx.value = s.text;
         const done = async () => {
           const a = tr.value.trim(), b = tx.value;
@@ -347,7 +347,7 @@ export async function wallPage(box: HTMLElement, ctx: HubContext, first: WallKin
     fresh = "";
     if (!shown.length) {
       wall.append(h("p", { class: "cap", text: filter && kind !== "styles" ? t("No match. Press + to add “{0}”.", { 0: q.value.trim() })
-        : kind === "dictionary" ? t("No word yet. Add the names, brands and jargon Coucou gets wrong.")
+        : kind === "dictionary" ? t("No word yet. Add the names, brands and jargon JARVIS gets wrong.")
         : kind === "snippets" ? t("No snippet yet. Your booking link, your signature, your address: say a few words, get the whole text.") : "" }));
     }
     count.textContent = kind === "dictionary" ? tn("{count} word", "{count} words", list.length)

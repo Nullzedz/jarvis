@@ -229,7 +229,7 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
     clear(root);
     const sw = card(h("div", { class: "jv-srow" },
       h("div", { class: "lbl grow" }, h("b", { text: t("Sort new messages automatically") }),
-        h("span", { text: t("Coucou sorts your Outlook inboxes: VIPs first, then banned words, then your rules. It never deletes a message.") }),
+        h("span", { text: t("JARVIS sorts your Outlook inboxes: VIPs first, then banned words, then your rules. It never deletes a message.") }),
         h("span", { text: t("Only messages that arrive from now on, in every Outlook account. The classic Outlook must be open.") })),
       switchEl(view.settings.autoSort, (on) => { view.settings = { ...view.settings, autoSort: on }; save(view.settings); }, t("Sort new messages automatically"))));
     if (!view.windows) sw.append(h("p", { class: "jv-snote", text: t("Outlook is only reached on Windows.") }));
@@ -256,8 +256,8 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
         t("A message whose sender, subject or text holds one of these words or addresses goes straight to Junk. Whole words only: “sale” does not catch “Salesforce”."),
         chips("banned", t("A word, a phrase or an address"), t("No banned words. Add a word, or click “Always ignore this sender” on a message in the island.")))),
       row(t("Rules"), view.settings.rules.length, "mail.rules", () => drill(t("Rules"),
-        t("If a message matches, Coucou does the action. The first rule that matches wins; VIPs and banned words come before."), rules)),
-      row(t("Sent by Coucou"), view.sent.length, null, () => drill(t("Sent by Coucou"), null, sent)));
+        t("If a message matches, JARVIS does the action. The first rule that matches wins; VIPs and banned words come before."), rules)),
+      row(t("Sent by JARVIS"), view.sent.length, null, () => drill(t("Sent by JARVIS"), null, sent)));
     groups.classList.add("list");
 
     const head = h("div", { class: "jv-srow head" }, h("span", { class: "cap grow", text: t("Journal") }));
@@ -272,7 +272,7 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
       head.append(ask);
     }
     const journal = card(head);
-    if (!view.journal.length) journal.append(empty(t("Nothing sorted yet. What Coucou does to your messages shows up here, with an Undo.")));
+    if (!view.journal.length) journal.append(empty(t("Nothing sorted yet. What JARVIS does to your messages shows up here, with an Undo.")));
     for (const e of view.journal) {
       journal.append(h("div", { class: "jv-srow line" },
         h("div", { class: "grow" },

@@ -15,9 +15,10 @@ import { flowSettingsPage } from "./flowsettings";
 export function demoRows(section: HTMLElement): HTMLElement[] {
   const out: HTMLElement[] = [];
   const kids = [...section.children] as HTMLElement[];
+  let heading = "";
   for (let i = 0; i < kids.length; i++) {
     const k = kids[i];
-    if (k.tagName === "H2") continue;
+    if (k.tagName === "H2") { heading = (k.textContent ?? "").trim(); continue; }
     if (!k.classList.contains("row")) { out.push(k); continue; }
     // #84: an empty <label> (a spacer the old rows use) is no name: the row folds into the one above.
     const labelEl = k.querySelector<HTMLElement>(":scope > label");
@@ -33,7 +34,11 @@ export function demoRows(section: HTMLElement): HTMLElement[] {
       continue;
     }
     const lbl = h("div", { class: "lbl" });
-    if (name) { lbl.append(h("b", { text: name.textContent ?? "" })); name.remove(); }
+    if (name) {
+      const said = (name.textContent ?? "").trim();
+      lbl.append(h("b", { text: heading && said === t("API key") ? `${heading} ${said}` : said }));
+      name.remove();
+    }
     if (hint) lbl.append(h("span", { text: hint.textContent ?? "" }));
     const ctl = h("div", { class: "ctl" }, ...([...k.childNodes] as Node[]));
     const r = h("div", { class: `srow${name ? "" : " bare"}` }, lbl, ctl);
@@ -122,17 +127,21 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
   const groups: Group[] = [
     { id: "general", name: t("General"), say: t("How JARVIS starts, its language and its updates."), body: gen },
     // #80: everything you can customize about the notch, in one group and shown right here.
-    { id: "island", name: t("Notch"), say: t("Everything about the notch at the top of your screen: its tabs, its pills and how it behaves."), body: [
-      h("h4", { class: "jv-psub", text: t("Tabs in the notch") }), ...partNodes("tabs")(),
+    { id: "island", name: t("Island"), say: t("Everything about the island at the top of your screen: its tabs, its pills and how it behaves."), body: [
+      h("h4", { class: "jv-psub", text: t("Tabs in the island") }), ...partNodes("tabs")(),
       h("h4", { class: "jv-psub", text: t("Active pills") }), ...partNodes("pills")(),
       h("h4", { class: "jv-psub", text: t("Behavior") }), ...island,
     ] },
     // Its own note already says how shortcuts work.
-    { id: "shortcuts", name: t("Shortcuts"), say: "", body: rowsOf("shortcuts") },
-    { id: "sound", name: t("Sound"), say: t("Mochi's sounds and your own."), body: sound },
+    // Talk, Ask, Show more and Dictate have their keys on Voice: Shortcuts points there (#84: "ask" found nothing).
+    { id: "shortcuts", name: t("Shortcuts"), say: "", body: [...rowsOf("shortcuts"), h("div", { class: "srow" },
+      h("div", { class: "lbl" }, h("b", { text: `${t("Talk")} · ${t("Ask")} · ${t("Show more")} · ${t("Dictate")}` }),
+        h("span", { text: t("Their keys are set under Voice.") })),
+      h("div", { class: "ctl" }, h("button", { class: "jv-link", text: `${t("Voice")} ›`, onclick: () => content.querySelector('[data-anchor="group-voice"]')?.scrollIntoView({ block: "start" }) })))] },
+    { id: "sound", name: t("Sound"), say: t("JARVIS's sounds and your own."), body: sound },
     { id: "voice", name: t("Voice"), say: t("How he hears you and how he answers."), body: [inPlace(voicePage, "voice")] },
     { id: "dictation", name: t("Dictation"), say: t("Your dictation keys, the microphone, the voice model and the Notetaker."), body: [inPlace(flowSettingsPage, "flowsettings")] },
-    { id: "agents", name: t("Agents"), say: t("Claude Code, Codex and the other agents Mochi follows."), body: [
+    { id: "agents", name: t("Agents"), say: t("Claude Code, Codex and the other agents JARVIS follows."), body: [
       drill("Claude Code", t("Its hooks, so JARVIS sees what it does and can answer its questions."), partNodes("claude")),
       drill(t("Other agents"), t("Codex, Cursor and the rest: what JARVIS follows."), partNodes("agents")),
       drill(t("Plan usage"), t("The status line relay that reads your Claude plan's limits."), partNodes("plan")),

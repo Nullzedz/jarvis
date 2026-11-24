@@ -208,6 +208,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   let dayList: DayMessage[] = [];
   const drawDay = () => {
     clear(dayBox);
+    if (!sel) { dayBox.append(h("div", { class: "cap jv-mempty", text: t("Choose a day in the month.") })); return; }
     const [y, m, d] = sel.split("-").map(Number);
     const date = new Date(y, m - 1, d);
     const wd = date.toLocaleDateString(language(), { weekday: "long" });
@@ -448,16 +449,15 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   };
   const loadDay = async () => {
     const mine = ++dayReq, at = sel;
-    const got = at === todayKey ? today : ((await Bridge.mailDay(at).catch(() => null))?.messages ?? []);
+    const got = !at ? [] : at === todayKey ? today : ((await Bridge.mailDay(at).catch(() => null))?.messages ?? []);
     if (mine !== dayReq) return;
     dayList = got;
     drawDay();
   };
-  // A new month shows its own day: today, or that month's last day (#84: the old day stayed chosen).
+  // A new month clears the chosen day; back on this month it's today again (#84: the old day stayed chosen).
   const moveMonth = (by: number) => {
     offset = Math.min(0, offset + by);
-    const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    sel = offset === 0 ? todayKey : dateKey(first.getFullYear(), first.getMonth() + 1, new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate());
+    sel = offset === 0 ? todayKey : "";
     void loadMonth(); void loadDay();
   };
   const nextOff = () => {
