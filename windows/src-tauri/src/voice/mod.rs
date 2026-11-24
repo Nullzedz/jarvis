@@ -391,7 +391,8 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                 if !tapped && shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
-                trail = Some(ink::Trail::start(&app));
+                // Talking draws nothing on screen: circling is Ctrl + Shift + Z's and Shift + Win's
+                // (#90: the dashed trail followed the mouse while you talked).
                 drawn = None;
                 next_take += 1;
                 take = Some(Take {
