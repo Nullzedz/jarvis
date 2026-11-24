@@ -35,6 +35,10 @@ pub fn forward(action: &str, down: bool) {
         }
     }
     crate::log::line(format!("tutorial: key {action} {}", if down { "down" } else { "up" }));
+    // What you say while holding the talk keys is really heard (flow-dictated), not made up.
+    if action == "talk" {
+        crate::flow::key_from_tutorial(down);
+    }
     if let Some(app) = APP.get() {
         let _ = app.emit_to(LABEL, "tutorial-key", serde_json::json!({ "action": action, "down": down }));
     }

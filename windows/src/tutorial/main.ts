@@ -108,6 +108,38 @@ function light(action: string, on: boolean) {
   }
 }
 
+/* Real speech in a step (#90: it played a ready-made question whatever you said). While the talk
+   keys are held JARVIS's own dictation listens; what it heard comes back here, never pasted. */
+function realSpeech(s: Run, p: HTMLElement, onWords: (said: string) => void) {
+  const pill = $(".flowpill", p);
+  let stopWave: (() => void) | null = null, heardAny = false, miss = 0;
+  const offPhase = onEvent<{ phase: string }>("pill-state", ({ phase }) => {
+    if (phase === "listening" || phase === "locked") {
+      heardAny = false;
+      window.clearTimeout(miss);
+      if (!stopWave) { pill.classList.add("on"); stopWave = wave($(".wave", pill)); mood("listen"); }
+    } else {
+      if (stopWave) { stopWave(); stopWave = null; pill.classList.remove("on"); }
+      if (phase === "thinking") mood("think", 1200);
+      // Nothing came back: say so, rather than make something up.
+      if (phase === "idle") miss = window.setTimeout(() => { if (!heardAny && s.alive) onWords(""); }, 900);
+    }
+  });
+  const offText = onEvent<string>("flow-dictated", (text) => { heardAny = true; window.clearTimeout(miss); onWords(text.trim()); });
+  s.cleanup.push(() => { stopWave?.(); window.clearTimeout(miss); void offPhase.then((f) => f()); void offText.then((f) => f()); });
+}
+
+/* Did they say (about) the line to try? Most of its words, in any order (characters for CJK). */
+function saidLike(said: string, line: string) {
+  const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").trim();
+  const a = norm(said), b = norm(line);
+  if (!a) return false;
+  const spaced = /\s/.test(b);
+  const parts = (x: string) => (spaced ? x.split(/\s+/) : [...x.replace(/\s+/g, "")]).filter((w) => w.length > (spaced ? 2 : 0));
+  const want = parts(b), have = new Set(parts(a));
+  return want.length > 0 && want.filter((w) => have.has(w)).length / want.length >= 0.4;
+}
+
 /* Tidy dictation: a capital and a full stop, as his model does. */
 function tidy(text: string) {
   text = text.replace(/\s+/g, " ").trim();
@@ -342,27 +374,35 @@ const STEPS: Step[] = [
     title: N_("Talk to me."),
     say: N_("Hold the talk keys and ask me anything: your day, your mail, a quick sum, a note to remember. I answer out loud, and the island shows it."),
     keys: () => t("Hold {keys}", { keys: K(ctrl(), win()) }),
-    task: N_("Hold the button (in the app: <b>Ctrl + Win</b>) and ask: <b>“What's on my calendar today?”</b>"),
+    task: N_("Hold <b>Ctrl + Win</b> and ask: <b>“What's on my calendar today?”</b>"),
     build(p) {
       p.innerHTML = `<div class="practice"></div>${island()}
         <div class="flowpill"><div class="wave"></div>${t("Listening…")}</div>
-        <div class="under"><button class="hold"><span class="dot"></span>${t("Hold to talk")}</button><span class="heard"></span></div>`;
+        <div class="under"><button class="hold"><span class="dot"></span>${t("No microphone? Hold here")}</button><span class="heard"></span></div>`;
     },
     play(p, s) {
       const isl = $(".isl", p), pill = $(".flowpill", p), heard = $(".heard", p);
+      const line = t("What's on my calendar today?");
+      // What you said, as you said it; the calendar if that's what you asked.
+      const hear = (said: string) => {
+        if (!said) { heard.textContent = t("I didn't catch that. Hold the keys while you speak."); return; }
+        heard.textContent = `“${said}”`;
+        if (saidLike(said, line)) void answer();
+        else heard.textContent = t("I heard “{said}”. In the tour, try: “{try}”", { said, try: line });
+      };
+      realSpeech(s, p, hear);
+      // Without a microphone, the button plays the line in.
       let session: { stop(): void } | null = null, stopWave: (() => void) | null = null;
       const hold = holdable($(".hold", p), {
         down: () => {
           pill.classList.add("on");
           stopWave = wave($(".wave", pill));
           heard.textContent = "";
-          session = played(t("What's on my calendar today?"), (f) => (heard.textContent = `“${f}”`), () => void answer());
+          session = played(line, (f) => (heard.textContent = `“${f}”`), () => void answer());
         },
         up: () => { pill.classList.remove("on"); stopWave?.(); session?.stop(); },
       });
       s.cleanup.push(hold);
-      // The real talk keys do the same as the button.
-      s.onKey = (action, down) => { if (action === "talk") (down ? hold.press() : hold.release()); };
       async function answer() {
         islandShow(isl, "home", `<div class="card"><div class="muted" style="margin-bottom:6px">${t("Today")}</div>
           ${[t("10:00 · Stand-up"), t("13:30 · Lunch with Maya"), t("16:00 · Dentist")].map((x) => `<div class="li"><span class="ck"></span>${x}</div>`).join("")}</div>`);
@@ -419,7 +459,7 @@ const STEPS: Step[] = [
     id: "where",
     title: N_("Lost something? Ask where it is."),
     say: N_("When you ask where something is, I don't open anything: I fly to it, circle it, and tell you."),
-    keys: () => t("Hold {talk} or press {ask}", { talk: K(ctrl(), win()), ask: K(ctrl(), shift(), "Z") }),
+    keys: () => t("Hold {keys}", { keys: K(ctrl(), win()) }),
     task: N_("Ask: <b>“Where's the export button?”</b>"),
     build(p) {
       p.innerHTML = `<div class="practice"><div class="win docwin">
@@ -428,7 +468,8 @@ const STEPS: Step[] = [
           <div class="doc"><i style="width:80%"></i><i></i><i style="width:92%"></i><i style="width:60%"></i><i></i><i style="width:85%"></i><i style="width:70%"></i></div>
         </div></div>
         <svg class="ink"></svg><div class="ptr">${jarvis(true)}</div><div class="spoken">${t("Top right, next to Share.")}</div>
-        <div class="under"><button class="hold"><span class="dot"></span>${t("Hold to ask")}</button><div class="chips"><button class="chip">${t("Where's the export button?")}</button></div></div>`;
+        <div class="flowpill"><div class="wave"></div>${t("Listening…")}</div>
+        <div class="under"><button class="hold"><span class="dot"></span>${t("No microphone? Hold here")}</button><span class="heard"></span></div>`;
     },
     play(p, s) {
       let ran = false;
@@ -446,14 +487,16 @@ const STEPS: Step[] = [
         sp.classList.remove("on");
         s.done();
       };
-      $(".chip", p).onclick = () => void run();
+      const line = t("Where's the export button?"), heard = $(".heard", p);
+      realSpeech(s, p, (said) => {
+        if (!said) { heard.textContent = t("I didn't catch that. Hold the keys while you speak."); return; }
+        heard.textContent = `“${said}”`;
+        if (saidLike(said, line)) void run();
+        else heard.textContent = t("I heard “{said}”. In the tour, try: “{try}”", { said, try: line });
+      });
       let session: { stop(): void } | null = null;
-      const hold = holdable($(".hold", p), { down: () => (session = played(t("Where's the export button?"), () => {}, () => void run())), up: () => session?.stop() });
+      const hold = holdable($(".hold", p), { down: () => (session = played(line, () => {}, () => void run())), up: () => session?.stop() });
       s.cleanup.push(hold);
-      s.onKey = (action, down) => {
-        if (action === "talk") (down ? hold.press() : hold.release());
-        if (action === "ask" && down) void run();
-      };
     },
   },
   {
@@ -461,7 +504,7 @@ const STEPS: Step[] = [
     title: N_("Circle it to show me."),
     say: N_("Hold the keys and draw a circle round anything with your mouse: a picture, an error, a part of a page. Then ask about it."),
     keys: () => t("Hold {keys} and circle", { keys: K(shift(), win()) }),
-    task: N_("Draw a circle round <b>one of the devices</b> with your mouse (hold the button while you draw)."),
+    task: N_("Hold <b>Shift + Win</b> and move your mouse round <b>one of the devices</b>, then let go."),
     build(p) {
       p.innerHTML = `<div class="practice"><div class="win dark photowin" style="width:min(520px,100%)">
           <div class="bar"><i></i><i></i><i></i><b>${t("Network")}</b></div>
@@ -470,22 +513,35 @@ const STEPS: Step[] = [
         <svg class="ink"><path class="trail" fill="none" stroke="#4fa3ff" stroke-width="1.8" stroke-dasharray="5 4" stroke-linecap="round"/></svg>
         <div class="ptr">${jarvis(true)}</div>
         <div class="ex"><div class="hd"><span class="dock"></span><b></b></div><div class="bd"></div></div>
-        <div class="under"><span>${t("In the app, hold Shift + Win while you circle; here, just drag.")}</span></div>`;
+        <div class="under"><span>${t("Hold Shift + Win, then move the mouse round it: no clicking.")}</span></div>`;
     },
     play(p, s) {
-      const photo = $(".photo", p), path = $(".trail", p);
-      let pts: [number, number][] | null = null, used = false;
+      const path = $(".trail", p);
+      let pts: [number, number][] | null = null, used = false, last: [number, number] | null = null;
       const at = (e: PointerEvent): [number, number] => { const r = p.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-      photo.style.cursor = "crosshair";
-      photo.addEventListener("pointerdown", (e) => { if (used) return; pts = [at(e)]; photo.setPointerCapture(e.pointerId); path.setAttribute("fill", "none"); });
-      photo.addEventListener("pointermove", (e) => { if (!pts) return; pts.push(at(e)); path.setAttribute("d", `M${pts.map((q) => q.join(" ")).join("L")}`); });
-      photo.addEventListener("pointerup", async () => {
+      // The pointer is followed only while Shift + Win is held, as in the app (#90: a plain drag drew).
+      const move = (e: PointerEvent) => {
+        last = at(e);
+        if (!pts) return;
+        pts.push(last);
+        path.setAttribute("d", `M${pts.map((q) => q.join(" ")).join("L")}`);
+      };
+      p.addEventListener("pointermove", move);
+      s.onKey = (action, down) => {
+        if (action !== "more" || used) return;
+        if (down) {
+          pts = last ? [last] : [];
+          path.setAttribute("fill", "none");
+          mood("listen");
+        } else void finish();
+      };
+      const finish = async () => {
         if (!pts) return;
         const done = pts;
         pts = null;
         const len = done.reduce((n, q, k) => (k ? n + Math.hypot(q[0] - done[k - 1][0], q[1] - done[k - 1][1]) : 0), 0);
-        const last = done[done.length - 1];
-        if (len < 120 || Math.hypot(done[0][0] - last[0], done[0][1] - last[1]) > 40) {
+        const end = done[done.length - 1];
+        if (done.length < 3 || len < 120 || Math.hypot(done[0][0] - end[0], done[0][1] - end[1]) > 40) {
           const a = path.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400 });
           a.onfinish = () => path.setAttribute("d", "");
           return;
@@ -507,7 +563,7 @@ const STEPS: Step[] = [
         await explain(p, pick.d, card, about);
         window.setTimeout(() => path.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 400, fill: "forwards" }), 1500);
         s.done();
-      });
+      };
     },
   },
   {

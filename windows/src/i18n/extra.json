@@ -14330,36 +14330,6 @@
       "tr": "Konuşma tuşlarını basılı tutup bana her şeyi sorun: gününüz, postanız, hızlı bir hesap, bir not. Sesli yanıtlarım, ada da gösterir.",
       "zh-Hans": "按住说话键，问我任何事：你的日程、邮件、简单的计算、要记住的事。我会大声回答，岛上也会显示。"
     },
-    "Hold the button (in the app: <b>Ctrl + Win</b>) and ask: <b>“What's on my calendar today?”</b>": {
-      "ar": "اضغط مطوّلًا على الزر (في التطبيق: <b>Ctrl + Win</b>) واسأل: <b>«ما الذي في تقويمي اليوم؟»</b>",
-      "bn": "বাটনটি চেপে ধরো (অ্যাপে: <b>Ctrl + Win</b>) আর জিজ্ঞেস করো: <b>“আজ আমার ক্যালেন্ডারে কী আছে?”</b>",
-      "de": "Halte den Knopf (in der App: <b>Strg + Win</b>) und frag: <b>„Was steht heute in meinem Kalender?“</b>",
-      "es": "Mantén el botón (en la app: <b>Ctrl + Win</b>) y pregunta: <b>«¿Qué tengo hoy en el calendario?»</b>",
-      "fr": "Maintenez le bouton (dans l'appli : <b>Ctrl + Win</b>) et demandez : <b>« Qu'y a-t-il dans mon agenda aujourd'hui ? »</b>",
-      "hi": "बटन दबाए रखें (ऐप में: <b>Ctrl + Win</b>) और पूछें: <b>“आज मेरे कैलेंडर में क्या है?”</b>",
-      "id": "Tahan tombolnya (di aplikasi: <b>Ctrl + Win</b>) lalu tanya: <b>“Ada apa di kalender saya hari ini?”</b>",
-      "ja": "ボタンを押したまま（アプリでは <b>Ctrl + Win</b>）聞いてください：<b>「今日の予定は？」</b>",
-      "ko": "버튼을 누른 채(앱에서는 <b>Ctrl + Win</b>) 물어보세요: <b>“오늘 일정이 뭐야?”</b>",
-      "pt-BR": "Segure o botão (no app: <b>Ctrl + Win</b>) e pergunte: <b>“O que tem na minha agenda hoje?”</b>",
-      "ru": "Удерживайте кнопку (в приложении: <b>Ctrl + Win</b>) и спросите: <b>«Что у меня сегодня в календаре?»</b>",
-      "tr": "Düğmeyi basılı tutun (uygulamada: <b>Ctrl + Win</b>) ve sorun: <b>“Bugün takvimimde ne var?”</b>",
-      "zh-Hans": "按住按钮（在应用里：<b>Ctrl + Win</b>）然后问：<b>“我今天的日程有什么？”</b>"
-    },
-    "Hold to talk": {
-      "ar": "اضغط مطوّلًا للتحدّث",
-      "bn": "কথা বলতে চেপে ধরো",
-      "de": "Halten zum Sprechen",
-      "es": "Mantén para hablar",
-      "fr": "Maintenir pour parler",
-      "hi": "बोलने के लिए दबाए रखें",
-      "id": "Tahan untuk bicara",
-      "ja": "長押しで話す",
-      "ko": "눌러서 말하기",
-      "pt-BR": "Segure para falar",
-      "ru": "Удерживайте, чтобы говорить",
-      "tr": "Konuşmak için basılı tutun",
-      "zh-Hans": "按住说话"
-    },
     "What's on my calendar today?": {
       "ar": "ما الذي في تقويمي اليوم؟",
       "bn": "আজ আমার ক্যালেন্ডারে কী আছে?",
@@ -14615,21 +14585,6 @@
       "tr": "Bir şeyin nerede olduğunu sorduğunuzda hiçbir şey açmam: oraya uçar, daire içine alır ve söylerim.",
       "zh-Hans": "你问某样东西在哪时，我不会打开任何东西：我飞过去，把它圈出来，然后告诉你。"
     },
-    "Hold {talk} or press {ask}": {
-      "ar": "اضغط مطوّلًا على {talk} أو اضغط {ask}",
-      "bn": "{talk} চেপে ধরো বা {ask} চাপো",
-      "de": "{talk} halten oder {ask} drücken",
-      "es": "Mantén {talk} o pulsa {ask}",
-      "fr": "Maintenez {talk} ou appuyez sur {ask}",
-      "hi": "{talk} दबाए रखें या {ask} दबाएँ",
-      "id": "Tahan {talk} atau tekan {ask}",
-      "ja": "{talk} を押したまま、または {ask} を押す",
-      "ko": "{talk} 누르고 있기 또는 {ask} 누르기",
-      "pt-BR": "Segure {talk} ou pressione {ask}",
-      "ru": "Удерживайте {talk} или нажмите {ask}",
-      "tr": "{talk} basılı tutun veya {ask} basın",
-      "zh-Hans": "按住 {talk} 或按 {ask}"
-    },
     "Ask: <b>“Where's the export button?”</b>": {
       "ar": "اسأل: <b>«أين زر التصدير؟»</b>",
       "bn": "জিজ্ঞেস করো: <b>“এক্সপোর্ট বাটন কোথায়?”</b>",
@@ -14705,21 +14660,6 @@
       "tr": "Sağ üstte, Paylaş'ın yanında.",
       "zh-Hans": "右上角，“共享”旁边。"
     },
-    "Hold to ask": {
-      "ar": "اضغط مطوّلًا للسؤال",
-      "bn": "জিজ্ঞেস করতে চেপে ধরো",
-      "de": "Halten zum Fragen",
-      "es": "Mantén para preguntar",
-      "fr": "Maintenir pour demander",
-      "hi": "पूछने के लिए दबाए रखें",
-      "id": "Tahan untuk bertanya",
-      "ja": "長押しで聞く",
-      "ko": "눌러서 묻기",
-      "pt-BR": "Segure para perguntar",
-      "ru": "Удерживайте, чтобы спросить",
-      "tr": "Sormak için basılı tutun",
-      "zh-Hans": "按住提问"
-    },
     "Where's the export button?": {
       "ar": "أين زر التصدير؟",
       "bn": "এক্সপোর্ট বাটন কোথায়?",
@@ -14780,21 +14720,6 @@
       "tr": "{keys} basılı tutup daire çizin",
       "zh-Hans": "按住 {keys} 画圈"
     },
-    "Draw a circle round <b>one of the devices</b> with your mouse (hold the button while you draw).": {
-      "ar": "ارسم دائرة حول <b>أحد الأجهزة</b> بالفأرة (أبقِ الزر مضغوطًا أثناء الرسم).",
-      "bn": "মাউস দিয়ে <b>একটি ডিভাইসের</b> চারপাশে বৃত্ত আঁকো (আঁকার সময় বাটন চেপে রাখো)।",
-      "de": "Zieh mit der Maus einen Kreis um <b>eines der Geräte</b> (Maustaste beim Zeichnen gedrückt halten).",
-      "es": "Dibuja con el ratón un círculo alrededor de <b>uno de los dispositivos</b> (mantén el botón mientras dibujas).",
-      "fr": "Tracez à la souris un cercle autour d'<b>un des appareils</b> (gardez le bouton enfoncé en dessinant).",
-      "hi": "माउस से <b>किसी एक डिवाइस</b> के चारों ओर घेरा बनाएँ (बनाते समय बटन दबाए रखें)।",
-      "id": "Gambar lingkaran di sekitar <b>salah satu perangkat</b> dengan mouse (tahan tombolnya saat menggambar).",
-      "ja": "マウスで<b>どれか一つの機器</b>を丸で囲んでください（描く間はボタンを押したまま）。",
-      "ko": "마우스로 <b>기기 하나</b>에 동그라미를 그려 보세요(그리는 동안 버튼을 누르고 있기).",
-      "pt-BR": "Desenhe com o mouse um círculo em volta de <b>um dos aparelhos</b> (segure o botão enquanto desenha).",
-      "ru": "Обведите мышью <b>одно из устройств</b> (держите кнопку, пока рисуете).",
-      "tr": "Fareyle <b>cihazlardan birinin</b> etrafına daire çizin (çizerken düğmeyi basılı tutun).",
-      "zh-Hans": "用鼠标圈出<b>其中一台设备</b>（画的时候按住鼠标键）。"
-    },
     "Network": {
       "ar": "الشبكة",
       "bn": "নেটওয়ার্ক",
@@ -14854,21 +14779,6 @@
       "ru": "Принтер",
       "tr": "Yazıcı",
       "zh-Hans": "打印机"
-    },
-    "In the app, hold Shift + Win while you circle; here, just drag.": {
-      "ar": "في التطبيق، اضغط مطوّلًا على Shift + Win أثناء الرسم؛ هنا، اسحب فقط.",
-      "bn": "অ্যাপে বৃত্ত আঁকার সময় Shift + Win চেপে রাখো; এখানে শুধু টেনে আঁকো।",
-      "de": "In der App beim Einkreisen Umschalt + Win halten; hier einfach ziehen.",
-      "es": "En la app, mantén Mayús + Win mientras rodeas; aquí, solo arrastra.",
-      "fr": "Dans l'appli, maintenez Maj + Win en entourant ; ici, faites juste glisser.",
-      "hi": "ऐप में घेरा बनाते समय Shift + Win दबाए रखें; यहाँ बस खींचें।",
-      "id": "Di aplikasi, tahan Shift + Win saat melingkari; di sini, cukup seret.",
-      "ja": "アプリでは囲む間 Shift + Win を押したまま。ここではドラッグするだけです。",
-      "ko": "앱에서는 Shift + Win을 누른 채 그리고, 여기서는 그냥 드래그하세요.",
-      "pt-BR": "No app, segure Shift + Win enquanto circula; aqui, é só arrastar.",
-      "ru": "В приложении держите Shift + Win, пока обводите; здесь просто ведите мышью.",
-      "tr": "Uygulamada daire çizerken Shift + Win'i basılı tutun; burada sadece sürükleyin.",
-      "zh-Hans": "在应用里画圈时按住 Shift + Win；这里直接拖动即可。"
     },
     "What's this router?": {
       "ar": "ما هذا الراوتر؟",
@@ -15424,6 +15334,81 @@
       "ru": "Показать экскурсию снова",
       "tr": "Turu yeniden göster",
       "zh-Hans": "再看一次导览"
+    },
+    "I heard “{said}”. In the tour, try: “{try}”": {
+      "ar": "سمعتُ «{said}». في الجولة، جرّب: «{try}»",
+      "bn": "আমি শুনলাম “{said}”। এই ঘুরে দেখায় বলে দেখো: “{try}”",
+      "de": "Ich habe „{said}“ gehört. Versuch es in der Tour mit: „{try}“",
+      "es": "He oído «{said}». En el recorrido, prueba: «{try}»",
+      "fr": "J'ai entendu « {said} ». Dans la visite, essayez : « {try} »",
+      "hi": "मैंने सुना “{said}”। टूर में यह कहकर देखें: “{try}”",
+      "id": "Saya mendengar “{said}”. Di tur ini, coba: “{try}”",
+      "ja": "「{said}」と聞こえました。ツアーでは「{try}」と言ってみてください",
+      "ko": "“{said}”라고 들었어요. 투어에서는 “{try}”라고 말해 보세요",
+      "pt-BR": "Ouvi “{said}”. No tour, tente: “{try}”",
+      "ru": "Я услышал «{said}». В экскурсии попробуйте: «{try}»",
+      "tr": "“{said}” dediğinizi duydum. Turda şunu deneyin: “{try}”",
+      "zh-Hans": "我听到的是“{said}”。在导览里试试说：“{try}”"
+    },
+    "Hold <b>Shift + Win</b> and move your mouse round <b>one of the devices</b>, then let go.": {
+      "ar": "اضغط مطوّلًا على <b>Shift + Win</b> وحرّك الفأرة حول <b>أحد الأجهزة</b>، ثم اترك المفتاحين.",
+      "bn": "<b>Shift + Win</b> চেপে ধরে মাউসটা <b>একটি ডিভাইসের</b> চারপাশে ঘোরাও, তারপর ছেড়ে দাও।",
+      "de": "Halte <b>Umschalt + Win</b>, fahr mit der Maus um <b>eines der Geräte</b> herum und lass dann los.",
+      "es": "Mantén <b>Mayús + Win</b>, mueve el ratón alrededor de <b>uno de los dispositivos</b> y suelta.",
+      "fr": "Maintenez <b>Maj + Win</b>, faites le tour d'<b>un des appareils</b> avec la souris, puis relâchez.",
+      "hi": "<b>Shift + Win</b> दबाए रखें और माउस को <b>किसी एक डिवाइस</b> के चारों ओर घुमाएँ, फिर छोड़ दें।",
+      "id": "Tahan <b>Shift + Win</b> dan gerakkan mouse mengelilingi <b>salah satu perangkat</b>, lalu lepaskan.",
+      "ja": "<b>Shift + Win</b> を押したまま、マウスで<b>どれか一つの機器</b>の周りを回って、離してください。",
+      "ko": "<b>Shift + Win</b>을 누른 채 마우스로 <b>기기 하나</b>를 한 바퀴 돌린 뒤 떼세요.",
+      "pt-BR": "Segure <b>Shift + Win</b>, mova o mouse em volta de <b>um dos aparelhos</b> e solte.",
+      "ru": "Удерживайте <b>Shift + Win</b>, обведите мышью <b>одно из устройств</b> и отпустите.",
+      "tr": "<b>Shift + Win</b>'i basılı tutup fareyi <b>cihazlardan birinin</b> etrafında gezdirin, sonra bırakın.",
+      "zh-Hans": "按住 <b>Shift + Win</b>，用鼠标绕着<b>其中一台设备</b>转一圈，然后松开。"
+    },
+    "Hold Shift + Win, then move the mouse round it: no clicking.": {
+      "ar": "اضغط مطوّلًا على Shift + Win، ثم حرّك الفأرة حوله: دون نقر.",
+      "bn": "Shift + Win চেপে ধরো, তারপর মাউসটা চারপাশে ঘোরাও: ক্লিক করতে হবে না।",
+      "de": "Halte Umschalt + Win und fahr mit der Maus drumherum: ohne zu klicken.",
+      "es": "Mantén Mayús + Win y mueve el ratón a su alrededor: sin hacer clic.",
+      "fr": "Maintenez Maj + Win, puis faites-en le tour à la souris : sans cliquer.",
+      "hi": "Shift + Win दबाए रखें, फिर माउस को उसके चारों ओर घुमाएँ: क्लिक नहीं करना।",
+      "id": "Tahan Shift + Win, lalu gerakkan mouse mengelilinginya: tanpa klik.",
+      "ja": "Shift + Win を押したまま、マウスでその周りを回してください。クリックは不要です。",
+      "ko": "Shift + Win을 누른 채 마우스로 주위를 돌리세요. 클릭은 필요 없어요.",
+      "pt-BR": "Segure Shift + Win e mova o mouse em volta: sem clicar.",
+      "ru": "Удерживайте Shift + Win и обведите мышью: без щелчков.",
+      "tr": "Shift + Win'i basılı tutun, sonra fareyi etrafında gezdirin: tıklamak yok.",
+      "zh-Hans": "按住 Shift + Win，然后用鼠标绕它一圈：不用点击。"
+    },
+    "Hold <b>Ctrl + Win</b> and ask: <b>“What's on my calendar today?”</b>": {
+      "ar": "اضغط مطوّلًا على <b>Ctrl + Win</b> واسأل: <b>«ما الذي في تقويمي اليوم؟»</b>",
+      "bn": "<b>Ctrl + Win</b> চেপে ধরে জিজ্ঞেস করো: <b>“আজ আমার ক্যালেন্ডারে কী আছে?”</b>",
+      "de": "Halte <b>Strg + Win</b> und frag: <b>„Was steht heute in meinem Kalender?“</b>",
+      "es": "Mantén <b>Ctrl + Win</b> y pregunta: <b>«¿Qué tengo hoy en el calendario?»</b>",
+      "fr": "Maintenez <b>Ctrl + Win</b> et demandez : <b>« Qu'y a-t-il dans mon agenda aujourd'hui ? »</b>",
+      "hi": "<b>Ctrl + Win</b> दबाए रखें और पूछें: <b>“आज मेरे कैलेंडर में क्या है?”</b>",
+      "id": "Tahan <b>Ctrl + Win</b> dan tanya: <b>“Ada apa di kalender saya hari ini?”</b>",
+      "ja": "<b>Ctrl + Win</b> を押したまま聞いてください：<b>「今日の予定は？」</b>",
+      "ko": "<b>Ctrl + Win</b>을 누른 채 물어보세요: <b>“오늘 일정이 뭐야?”</b>",
+      "pt-BR": "Segure <b>Ctrl + Win</b> e pergunte: <b>“O que tem na minha agenda hoje?”</b>",
+      "ru": "Удерживайте <b>Ctrl + Win</b> и спросите: <b>«Что у меня сегодня в календаре?»</b>",
+      "tr": "<b>Ctrl + Win</b>'i basılı tutun ve sorun: <b>“Bugün takvimimde ne var?”</b>",
+      "zh-Hans": "按住 <b>Ctrl + Win</b> 并问：<b>“我今天的日程有什么？”</b>"
+    },
+    "I didn't catch that. Hold the keys while you speak.": {
+      "ar": "لم ألتقط ذلك. أبقِ المفاتيح مضغوطة أثناء الكلام.",
+      "bn": "ধরতে পারিনি। কথা বলার সময় কি চেপে রাখো।",
+      "de": "Das habe ich nicht verstanden. Halte die Tasten, während du sprichst.",
+      "es": "No lo he pillado. Mantén las teclas mientras hablas.",
+      "fr": "Je n'ai pas saisi. Maintenez les touches pendant que vous parlez.",
+      "hi": "मैं समझ नहीं पाया। बोलते समय कीज़ दबाए रखें।",
+      "id": "Saya tidak menangkapnya. Tahan tombolnya selama Anda bicara.",
+      "ja": "聞き取れませんでした。話している間はキーを押したままにしてください。",
+      "ko": "잘 못 들었어요. 말하는 동안 키를 누르고 있어 주세요.",
+      "pt-BR": "Não entendi. Segure as teclas enquanto fala.",
+      "ru": "Не расслышал. Держите клавиши, пока говорите.",
+      "tr": "Anlayamadım. Konuşurken tuşları basılı tutun.",
+      "zh-Hans": "没听清。说话时请按住这些键。"
     }
   }
 }
