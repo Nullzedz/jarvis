@@ -414,8 +414,15 @@ fn process(app: &AppHandle, flow: &Arc<Flow>, samples: &[f32], front: Option<&(S
     }
     let final_text = text::finish(&written, &prepared.snippets);
     crate::log::line(format!("flow: {} words in {:?}", text::word_count(&final_text), started.elapsed()));
+    // JARVIS #90: the tutorial's practice mail gets them even when another window was in front.
+    let _ = app.emit_to(crate::tutorial::LABEL, "flow-dictated", &final_text);
 
     os::wait_key_released(&key);
+    // JARVIS #90: during the tutorial the words go to its practice mail only (flow-dictated).
+    if crate::tutorial::is_open() {
+        pill::update(app, |s| s.phase = "idle".into());
+        return Ok(());
+    }
     let terminal = front.is_some_and(|(id, _)| is_terminal(id));
     let outcome = paste::paste(&final_text, terminal);
     let entry = {

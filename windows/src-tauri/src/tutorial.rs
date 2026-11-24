@@ -4,11 +4,29 @@
 // hello; finished or skipped, it doesn't come back unless Settings › General
 // asks for it again. An existing install never sees it on its own.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 use std::time::Duration;
 
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 pub const LABEL: &str = "tutorial";
+
+/// The tour is on screen: JARVIS's shortcuts go to it only (#90: Ctrl+Shift+Z opened the real
+/// ask box as well as the tour's, and dictation pasted into whatever was in front).
+static OPEN: AtomicBool = AtomicBool::new(false);
+static APP: OnceLock<AppHandle> = OnceLock::new();
+
+pub fn is_open() -> bool {
+    OPEN.load(Ordering::Relaxed)
+}
+
+/// A shortcut pressed (`down`) or let go while the tour is up: the tour acts on it instead.
+pub fn forward(action: &str, down: bool) {
+    if let Some(app) = APP.get() {
+        let _ = app.emit_to(LABEL, "tutorial-key", serde_json::json!({ "action": action, "down": down }));
+    }
+}
 
 /// There while a fresh install hasn't finished (or skipped) the tour.
 fn pending() -> std::path::PathBuf {
@@ -27,6 +45,7 @@ fn url(app: &AppHandle) -> WebviewUrl {
 
 /// At start-up. `fresh`: there was no settings file yet, so this is a new install.
 pub fn setup(app: &AppHandle, fresh: bool) {
+    let _ = APP.set(app.clone());
     if fresh {
         let _ = crate::platform::ensure_private_dir(&crate::settings::config_dir());
         let _ = std::fs::write(pending(), b"");
@@ -63,8 +82,18 @@ fn open(app: &AppHandle) {
         .focused(true)
         .disable_drag_drop_handler()
         .build();
-    if let Err(err) = built {
-        crate::log::line(format!("tutorial: no window: {err}"));
+    match built {
+        // In front, so what you dictate lands in its practice mail.
+        Ok(w) => {
+            OPEN.store(true, Ordering::Relaxed);
+            w.on_window_event(|e| {
+                if matches!(e, WindowEvent::Destroyed) {
+                    OPEN.store(false, Ordering::Relaxed);
+                }
+            });
+            let _ = w.set_focus();
+        }
+        Err(err) => crate::log::line(format!("tutorial: no window: {err}")),
     }
 }
 
@@ -78,6 +107,7 @@ pub async fn tutorial_open(app: AppHandle) {
 /// Finished or skipped: the window goes, and it won't open on its own again.
 #[tauri::command]
 pub fn tutorial_close(app: AppHandle) {
+    OPEN.store(false, Ordering::Relaxed);
     let _ = std::fs::remove_file(pending());
     if let Some(w) = app.get_webview_window(LABEL) {
         let _ = w.close();

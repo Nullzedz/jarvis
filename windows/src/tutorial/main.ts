@@ -6,7 +6,7 @@
 // rest are played out here, since the real keys would act on your own screen.
 
 import "./tutorial.css";
-import { Bridge } from "../core/bridge";
+import { Bridge, onEvent } from "../core/bridge";
 import { N_, resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
 
 type Step = {
@@ -19,7 +19,8 @@ type Step = {
   build(p: HTMLElement): void;
   play?(p: HTMLElement, s: Run): void | Promise<void>;
 };
-type Run = { alive: boolean; cleanup: (() => void)[]; done: () => void };
+/** `onKey`: one of JARVIS's shortcuts pressed or let go; while the tour is up, they come here only (#90). */
+type Run = { alive: boolean; cleanup: (() => void)[]; done: () => void; onKey?: (action: string, down: boolean) => void };
 
 const $ = <E extends Element = HTMLElement>(q: string, r: ParentNode = document) => r.querySelector(q) as E;
 const $$ = <E extends Element = HTMLElement>(q: string, r: ParentNode = document) => [...r.querySelectorAll(q)] as E[];
@@ -32,7 +33,7 @@ const el = (tag: string, cls?: string, html?: string) => {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jarvis = (small = false) =>
   `<div class="jarvis${small ? " small" : ""}"><div class="halo"></div><div class="halo h2"></div><div class="shell"></div><div class="slot"><div class="eye"></div></div><div class="badge"></div></div>`;
-const K = (...ks: string[]) => ks.map((k) => `<kbd>${k}</kbd>`).join(" + ");
+const K = (...ks: string[]) => `<span class="combo">${ks.map((k) => `<kbd>${k}</kbd>`).join(" + ")}</span>`;
 const ctrl = () => t("Ctrl"), win = () => t("Win"), shift = () => t("Shift"), alt = () => t("Alt"), rctrl = () => t("Right Ctrl");
 
 /* He says his lines out loud, with a voice of this computer. */
@@ -74,7 +75,7 @@ function wave(host: HTMLElement) {
   const timer = window.setInterval(() => bars.forEach((b) => (b.style.height = `${4 + Math.random() * 14}px`)), 90);
   return () => { window.clearInterval(timer); bars.forEach((b) => (b.style.height = "4px")); };
 }
-/* The on-screen button held down: start on press, stop on release (once). */
+/* The on-screen button held down, or the real keys (press / release): start on press, stop on release (once). */
 function holdable(button: HTMLElement, { down, up }: { down: () => void; up: () => void }) {
   let held = false;
   const press = (e?: Event) => { if (held) return; held = true; button.classList.add("down"); mood("listen"); down(); e?.preventDefault(); };
@@ -82,7 +83,29 @@ function holdable(button: HTMLElement, { down, up }: { down: () => void; up: () 
   button.addEventListener("pointerdown", press);
   button.addEventListener("pointerup", release);
   button.addEventListener("pointerleave", release);
-  return () => release();
+  return Object.assign(() => release(), { press: () => press(), release });
+}
+
+/* The keycaps light while those keys are really held (#90: they flashed on their own as a hint). */
+function keysOf(action: string): string[] | null {
+  switch (action) {
+    case "talk": return [ctrl(), win()];
+    case "ask": return [ctrl(), shift(), "Z"];
+    case "more": return [shift(), win()];
+    case "dictate": return [rctrl()];
+    case "toggleIsland": return [ctrl(), alt(), "N"];
+    case "goToAlert": return [ctrl(), alt(), "A"];
+    case "sleepToggle": return [ctrl(), alt(), "Z"];
+    default: return null;
+  }
+}
+function light(action: string, on: boolean) {
+  const want = keysOf(action);
+  if (!want) return;
+  for (const combo of $$("#keys .combo")) {
+    const caps = $$("kbd", combo);
+    if (caps.length === want.length && caps.every((k, n) => k.textContent === want[n])) caps.forEach((k) => k.classList.toggle("down", on));
+  }
 }
 
 /* Tidy dictation: a capital and a full stop, as his model does. */
@@ -273,6 +296,23 @@ const STEPS: Step[] = [
       };
       // The real dictation types here like in any text box.
       area.addEventListener("input", check);
+      // While the real key is held: the same "Listening…" and his visor listening (#90: nothing showed).
+      let realWave: (() => void) | null = null;
+      const offPhase = onEvent<{ phase: string }>("pill-state", ({ phase }) => {
+        if (phase === "listening" || phase === "locked") {
+          if (!realWave) { pill.classList.add("on"); realWave = wave($(".wave", pill)); mood("listen"); light("dictate", true); }
+        } else {
+          if (realWave) { realWave(); realWave = null; pill.classList.remove("on"); light("dictate", false); }
+          if (phase === "thinking") mood("think", 1200);
+        }
+      });
+      // What it wrote: if another window was in front and got it, it's put here too.
+      const offText = onEvent<string>("flow-dictated", (text) => window.setTimeout(() => {
+        const said = text.trim();
+        if (said && !area.value.includes(said.slice(0, 16))) area.value = area.value ? `${area.value.trimEnd()} ${said}` : said;
+        check();
+      }, 450));
+      s.cleanup.push(() => { realWave?.(); void offPhase.then((f) => f()); void offText.then((f) => f()); });
       send.onclick = async () => {
         mail.classList.add("sent");
         await sleep(650);
@@ -311,7 +351,7 @@ const STEPS: Step[] = [
     play(p, s) {
       const isl = $(".isl", p), pill = $(".flowpill", p), heard = $(".heard", p);
       let session: { stop(): void } | null = null, stopWave: (() => void) | null = null;
-      s.cleanup.push(holdable($(".hold", p), {
+      const hold = holdable($(".hold", p), {
         down: () => {
           pill.classList.add("on");
           stopWave = wave($(".wave", pill));
@@ -319,7 +359,10 @@ const STEPS: Step[] = [
           session = played(t("What's on my calendar today?"), (f) => (heard.textContent = `“${f}”`), () => void answer());
         },
         up: () => { pill.classList.remove("on"); stopWave?.(); session?.stop(); },
-      }));
+      });
+      s.cleanup.push(hold);
+      // The real talk keys do the same as the button.
+      s.onKey = (action, down) => { if (action === "talk") (down ? hold.press() : hold.release()); };
       async function answer() {
         islandShow(isl, "home", `<div class="card"><div class="muted" style="margin-bottom:6px">${t("Today")}</div>
           ${[t("10:00 · Stand-up"), t("13:30 · Lunch with Maya"), t("16:00 · Dentist")].map((x) => `<div class="li"><span class="ck"></span>${x}</div>`).join("")}</div>`);
@@ -358,9 +401,8 @@ const STEPS: Step[] = [
         input.focus();
       };
       chart.addEventListener("click", open);
-      const kd = (e: KeyboardEvent) => { if (e.ctrlKey && e.shiftKey && e.code === "KeyZ" && s.alive) { e.preventDefault(); open(); } };
-      addEventListener("keydown", kd);
-      s.cleanup.push(() => removeEventListener("keydown", kd));
+      // The real ask keys open the tour's box, and only it (#90: JARVIS's own opened too).
+      s.onKey = (action, down) => { if (action === "ask" && down && !asked) open(); };
       const go = () => {
         if (asked) return;
         asked = true;
@@ -406,7 +448,12 @@ const STEPS: Step[] = [
       };
       $(".chip", p).onclick = () => void run();
       let session: { stop(): void } | null = null;
-      s.cleanup.push(holdable($(".hold", p), { down: () => (session = played(t("Where's the export button?"), () => {}, () => void run())), up: () => session?.stop() }));
+      const hold = holdable($(".hold", p), { down: () => (session = played(t("Where's the export button?"), () => {}, () => void run())), up: () => session?.stop() });
+      s.cleanup.push(hold);
+      s.onKey = (action, down) => {
+        if (action === "talk") (down ? hold.press() : hold.release());
+        if (action === "ask" && down) void run();
+      };
     },
   },
   {
@@ -477,6 +524,9 @@ const STEPS: Step[] = [
       let leave = 0;
       isl.addEventListener("mouseenter", () => { window.clearTimeout(leave); if (!isl.classList.contains("big")) islandShow(isl, "home", TABS.home()); });
       isl.addEventListener("mouseleave", () => { leave = window.setTimeout(() => islandClose(isl), 1600); });
+      s.onKey = (action, down) => {
+        if (action === "toggleIsland" && down) (isl.classList.contains("big") ? islandClose(isl) : islandShow(isl, "home", TABS.home()));
+      };
       isl.addEventListener("click", (e) => {
         const target = e.target as HTMLElement;
         const tab = target.closest<HTMLElement>(".tab");
@@ -655,13 +705,13 @@ async function main() {
   addEventListener("pointermove", (e) => {
     if (!/listen|think/.test(nar.className)) $(".eye", nar).style.transform = `translateX(${(e.clientX / innerWidth - 0.5) * 70}%)`;
   });
-  // The keys press themselves now and then as a hint.
-  window.setInterval(() => {
-    $$("#keys kbd").forEach((k, n) => {
-      window.setTimeout(() => k.classList.add("tap"), n * 140);
-      window.setTimeout(() => k.classList.remove("tap"), n * 140 + 420);
-    });
-  }, 3600);
+  // JARVIS's shortcuts, while the tour is up: they light their keycaps and act here only (#90).
+  void onEvent<{ action: string; down: boolean }>("tutorial-key", ({ action, down }) => {
+    light(action, down);
+    // A one-press shortcut (the island's) lights for a moment.
+    if (down && !["talk", "ask", "more"].includes(action)) window.setTimeout(() => light(action, false), 350);
+    current.onKey?.(action, down);
+  });
   go(0);
 }
 

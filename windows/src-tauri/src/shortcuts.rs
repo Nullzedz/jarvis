@@ -325,6 +325,11 @@ pub fn plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Hands an action to the island.
 pub fn dispatch<R: Runtime>(app: &AppHandle<R>, action: &str) {
     crate::log::line(format!("shortcut {action}"));
+    // JARVIS #90: while the tutorial is up, its practice island takes them.
+    if crate::tutorial::is_open() {
+        crate::tutorial::forward(action, true);
+        return;
+    }
     if action == "wardrobeToggle" {
         let _ = app.emit_to(WINDOW_LABEL, "open-wardrobe", ());
     } else {
