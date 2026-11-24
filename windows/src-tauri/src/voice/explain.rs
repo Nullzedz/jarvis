@@ -128,6 +128,12 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
         Some((x0, y0, x1 - x0, y1 - y0))
     };
     let target = shot.and_then(|s| on_screen(super::window::target(window, s.size), s));
+    // "Where is…?" with nowhere sensible to circle: nothing is drawn (he has said it).
+    let point = super::window::is_point(window);
+    if point && target.is_none() {
+        crate::log::line("explain: a place to circle, but not on the picture");
+        return;
+    }
     // What he explains, never covered: the area he marked, or else all you circled, or else the target.
     let about = shot
         .and_then(|s| {
@@ -152,6 +158,12 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
     };
     let (target, about) = (in_page(target), in_page(about));
     OPEN.store(true, Ordering::Relaxed);
+    // "Where is…?" (#88): he goes to it and circles it, and nothing else; no card, no drawing.
+    if point {
+        crate::log::line("explain: circled where it is");
+        let _ = win.emit("explain-point", json!({ "add": add, "target": target, "cursor": page(cursor) }));
+        return;
+    }
     // His line: one sentence, at most 15 words. A requested drawing opens empty (his eye
     // sweeping) and fills in when the drawing model is done (issue #14).
     let line = super::window::short_line(said);

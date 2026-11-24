@@ -261,8 +261,11 @@ pub fn ask_send(app: AppHandle, question: String) {
         }
         if let (true, Some(w)) = (ok, window) {
             super::explain::show(&app, &question, &text, &w, seen.as_ref(), add);
-            let app2 = app.clone();
-            let _ = app.run_on_main_thread(move || close(&app2));
+            // "Where is…?" (#88): only a ring is drawn, so his line stays in the box.
+            if !super::window::is_point(&w) {
+                let app2 = app.clone();
+                let _ = app.run_on_main_thread(move || close(&app2));
+            }
         }
     });
 }

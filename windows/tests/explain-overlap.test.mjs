@@ -15,3 +15,10 @@ test("texts that only touch, or don't meet, pass", () => {
   // A sliver (a descender over the next line) isn't an overlap.
   assert.equal(overlapping([box("Member", 0, 0, 60, 16), box("Optional", 0, 15, 60, 16)]), null);
 });
+
+test("#88: a label running out of its box is caught; one inside it passes", async () => {
+  const { outOfBox } = await import("../src/explain/draw.ts");
+  const shape = { left: 0, top: 0, right: 60, bottom: 30 };
+  assert.equal(outOfBox([box("設定を開く", 4, 8, 70, 14)], [shape]), "設定を開く");
+  assert.equal(outOfBox([box("Open", 8, 8, 40, 14)], [shape]), null);
+});

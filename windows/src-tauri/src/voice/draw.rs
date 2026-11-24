@@ -93,8 +93,10 @@ pub fn parse(reply: &str) -> Option<Value> {
         .find_map(|l| l.trim().trim_start_matches(['*', '#', ' ']).strip_prefix("FORM:"))
         .map(|f| f.trim().trim_matches(['*', '`', '"']).to_lowercase())
         .unwrap_or_default();
-    if let (Some(a), Some(b)) = (reply.find("<svg"), reply.rfind("</svg>")) {
-        if a < b {
+    // #88: "<SVG" counts too, and the drawing ends at its own "</svg>", not at the reply's last one.
+    let lower = reply.to_ascii_lowercase();
+    if let Some(a) = lower.find("<svg") {
+        if let Some(b) = lower[a..].find("</svg>").map(|i| a + i) {
             let svg = &reply[a..b + "</svg>".len()];
             return Some(json!({ "kind": "drawing", "form": if form.is_empty() { "drawing".into() } else { form }, "svg": svg }));
         }
@@ -253,6 +255,14 @@ pub fn draw_models() -> Vec<Choice> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_capital_svg_tag_counts_and_the_drawing_ends_at_its_own_close() {
+        let w = parse("FORM: flow
+<SVG viewBox='0 0 10 10'><rect/></SVG>
+That's it. </svg>").unwrap();
+        assert_eq!(w["svg"].as_str().unwrap(), "<SVG viewBox='0 0 10 10'><rect/></SVG>");
+    }
 
     #[test]
     fn his_own_drawing_comes_with_its_form() {

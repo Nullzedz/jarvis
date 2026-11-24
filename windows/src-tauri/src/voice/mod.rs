@@ -300,6 +300,11 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             if take.take().is_some() {
                 show(&app, None);
             }
+            // A circle being drawn ends too, so its trail fades (#88: it froze on screen).
+            if let Some(t) = trail.take() {
+                let _ = t.end();
+            }
+            drawn = None;
             talk.end();
             vad.reset();
             preroll.clear();

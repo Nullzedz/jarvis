@@ -72,9 +72,16 @@ pub fn ready(w: &Value) -> bool {
         Some("breakdown") => list("parts"),
         Some("timeline") => list("points"),
         // His own picture: plain SVG, made safe where it's drawn (src/explain/draw.ts).
-        Some("drawing") => w["svg"].as_str().is_some_and(|s| s.contains("<svg")),
+        Some("drawing") => w["svg"].as_str().is_some_and(|s| s.to_ascii_lowercase().contains("<svg")),
+        // "Where is…?" (#88): only the place he circles; no card.
+        Some("point") => is_point(w),
         _ => false,
     }
+}
+
+/// "Where is…?" (#88): a window that is only a place to circle, with no card.
+pub fn is_point(w: &Value) -> bool {
+    w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4)
 }
 
 /// The target box on the picture, if he gave a sensible one: [x, y, w, h], inside it.
@@ -154,6 +161,16 @@ mod tests {
         assert_eq!(short_line("Version 2.5 is out, sir."), "Version 2.5 is out, sir.");
         let long = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen, sixteen seventeen";
         assert_eq!(short_line(long), "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen…");
+    }
+
+    #[test]
+    fn where_is_comes_as_a_point_with_only_its_target() {
+        let (said, w) = split(r#"Top right, next to Share. <window>{"kind": "point", "target": [600, 10, 80, 24]}</window>"#);
+        assert_eq!(said, "Top right, next to Share.");
+        let w = w.unwrap();
+        assert!(is_point(&w));
+        assert_eq!(target(&w, (1280, 720)), Some((600.0, 10.0, 80.0, 24.0)));
+        assert!(split(r#"Here. <window>{"kind": "point"}</window>"#).1.is_none());
     }
 
     #[test]
