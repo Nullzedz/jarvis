@@ -78,7 +78,8 @@ body {
   border-radius: 0 0 14px 14px;
   overflow: visible;
   will-change: width, height, transform;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); /* the notch prototype's (#86) */
+  /* No shadow: its window is only 10 px wider than the open island (and the closed pill's is the
+     pill's size), so a soft shadow was cut off at the window's edge as hard dark wedges. */
 }
 
 #island-clip {
