@@ -83,7 +83,8 @@ pub fn sync(app: &AppHandle) {
     // And the JARVIS page's microphone, while that page is open, even with background listening off.
     let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice)
         || print::training_active()
-        || IN_APP.load(Ordering::Relaxed);
+        || IN_APP.load(Ordering::Relaxed)
+        || ON_DEMAND.load(Ordering::Relaxed);
     let mut running = RUNNING.lock().unwrap();
     match (wanted && requirements_met(), running.is_some()) {
         (true, false) => {
@@ -146,6 +147,68 @@ static PAGE_TAKE: AtomicBool = AtomicBool::new(false);
 /// The JARVIS page is open and you pressed its microphone: his voice runs while it stays open,
 /// even with background listening (« Hey JARVIS ») off.
 static IN_APP: AtomicBool = AtomicBool::new(false);
+/// JARVIS: Ctrl + Win was pressed with « Hey JARVIS » off: the talk loop runs for this conversation
+/// only, and the microphone closes again once it's over (on_demand).
+static ON_DEMAND: AtomicBool = AtomicBool::new(false);
+/// When a take was last open (ms since start-up): the on-demand loop stops a while after.
+static LAST_TAKE_MS: AtomicU64 = AtomicU64::new(0);
+/// The talk loop's last beat (ms since start-up): no beat for a while means it's busy answering
+/// or speaking, which counts as the conversation going on.
+static LAST_BEAT_MS: AtomicU64 = AtomicU64::new(0);
+/// How long after the last question the on-demand microphone closes.
+const ON_DEMAND_IDLE_MS: u64 = 60_000;
+fn since_start_ms() -> u64 {
+    static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as u64
+}
+
+/// JARVIS: holding the talk keys works on its own, with « Hey JARVIS » (the always-open microphone)
+/// off: they're watched here, and a press starts the talk loop just for that conversation; a minute
+/// after the last question (answers and speech count as talking) the microphone closes.
+pub fn on_demand(app: &AppHandle) {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    let app = app.clone();
+    ONCE.call_once(move || {
+        std::thread::Builder::new()
+            .name("jarvis-talk-keys".into())
+            .spawn(move || loop {
+                std::thread::sleep(Duration::from_millis(30));
+                let always = crate::flow::get(&app).is_some_and(|f| f.store.lock().unwrap().prefs.voice);
+                if always {
+                    ON_DEMAND.store(false, Ordering::Relaxed);
+                    continue;
+                }
+                if !is_listening() {
+                    let (chord, other) = talk::keys();
+                    if chord && !other && requirements_met() && !pill::dictating(&app) {
+                        crate::log::line("voice: talk keys pressed: listening for this conversation");
+                        // A held Win, let go, would open the Start menu.
+                        if shortcut::needs_mask(shortcut::Which::Talk) {
+                            shortcut::mask();
+                        }
+                        // The press counts even if the keys are let go before the loop is up (a tap: hands-free).
+                        MIC_TAP.store(true, Ordering::Relaxed);
+                        LAST_TAKE_MS.store(since_start_ms(), Ordering::Relaxed);
+                        ON_DEMAND.store(true, Ordering::Relaxed);
+                        sync(&app);
+                    }
+                } else if ON_DEMAND.load(Ordering::Relaxed) {
+                    let now = since_start_ms();
+                    // Thinking or speaking (the loop is held up): still talking.
+                    if now.saturating_sub(LAST_BEAT_MS.load(Ordering::Relaxed)) > 300 {
+                        LAST_TAKE_MS.store(now, Ordering::Relaxed);
+                    }
+                    if now.saturating_sub(LAST_TAKE_MS.load(Ordering::Relaxed)) <= ON_DEMAND_IDLE_MS {
+                        continue;
+                    }
+                    ON_DEMAND.store(false, Ordering::Relaxed);
+                    sync(&app);
+                    crate::log::line("voice: conversation over: microphone closed");
+                }
+            })
+            .ok();
+    });
+}
 
 /// "ok", or "model" when the voice model isn't downloaded yet (nothing can hear you).
 #[tauri::command]
@@ -274,6 +337,10 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
     prewarm();
     while !stop.load(Ordering::Relaxed) {
         let recording = take.is_some();
+        LAST_BEAT_MS.store(since_start_ms(), Ordering::Relaxed);
+        if recording || talk.recording() {
+            LAST_TAKE_MS.store(since_start_ms(), Ordering::Relaxed);
+        }
         if recording && hush.is_none() {
             hush = crate::flow::hush::hush(quiet());
         } else if !recording {

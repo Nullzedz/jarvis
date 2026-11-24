@@ -141,6 +141,8 @@ pub fn setup(app: &AppHandle) {
     }
     crate::voice::shortcut::apply(&prefs);
     crate::voice::sync(app);
+    // JARVIS: Ctrl + Win works with « Hey JARVIS » off too.
+    crate::voice::on_demand(app);
 }
 
 /// The key as the pages write it ("right_ctrl"…, "custom:AltLeft+ShiftLeft+KeyF"
