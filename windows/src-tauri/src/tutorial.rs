@@ -148,8 +148,9 @@ fn open(app: &AppHandle) {
 
 /// A key pressed or let go in the tour's own window (KeyboardEvent.code). Windows doesn't always
 /// hand JARVIS's key watch the keys typed into his own window (#90: Right Ctrl never arrived), so
-/// the window says them itself: the dictation key starts and stops the real dictation, and the
-/// talk, ask and « more » keys act in the tour.
+/// the window says them itself: the dictation key starts and stops the real dictation. The talk,
+/// ask and « more » keys are read by the key watch only (watch_keys): Windows tells the window a
+/// held Win key was let go after a second, which ended the talk keys while still held.
 #[tauri::command]
 pub fn tutorial_key(app: AppHandle, code: String, down: bool) {
     static HELD: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
@@ -170,20 +171,13 @@ pub fn tutorial_key(app: AppHandle, code: String, down: bool) {
     };
     let all = |set: &[String], keys: &[String]| !keys.is_empty() && keys.iter().all(|k| set.contains(k));
     let Some(flow) = crate::flow::get(&app) else { return };
-    let (dictate, talk, ask, more) = {
+    let dictate = {
         let store = flow.store.lock().unwrap();
-        let p = &store.prefs;
-        use crate::voice::shortcut::{codes, DEFAULT_ASK, DEFAULT_MORE, DEFAULT_TALK};
-        (p.key.codes(&p.key_combo), codes(&p.talk_keys, &DEFAULT_TALK), codes(&p.ask_keys, &DEFAULT_ASK), codes(&p.more_keys, &DEFAULT_MORE))
+        store.prefs.key.codes(&store.prefs.key_combo)
     };
     if all(&before, &dictate) != all(&now, &dictate) {
         crate::log::line(format!("tutorial: window key dictation {}", if down { "down" } else { "up" }));
         crate::flow::key_from_tutorial(all(&now, &dictate));
-    }
-    for (name, keys) in [("talk", &talk), ("ask", &ask), ("more", &more)] {
-        if all(&before, keys) != all(&now, keys) {
-            forward(name, all(&now, keys));
-        }
     }
 }
 
