@@ -338,7 +338,7 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
     while !stop.load(Ordering::Relaxed) {
         let recording = take.is_some();
         LAST_BEAT_MS.store(since_start_ms(), Ordering::Relaxed);
-        if recording || talk.recording() {
+        if recording {
             LAST_TAKE_MS.store(since_start_ms(), Ordering::Relaxed);
         }
         if recording && hush.is_none() {
