@@ -110,7 +110,13 @@ const bounds = (el: HTMLElement): Rect => {
 };
 
 /** Tells Rust where the cards are, so only they take the mouse. */
+/** A "where is…?" circle is being drawn: the layer must stay on screen with no card up. */
+let pointing = false;
+
 function report() {
+  // #92: closing what was up before a circle said "nothing up" 170 ms later, and the layer was
+  // moved off screen, circle and all, before it was drawn.
+  if (pointing && !cards.length) return;
   void Bridge.explainHot(cards.map(({ el }) => {
     const r = bounds(el);
     return [r.x, r.y, r.w, r.h] as Box;
@@ -139,6 +145,7 @@ function remove(card: Card) {
 
 function closeAll() {
   era++;
+  pointing = false;
   timers.forEach(clearTimeout);
   timers = [];
   loose.forEach(fadeMark);
@@ -572,6 +579,7 @@ function answered(a: Answer) {
 /** "Where is…?" (#88): he goes to it and circles it; the ring stays lit a while, then all of it goes. No card. */
 function point(p: Point) {
   if (!p.add) closeAll();
+  pointing = true;
   const target = rectOf(p.target);
   ptr.classList.remove("docked");
   at(p.cursor[0], p.cursor[1]);
@@ -587,6 +595,7 @@ function point(p: Point) {
       loose = loose.filter((m) => m !== r);
       fadeMark(r);
       // Nothing else up: the layer goes off screen.
+      pointing = false;
       if (!cards.length && !loose.length) window.setTimeout(report, 560);
     });
   });
