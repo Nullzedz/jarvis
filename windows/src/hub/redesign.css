@@ -903,3 +903,5 @@ button.jv-ntrow:hover:not(:disabled) { background: #1f1f22; }
 .switch:disabled { opacity: .35; cursor: not-allowed; }
 /* #84: subheads in sentence case, as Apple's settings (ALL CAPS read as shouting and hurt scanning). */
 .hub-group, .hub-label, .subhead { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }
+/* #84: a tile reached with Tab never hides under the dock. */
+body.at-home .hub-scroll { scroll-padding-bottom: 130px; }

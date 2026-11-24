@@ -103,7 +103,7 @@ export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
   { id: "s.closed", page: "prefs", where: "Island", group: "group-island", title: "Closed island shows", terms: [] },
   { id: "s.autoclose", page: "prefs", where: "Island", group: "group-island", title: "Auto-close", terms: ["Close after"] },
   { id: "s.screen", page: "prefs", where: "Island", group: "group-island", title: "Island lives on", terms: ["Screen", "Display", "Monitor"] },
-  { id: "s.voicekeys", page: "prefs", where: "Shortcuts", group: "group-voice", title: "Shortcuts", terms: ["Talk", "Ask", "Show more", "Dictate"] },
+  { id: "s.voicekeys", page: "prefs", group: "group-shortcuts", title: "Shortcuts", terms: ["Talk", "Ask", "Show more", "Dictate"] },
   // Settings › Shortcuts, Sound
   { id: "s.shortcuts", page: "prefs", where: "Shortcuts", group: "group-shortcuts", title: "Shortcuts", terms: ["Open or close the island", "Open the chat", "Put JARVIS to sleep or wake him", "Next pill", "Previous pill", "Open the terminal", "Keyboard"] },
   { id: "s.sound", page: "prefs", where: "Sound", group: "group-sound", title: "Sound", terms: ["Open sounds folder", "Reload sounds"] },
