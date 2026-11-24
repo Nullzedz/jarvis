@@ -462,7 +462,8 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       const place = [pageDef?.title() ?? "", hit.entry.where ? t(hit.entry.where) : ""].filter(Boolean).join(" › ");
       const rowSubtitle = h("div", {
         class: "hub-search-row-subtitle",
-        text: hit.label ? `${place} › ${t(hit.entry.title)}` : place,
+        // The box's name, unless the place already ends with it ("Settings › Shortcuts", not "… › Shortcuts › Shortcuts").
+        text: hit.label && t(hit.entry.title) !== (hit.entry.where ? t(hit.entry.where) : "") ? `${place} › ${t(hit.entry.title)}` : place,
       });
       textContainer.append(rowTitle, rowSubtitle);
       row.append(textContainer);
