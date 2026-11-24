@@ -891,3 +891,13 @@ button.jv-ntrow:hover:not(:disabled) { background: #1f1f22; }
 .jv-toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 .jv-toast .jv-link { padding: 2px 6px; font-weight: 500; }
 @media (prefers-reduced-motion: reduce) { .jv-toast { transition: opacity .1s linear; transform: translate(-50%, 0); } }
+
+/* ── #84: Mail ── */
+.jv-mrb:disabled { opacity: .3; cursor: default; }
+.jv-md.fut { cursor: default; }
+.jv-mon .jv-chipbtn { margin-right: 6px; }
+.jv-sconfirm { display: inline-flex; align-items: center; gap: 8px; }
+.jv-chipbtn:disabled { opacity: .4; cursor: default; }
+/* ── #84: Connections ── */
+.keystate { font-size: 12px; color: var(--jv-t2); min-width: 52px; }
+.switch:disabled { opacity: .35; cursor: not-allowed; }

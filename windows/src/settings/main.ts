@@ -912,7 +912,22 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
   const offered = new Set(availablePills().map((p) => p.id));
   for (const def of INTEGRATIONS.filter((d) => offered.has(d.id))) {
     const active = settings.activeIntegrations.includes(def.id);
-    const sw = h("button", { class: active ? "switch on" : "switch" });
+    const sw = h("button", { class: active ? "switch on" : "switch", role: "switch", "aria-checked": String(active), "aria-label": t("{0} pill in the island", { 0: def.name }) }) as HTMLButtonElement;
+    // At the limit, a switch that's off says why it can't turn on, and which pills are using the room (#84: it silently refused).
+    const full = h("div", { class: "hint", style: "display:none" });
+    const fit = () => {
+      const on = settings.activeIntegrations.includes(def.id);
+      const blocked = !on && settings.activeIntegrations.length >= MAX_ACTIVE;
+      sw.classList.toggle("on", on);
+      sw.setAttribute("aria-checked", String(on));
+      sw.disabled = blocked;
+      full.style.display = blocked ? "" : "none";
+      if (blocked) {
+        const names = settings.activeIntegrations.map((id) => INTEGRATIONS.find((d) => d.id === id)?.name ?? (id === WHATSAPP_ID ? "WhatsApp" : id));
+        full.textContent = t("All {max} pills are in use ({names}). Turn one off to use this one.", { max: MAX_ACTIVE, names: names.join(", ") });
+      }
+    };
+    declaredViews.push(fit);
     sw.addEventListener("click", () => {
       const on = settings.activeIntegrations.includes(def.id);
       if (on) {
@@ -921,7 +936,6 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         if (settings.activeIntegrations.length >= MAX_ACTIVE) return;
         settings.activeIntegrations = [...settings.activeIntegrations, def.id];
       }
-      sw.classList.toggle("on", !on);
       declaredChanged();
     });
 
@@ -936,6 +950,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       }) as HTMLInputElement;
       const saveBtn = h("button", { text: t("Save") });
       const dotEl = statusDot(present[field.key] ?? false);
+      // The key's state in words beside its dot, so it never reads as the colour dot (#84).
+      const said = h("span", { class: "keystate", text: present[field.key] ? t("Saved") : t("Not set") });
       saveBtn.addEventListener("click", async () => {
         const value = input.value.trim();
         try {
@@ -944,14 +960,16 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
           input.value = "";
           input.placeholder = value ? CHAT_STRINGS.stored : field.placeholder;
           dotEl.style.background = value ? "#22c55e" : "#f4505e";
+          said.textContent = value ? t("Saved") : t("Not set");
         } catch {
           dotEl.style.background = "#f5a524";
+          said.textContent = t("Couldn't save");
         }
       });
       rows.append(
         h("div", { class: "row" },
           h("label", { style: "min-width:104px", text: t(field.label) }),
-          input, saveBtn, dotEl,
+          input, saveBtn, dotEl, said,
         ),
       );
     }
@@ -977,6 +995,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         rows,
       ),
     );
+    rows.prepend(full);
+    fit();
   }
 
   updateNote();
