@@ -335,6 +335,10 @@ export const Bridge = {
   explainFocus: (on: boolean) => call<void>("explain_focus", { on }),
   /** JARVIS: a follow-up typed in window `card`; the answer comes back as `explain-answer`. */
   explainAsk: (card: number, question: string) => call<void>("explain_ask", { card, question }),
+  /** JARVIS: the first-launch tutorial (#90) ends, finished or skipped: its window closes and it isn't shown on its own again. */
+  tutorialClose: () => call<void>("tutorial_close"),
+  /** JARVIS: shows the first-launch tutorial again (Settings › General). */
+  tutorialOpen: () => call<void>("tutorial_open"),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),

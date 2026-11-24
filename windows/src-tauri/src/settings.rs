@@ -206,6 +206,11 @@ fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
 }
 
+/// A settings file is there (JARVIS #90: none yet means a fresh install).
+pub fn exists() -> bool {
+    settings_path().exists()
+}
+
 pub fn load() -> Settings {
     load_from(&settings_path())
 }

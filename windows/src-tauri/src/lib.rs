@@ -1,6 +1,7 @@
 // Coucou for Windows — app wiring and the commands the island calls.
 
 mod agent_hooks;
+mod tutorial;
 mod agents;
 mod agy_approvals;
 mod agy_rules;
@@ -913,6 +914,8 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
 
 pub fn run() {
     platform::prepare_environment();
+    // JARVIS: no settings file yet: a fresh install, which gets the tutorial (#90).
+    let fresh = !settings::exists();
     let loaded = settings::load();
     i18n::set_picked(&loaded.language);
     let gate = Arc::new(PollGate::new());
@@ -980,6 +983,8 @@ pub fn run() {
             voice::draw::draw_models,
             voice::explain::explain_focus,
             voice::explain::explain_ask,
+            tutorial::tutorial_open,
+            tutorial::tutorial_close,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,
@@ -1195,6 +1200,7 @@ pub fn run() {
             voice::ask::setup(&handle);
             voice::ink::setup(&handle);
             voice::explain::setup(&handle);
+            tutorial::setup(&handle, fresh);
             notes::setup(&handle);
             // JARVIS: the island's clipboard history (in memory only).
             clipboard_history::setup(&handle);

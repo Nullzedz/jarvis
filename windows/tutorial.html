@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JARVIS</title>
+  </head>
+  <body>
+    <div class="app b" id="app">
+      <div class="frame">
+        <div class="copy" id="copy">
+          <div class="narrator" id="narrator" aria-hidden="true"><div class="ring"></div><div class="shell"></div><div class="slot"><div class="eye"></div></div><div class="badge"></div></div>
+          <div class="step-n" id="stepN"></div>
+          <h1 id="title"></h1>
+          <p class="say" id="say"></p>
+          <div class="keys" id="keys"></div>
+          <div class="task" id="task" hidden><span id="taskText"></span><div class="done" id="taskDone"><svg class="tick" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="#30d158" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+          <div class="nav">
+            <div class="dots" id="dots"></div>
+            <button class="btn ghost" id="back"></button>
+            <button class="btn primary" id="next"><span class="lbl"></span></button>
+          </div>
+        </div>
+        <div class="stage" id="stage"><button class="skip-all" id="skipAll"></button></div>
+      </div>
+    </div>
+    <script type="module" src="/src/tutorial/main.ts"></script>
+  </body>
+</html>

@@ -68,6 +68,7 @@ export default defineConfig({
         ask: resolve(__dirname, "ask.html"),
         ink: resolve(__dirname, "ink.html"),
         explain: resolve(__dirname, "explain.html"),
+        tutorial: resolve(__dirname, "tutorial.html"),
       },
       output: {
         // The interface's strings in every language (src/i18n/*.json) make a
