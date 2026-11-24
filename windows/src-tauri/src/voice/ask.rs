@@ -238,8 +238,9 @@ pub fn ask_send(app: AppHandle, question: String) {
     if question.is_empty() {
         return;
     }
-    // The picture goes with the box's first question.
-    let seen = SEEN.lock().unwrap().take();
+    // The picture taken when the box opened goes with its first question; each later question
+    // gets a fresh one (#92: asked again in the same box, he had no picture and said he couldn't draw).
+    let seen = SEEN.lock().unwrap().take().or_else(super::sight::whole_screen);
     let add = ADD.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
         let mut brain = brain().lock().unwrap();
