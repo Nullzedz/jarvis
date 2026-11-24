@@ -17,8 +17,17 @@ pub const LABEL: &str = "tutorial";
 static OPEN: AtomicBool = AtomicBool::new(false);
 static APP: OnceLock<AppHandle> = OnceLock::new();
 
+/// Its window has the keyboard: only then are JARVIS's shortcuts the tour's (#90: with the tour
+/// open behind another app, Ctrl + Win and dictation did nothing there).
+static FOCUSED: AtomicBool = AtomicBool::new(false);
+
 pub fn is_open() -> bool {
     OPEN.load(Ordering::Relaxed)
+}
+
+/// The tour is up and in front: JARVIS's shortcuts and dictation go to it, not to JARVIS.
+pub fn in_front() -> bool {
+    is_open() && FOCUSED.load(Ordering::Relaxed)
 }
 
 /// A shortcut pressed (`down`) or let go while the tour is up: the tour acts on it instead.
@@ -77,7 +86,8 @@ fn watch_keys() {
         let mut was = [false; 3];
         while is_open() {
             for (n, (which, name)) in [(Which::Talk, "talk"), (Which::Ask, "ask"), (Which::More, "more")].into_iter().enumerate() {
-                let down = held(which).0;
+                // Elsewhere the keys are JARVIS's own (keys() lets them through).
+                let down = in_front() && held(which).0;
                 if down != was[n] {
                     was[n] = down;
                     // A held Win, let go, would open the Start menu: masked as JARVIS does himself.
@@ -135,10 +145,14 @@ fn open(app: &AppHandle) {
             OPEN.store(true, Ordering::Relaxed);
             crate::log::line("tutorial: open");
             watch_keys();
-            w.on_window_event(|e| {
-                if matches!(e, WindowEvent::Destroyed) {
+            FOCUSED.store(true, Ordering::Relaxed);
+            w.on_window_event(|e| match e {
+                WindowEvent::Focused(on) => FOCUSED.store(*on, Ordering::Relaxed),
+                WindowEvent::Destroyed => {
                     OPEN.store(false, Ordering::Relaxed);
+                    FOCUSED.store(false, Ordering::Relaxed);
                 }
+                _ => {}
             });
             let _ = w.set_focus();
         }
@@ -154,7 +168,7 @@ fn open(app: &AppHandle) {
 #[tauri::command]
 pub fn tutorial_key(app: AppHandle, code: String, down: bool) {
     static HELD: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
-    if !is_open() {
+    if !in_front() {
         return;
     }
     let (before, now) = {

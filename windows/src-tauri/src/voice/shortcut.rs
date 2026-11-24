@@ -124,7 +124,7 @@ fn is_other(s: &Shortcut, vk: u32) -> bool {
 /// The shortcut held (every key down), and whether any other key is. While the tutorial is up
 /// JARVIS himself sees nothing held: the tour reads them (`held`) and acts on them (#90).
 pub fn keys(which: Which) -> (bool, bool) {
-    if crate::tutorial::is_open() {
+    if crate::tutorial::in_front() {
         return (false, false);
     }
     held(which)

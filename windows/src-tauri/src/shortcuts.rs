@@ -326,7 +326,7 @@ pub fn plugin<R: Runtime>() -> tauri::plugin::TauriPlugin<R> {
 pub fn dispatch<R: Runtime>(app: &AppHandle<R>, action: &str) {
     crate::log::line(format!("shortcut {action}"));
     // JARVIS #90: while the tutorial is up, its practice island takes them.
-    if crate::tutorial::is_open() {
+    if crate::tutorial::in_front() {
         crate::tutorial::forward(action, true);
         return;
     }
