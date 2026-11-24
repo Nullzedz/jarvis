@@ -339,6 +339,8 @@ export const Bridge = {
   tutorialClose: () => call<void>("tutorial_close"),
   /** JARVIS: shows the first-launch tutorial again (Settings › General). */
   tutorialOpen: () => call<void>("tutorial_open"),
+  /** JARVIS (#92): the island's reminders, notes and today's calendar, in words, for his voice. */
+  pocketSnapshot: (text: string) => call<void>("pocket_snapshot", { text }),
   /** JARVIS: a key pressed or let go in the tutorial's window (KeyboardEvent.code). */
   tutorialKey: (code: string, down: boolean) => call<void>("tutorial_key", { code, down }),
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),

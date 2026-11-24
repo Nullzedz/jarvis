@@ -1,6 +1,7 @@
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
+import { startPocketSync } from "./voicepocket";
 import { Tracked, Glide, NOTCH_MS, Ease, clamp, closeCurve, notchCurve } from "../core/anim";
 
 /** How long the closed pill takes to shrink round him as he falls asleep (#82): slower, gentler. */
@@ -1059,6 +1060,8 @@ export class Island {
   private startIdleLife() {
     window.setInterval(() => this.tickIdleLife(), 1000);
     void onEvent<boolean>("music-playing", (on) => { State.anyMusic = on; State.notify(); });
+    // JARVIS #92: his voice knows the reminders, notes and calendar, and opens them here.
+    startPocketSync((view) => this.setView(view));
     void onEvent<NowPlaying | null>("now-playing", (np) => { State.media = np; State.notify(); });
     void Bridge.nowPlaying().then((np) => { State.media = np ?? null; State.notify(); });
     State.subscribe(() => this.watchEvents());

@@ -2,6 +2,7 @@
 
 mod agent_hooks;
 mod tutorial;
+mod pocket;
 mod agents;
 mod agy_approvals;
 mod agy_rules;
@@ -986,6 +987,7 @@ pub fn run() {
             tutorial::tutorial_open,
             tutorial::tutorial_close,
             tutorial::tutorial_key,
+            pocket::pocket_snapshot,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,

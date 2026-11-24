@@ -75,8 +75,17 @@ pub fn ready(w: &Value) -> bool {
         Some("drawing") => w["svg"].as_str().is_some_and(|s| s.to_ascii_lowercase().contains("<svg")),
         // "Where is…?" (#88): only the place he circles; no card.
         Some("point") => is_point(w),
+        // JARVIS #92: the island opens on reminders, notes or calendar, with what he added or ticked off.
+        Some("island") => is_island(w),
         _ => false,
     }
+}
+
+/// JARVIS #92: the island block: a tab to open, and reminders or notes to add or tick off.
+pub fn is_island(w: &Value) -> bool {
+    let some = |k: &str| w[k].as_array().is_some_and(|a| !a.is_empty());
+    w["kind"].as_str() == Some("island")
+        && (matches!(w["tab"].as_str(), Some("reminders" | "notes" | "calendar")) || some("add_reminders") || some("done_reminders") || some("add_notes"))
 }
 
 /// "Where is…?" (#88): a window that is only a place to circle, with no card.
@@ -161,6 +170,16 @@ mod tests {
         assert_eq!(short_line("Version 2.5 is out, sir."), "Version 2.5 is out, sir.");
         let long = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen, sixteen seventeen";
         assert_eq!(short_line(long), "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen…");
+    }
+
+    #[test]
+    fn the_island_block_opens_a_tab_or_changes_the_lists() {
+        let (said, w) = split(r#"You have two. <window>{"kind": "island", "tab": "reminders"}</window>"#);
+        assert_eq!(said, "You have two.");
+        assert!(is_island(&w.unwrap()));
+        let (_, w) = split(r#"Added. <window>{"kind": "island", "add_reminders": ["Call Sam"]}</window>"#);
+        assert!(is_island(&w.unwrap()));
+        assert!(split(r#"Hm. <window>{"kind": "island", "tab": "mail"}</window>"#).1.is_none());
     }
 
     #[test]

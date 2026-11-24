@@ -100,7 +100,8 @@ fn instructions(pills: &str) -> String {
 no markdown, no lists, no emojis, no links.\n\
 Act with the tools instead of describing: pills, music, service_info for the user's own data, open_app, \
 prepare_email, and web_search for anything current (weather, news, scores, prices, facts you are not sure of). \
-Never invent the user's data.\n\
+Never invent the user's data. Their reminders, notes and today's calendar come in brackets before \
+each question: answer about them from there, never say you have no access to them.\n\
 Email: gather the recipient's address, the subject and what to say (write the text yourself from what the user \
 wants to say, in the language they used), asking for what is missing one short question at a time, then call \
 prepare_email. The email is never sent by you: the user checks it in their mail app and sends it.\n\
@@ -120,7 +121,7 @@ const SIGHT: &str = concat!(
 /// it, so the same process serves every question: each question carries the time.
 pub fn claude_code_system() -> String {
     format!(
-        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets, for you to know: never repeat it in your answer. {}",
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here, except the user's reminders, notes and calendar, which you handle with the island block below. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets, for you to know: never repeat it in your answer. {}",
         persona(),
         instructions("(not available)"),
         SIGHT
@@ -135,6 +136,9 @@ impl Brain {
             self.messages.clear();
         }
         self.last = Instant::now();
+        // JARVIS #92: the island's reminders, notes and today's calendar, in front of the question.
+        let with_island = format!("{}{transcript}", crate::pocket::context());
+        let transcript = with_island.as_str();
         // JARVIS: no Claude key — your own Claude Code answers (words and web search, no tools).
         if !crate::secrets::present(crate::claude::KEY) {
             return self.respond_with_claude_code(transcript, sight, on_text);

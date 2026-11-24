@@ -118,6 +118,12 @@ pub fn is_open() -> bool {
 /// Draws `window` (window.rs) for `question`, with his short answer `said`.
 /// `add`: beside the ones already up ("show him more"); otherwise they're replaced.
 pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: Option<&Shot>, add: bool) {
+    // JARVIS #92: the island block: no card; the island opens on the tab, with his changes made.
+    if super::window::is_island(window) {
+        crate::log::line(format!("explain: island {}", window["tab"].as_str().unwrap_or("(changes)")));
+        let _ = app.emit_to(crate::island::WINDOW_LABEL, "voice-island", window);
+        return;
+    }
     let Some(win) = app.get_webview_window(LABEL) else { return };
     let cursor = crate::platform::cursor_physical().unwrap_or((0.0, 0.0));
     // The target on the screen (physical px), from his box on the picture.
