@@ -121,24 +121,17 @@ fn is_other(s: &Shortcut, vk: u32) -> bool {
     vk >= 0x07 && vk != MASK && !is_media(vk) && !s.vks.contains(&vk) && !s.vks.iter().any(|&k| generic(k) == Some(vk))
 }
 
-/// Each shortcut's last state as the tour was told it (talk, ask, more).
-static TOLD: [std::sync::atomic::AtomicBool; 3] = [const { std::sync::atomic::AtomicBool::new(false) }; 3];
-
 /// The shortcut held (every key down), and whether any other key is. While the tutorial is up
-/// it gets them instead, and JARVIS himself sees nothing held (#90).
+/// JARVIS himself sees nothing held: the tour reads them (`held`) and acts on them (#90).
 pub fn keys(which: Which) -> (bool, bool) {
-    let read = held(which);
     if crate::tutorial::is_open() {
-        let (n, name) = match which { Which::Talk => (0, "talk"), Which::Ask => (1, "ask"), Which::More => (2, "more") };
-        if TOLD[n].swap(read.0, std::sync::atomic::Ordering::Relaxed) != read.0 {
-            crate::tutorial::forward(name, read.0);
-        }
         return (false, false);
     }
-    read
+    held(which)
 }
 
-fn held(which: Which) -> (bool, bool) {
+/// The shortcut held, read directly (the tutorial's own watch).
+pub fn held(which: Which) -> (bool, bool) {
     let s = get(which);
     if s.vks.is_empty() {
         return (false, false);

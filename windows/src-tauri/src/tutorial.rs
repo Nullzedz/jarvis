@@ -22,7 +22,9 @@ pub fn is_open() -> bool {
 }
 
 /// A shortcut pressed (`down`) or let go while the tour is up: the tour acts on it instead.
+/// Each is logged ("tutorial: key …"), so a key that never arrives shows in coucou.log.
 pub fn forward(action: &str, down: bool) {
+    crate::log::line(format!("tutorial: key {action} {}", if down { "down" } else { "up" }));
     if let Some(app) = APP.get() {
         let _ = app.emit_to(LABEL, "tutorial-key", serde_json::json!({ "action": action, "down": down }));
     }
@@ -41,6 +43,39 @@ fn url(app: &AppHandle) -> WebviewUrl {
     }
     let _ = app;
     WebviewUrl::App("tutorial.html".into())
+}
+
+/// The dictation pill's phase while the tour is up, logged when it changes (listening, thinking…).
+pub fn note_phase(phase: &str) {
+    static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+    let mut last = LAST.lock().unwrap();
+    if *last != phase {
+        crate::log::line(format!("tutorial: dictation {phase}"));
+        *last = phase.to_string();
+    }
+}
+
+/// While the tour is up: the talk, ask and « more » keys, read every 30 ms and sent to it when
+/// they change (#90: the talk keys were read only by the voice loop, which may not be running).
+fn watch_keys() {
+    use crate::voice::shortcut::{held, Which};
+    std::thread::spawn(|| {
+        let mut was = [false; 3];
+        while is_open() {
+            for (n, (which, name)) in [(Which::Talk, "talk"), (Which::Ask, "ask"), (Which::More, "more")].into_iter().enumerate() {
+                let down = held(which).0;
+                if down != was[n] {
+                    was[n] = down;
+                    // A held Win, let go, would open the Start menu: masked as JARVIS does himself.
+                    if down && crate::voice::shortcut::needs_mask(which) {
+                        crate::voice::shortcut::mask();
+                    }
+                    forward(name, down);
+                }
+            }
+            std::thread::sleep(Duration::from_millis(30));
+        }
+    });
 }
 
 /// At start-up. `fresh`: there was no settings file yet, so this is a new install.
@@ -86,6 +121,8 @@ fn open(app: &AppHandle) {
         // In front, so what you dictate lands in its practice mail.
         Ok(w) => {
             OPEN.store(true, Ordering::Relaxed);
+            crate::log::line("tutorial: open");
+            watch_keys();
             w.on_window_event(|e| {
                 if matches!(e, WindowEvent::Destroyed) {
                     OPEN.store(false, Ordering::Relaxed);
