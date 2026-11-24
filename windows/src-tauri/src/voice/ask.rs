@@ -90,7 +90,10 @@ pub fn setup(app: &AppHandle) {
             let mut ask = Press::default();
             // While the keys are held after a press: the pointer's path (a circle, maybe), and
             // whether his cards were already up then (#92: « show him more » is this same shortcut now).
-            let mut held: Option<(Trail, bool)> = None;
+            // The trail shows only once the keys are held a moment and the mouse moves (#92: a tap
+            // to ask about the whole screen drew a trail at once): (trail once started, cards up,
+            // pressed at, the pointer then).
+            let mut held: Option<(Option<Trail>, bool, std::time::Instant, Option<(f64, f64)>)> = None;
             loop {
                 std::thread::sleep(Duration::from_millis(30));
                 let a = keys(Which::Ask);
@@ -101,35 +104,46 @@ pub fn setup(app: &AppHandle) {
                     let open = app.get_webview_window(LABEL).is_some_and(|w| w.is_visible().unwrap_or(false));
                     if open {
                         // Pressed again with the box up: everything goes, the box and his windows.
-                        if let Some((t, _)) = held.take() {
+                        if let Some((Some(t), ..)) = held.take() {
                             t.end();
                         }
                         super::explain::close_all(&app);
                         let app2 = app.clone();
                         let _ = app.run_on_main_thread(move || close(&app2));
                     } else {
-                        held = Some((Trail::start(&app), super::explain::is_open()));
+                        held = Some((None, super::explain::is_open(), std::time::Instant::now(), crate::platform::cursor_physical()));
                     }
                     continue;
                 }
-                let Some((trail, _)) = held.as_mut() else { continue };
+                let Some((trail, _, at, from)) = held.as_mut() else { continue };
                 let (chord, other) = a;
                 if other {
                     // Another shortcut after all.
-                    if let Some((t, _)) = held.take() {
+                    if let Some((Some(t), ..)) = held.take() {
                         t.end();
                     }
                 } else if chord {
                     if let Some(p) = crate::platform::cursor_physical() {
-                        if trail.feed(p) {
-                            crate::log::line("ask: something was circled");
+                        // Held a moment and the mouse moving: now it's circling, and the trail shows.
+                        let moved = from.is_some_and(|f| (p.0 - f.0).hypot(p.1 - f.1) > 12.0);
+                        if trail.is_none() && at.elapsed() > Duration::from_millis(200) && moved {
+                            let mut t = Trail::start(&app);
+                            if let Some(f) = *from {
+                                t.feed(f);
+                            }
+                            *trail = Some(t);
+                        }
+                        if let Some(t) = trail.as_mut() {
+                            if t.feed(p) {
+                                crate::log::line("ask: something was circled");
+                            }
                         }
                     }
                 } else {
                     // Let go: the screen is copied now (a few ms), the box opens at once, and
                     // the picture is made while you type.
-                    let (trail, cards_up) = held.take().unwrap();
-                    let ink = trail.end();
+                    let (trail, cards_up, ..) = held.take().unwrap();
+                    let ink = trail.map(Trail::end).unwrap_or_default();
                     // His cards were up and nothing was circled: pressed again, everything goes (as before).
                     if cards_up && ink.circle().is_none() {
                         super::explain::close_all(&app);

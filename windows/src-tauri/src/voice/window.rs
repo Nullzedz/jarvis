@@ -90,7 +90,7 @@ pub fn is_island(w: &Value) -> bool {
 
 /// "Where is…?" (#88): a window that is only a place to circle, with no card.
 pub fn is_point(w: &Value) -> bool {
-    w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4)
+    w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
 }
 
 /// The target box on the picture, if he gave a sensible one: [x, y, w, h], inside it.
@@ -106,6 +106,11 @@ pub fn about(w: &Value, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
 fn picture_box(w: &Value, key: &str, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
     let t = w[key].as_array()?;
     let n: Vec<f64> = t.iter().filter_map(Value::as_f64).collect();
+    // #92: a point alone ([x, y], as he sometimes gives) is a small box round it.
+    let n = match n[..] {
+        [x, y] => vec![(x - 30.0).max(0.0), (y - 14.0).max(0.0), 60.0, 28.0],
+        _ => n,
+    };
     let [x, y, bw, bh] = n[..] else { return None };
     let fits = x >= 0.0 && y >= 0.0 && bw > 0.0 && bh > 0.0 && x + bw <= size.0 as f64 + 2.0 && y + bh <= size.1 as f64 + 2.0;
     fits.then_some((x, y, bw, bh))
@@ -190,6 +195,9 @@ mod tests {
         assert!(is_point(&w));
         assert_eq!(target(&w, (1280, 720)), Some((600.0, 10.0, 80.0, 24.0)));
         assert!(split(r#"Here. <window>{"kind": "point"}</window>"#).1.is_none());
+        // A point alone is a small box round it.
+        let (_, w) = split(r#"Top left. <window>{"kind": "point", "target": [44, 46]}</window>"#);
+        assert_eq!(target(&w.unwrap(), (1280, 720)), Some((14.0, 32.0, 60.0, 28.0)));
     }
 
     #[test]
