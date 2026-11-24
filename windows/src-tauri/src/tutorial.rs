@@ -22,8 +22,18 @@ pub fn is_open() -> bool {
 }
 
 /// A shortcut pressed (`down`) or let go while the tour is up: the tour acts on it instead.
-/// Each is logged ("tutorial: key …"), so a key that never arrives shows in coucou.log.
+/// Each is logged ("tutorial: key …"), so a key that never arrives shows in coucou.log. The same
+/// press seen twice (by the key watch and by the tour window) is sent once.
 pub fn forward(action: &str, down: bool) {
+    static LAST: std::sync::Mutex<Vec<(String, bool)>> = std::sync::Mutex::new(Vec::new());
+    {
+        let mut last = LAST.lock().unwrap();
+        match last.iter_mut().find(|(a, _)| a == action) {
+            Some((_, was)) if *was == down && matches!(action, "talk" | "ask" | "more") => return,
+            Some((_, was)) => *was = down,
+            None => last.push((action.to_string(), down)),
+        }
+    }
     crate::log::line(format!("tutorial: key {action} {}", if down { "down" } else { "up" }));
     if let Some(app) = APP.get() {
         let _ = app.emit_to(LABEL, "tutorial-key", serde_json::json!({ "action": action, "down": down }));
@@ -104,16 +114,14 @@ fn open(app: &AppHandle) {
         let _ = w.set_focus();
         return;
     }
-    // 980 × 640 plus the room its shadow takes (the page keeps 20 px round its window).
+    // A normal window of JARVIS's (#90: as a see-through layer over the screen, keys went astray).
     let built = WebviewWindowBuilder::new(app, LABEL, url(app))
         .additional_browser_args(crate::BROWSER_ARGS)
         .title("JARVIS")
-        .inner_size(1020.0, 680.0)
+        .inner_size(980.0, 640.0)
+        .min_inner_size(860.0, 580.0)
         .center()
-        .decorations(false)
-        .transparent(true)
-        .shadow(false)
-        .resizable(false)
+        .resizable(true)
         .focused(true)
         .disable_drag_drop_handler()
         .build();
@@ -131,6 +139,47 @@ fn open(app: &AppHandle) {
             let _ = w.set_focus();
         }
         Err(err) => crate::log::line(format!("tutorial: no window: {err}")),
+    }
+}
+
+/// A key pressed or let go in the tour's own window (KeyboardEvent.code). Windows doesn't always
+/// hand JARVIS's key watch the keys typed into his own window (#90: Right Ctrl never arrived), so
+/// the window says them itself: the dictation key starts and stops the real dictation, and the
+/// talk, ask and « more » keys act in the tour.
+#[tauri::command]
+pub fn tutorial_key(app: AppHandle, code: String, down: bool) {
+    static HELD: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+    if !is_open() {
+        return;
+    }
+    let (before, now) = {
+        let mut held = HELD.lock().unwrap();
+        let before = held.clone();
+        if down {
+            if !held.contains(&code) {
+                held.push(code.clone());
+            }
+        } else {
+            held.retain(|c| c != &code);
+        }
+        (before, held.clone())
+    };
+    let all = |set: &[String], keys: &[String]| !keys.is_empty() && keys.iter().all(|k| set.contains(k));
+    let Some(flow) = crate::flow::get(&app) else { return };
+    let (dictate, talk, ask, more) = {
+        let store = flow.store.lock().unwrap();
+        let p = &store.prefs;
+        use crate::voice::shortcut::{codes, DEFAULT_ASK, DEFAULT_MORE, DEFAULT_TALK};
+        (p.key.codes(&p.key_combo), codes(&p.talk_keys, &DEFAULT_TALK), codes(&p.ask_keys, &DEFAULT_ASK), codes(&p.more_keys, &DEFAULT_MORE))
+    };
+    if all(&before, &dictate) != all(&now, &dictate) {
+        crate::log::line(format!("tutorial: window key dictation {}", if down { "down" } else { "up" }));
+        crate::flow::key_from_tutorial(all(&now, &dictate));
+    }
+    for (name, keys) in [("talk", &talk), ("ask", &ask), ("more", &more)] {
+        if all(&before, keys) != all(&now, keys) {
+            forward(name, all(&now, keys));
+        }
     }
 }
 

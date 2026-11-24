@@ -96,6 +96,11 @@ struct Watch {
 static SINK: Mutex<Option<Sender<(KeyEvent, Instant)>>> = Mutex::new(None);
 static WATCH: Mutex<Option<Watch>> = Mutex::new(None);
 
+/// The tutorial's window says a dictation key itself (flow::key_from_tutorial).
+pub fn send_key(event: KeyEvent) {
+    send(event);
+}
+
 fn send(event: KeyEvent) {
     if let Some(tx) = SINK.lock().unwrap().as_ref() {
         let _ = tx.send((event, Instant::now()));
@@ -105,6 +110,10 @@ fn send(event: KeyEvent) {
 unsafe extern "system" fn hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let info = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
+        // JARVIS #90 (debugging): during the tutorial, every key the hook sees.
+        if crate::tutorial::is_open() {
+            crate::log::line(format!("tutorial: hook vk {:#04x} msg {:#x} flags {:#x}", info.vkCode, wparam.0, info.flags.0));
+        }
         // Our own Ctrl+V, and other programs' synthetic keys, are not the user's.
         if info.flags.0 & LLKHF_INJECTED.0 == 0 {
             let down = matches!(wparam.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN);

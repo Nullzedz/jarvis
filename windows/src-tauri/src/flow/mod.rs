@@ -39,6 +39,14 @@ use logic::{Action, KeyLogic};
 use store::{AppStyle, Entry, Prefs, Store, Words};
 use text::Snippet;
 
+/// JARVIS #90: the dictation key pressed (or let go) in the tutorial's window, as the hook would say it.
+pub fn key_from_tutorial(down: bool) {
+    #[cfg(windows)]
+    os::send_key(if down { KeyEvent::Down } else { KeyEvent::Up });
+    #[cfg(not(windows))]
+    let _ = down;
+}
+
 /// What reaches the dictation thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyEvent {
@@ -227,6 +235,12 @@ fn run(app: AppHandle, flow: Arc<Flow>, rx: mpsc::Receiver<(KeyEvent, Instant)>)
                 Err(_) => break,
             }
         };
+        // JARVIS #90: during the tutorial, every dictation key event is logged (which never arrive?).
+        if crate::tutorial::is_open() {
+            if let Some((e, _)) = &received {
+                crate::log::line(format!("tutorial: flow key {e:?}"));
+            }
+        }
         let action = match received {
             Some((KeyEvent::Quit, _)) => {
                 drop(listening.take());
@@ -271,6 +285,9 @@ fn run(app: AppHandle, flow: Arc<Flow>, rx: mpsc::Receiver<(KeyEvent, Instant)>)
             }
             None => logic.tick(secs(Instant::now())),
         };
+        if crate::tutorial::is_open() && !matches!(action, Action::None) {
+            crate::log::line(format!("tutorial: flow action {action:?}"));
+        }
         match action {
             Action::None => {}
             Action::Start => {

@@ -985,6 +985,7 @@ pub fn run() {
             voice::explain::explain_ask,
             tutorial::tutorial_open,
             tutorial::tutorial_close,
+            tutorial::tutorial_key,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,

@@ -705,6 +705,19 @@ async function main() {
   addEventListener("pointermove", (e) => {
     if (!/listen|think/.test(nar.className)) $(".eye", nar).style.transform = `translateX(${(e.clientX / innerWidth - 0.5) * 70}%)`;
   });
+  // Keys typed in this window go to JARVIS from here (#90: his key watch didn't always get them).
+  const held = new Set<string>();
+  addEventListener("keydown", (e) => {
+    if (e.repeat || held.has(e.code)) return;
+    held.add(e.code);
+    void Bridge.tutorialKey(e.code, true);
+  }, true);
+  addEventListener("keyup", (e) => {
+    held.delete(e.code);
+    void Bridge.tutorialKey(e.code, false);
+  }, true);
+  // Leaving the window lets go of everything held.
+  addEventListener("blur", () => { held.forEach((c) => void Bridge.tutorialKey(c, false)); held.clear(); });
   // JARVIS's shortcuts, while the tour is up: they light their keycaps and act here only (#90).
   void onEvent<{ action: string; down: boolean }>("tutorial-key", ({ action, down }) => {
     light(action, down);
