@@ -136,9 +136,9 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
       h("h4", { class: "jv-psub", text: t("Behavior") }), ...island,
     ] },
     // Its own note already says how shortcuts work.
-    // Talk, Ask, Show more and Dictate have their keys on Voice: Shortcuts points there (#84: "ask" found nothing).
+    // Talk, Ask and Dictate have their keys on Voice: Shortcuts points there (#84: "ask" found nothing).
     { id: "shortcuts", name: t("Shortcuts"), say: "", body: [...rowsOf("shortcuts"), h("div", { class: "srow" },
-      h("div", { class: "lbl" }, h("b", { text: `${t("Talk")} · ${t("Ask")} · ${t("Show more")} · ${t("Dictate")}` }),
+      h("div", { class: "lbl" }, h("b", { text: `${t("Talk")} · ${t("Ask")} · ${t("Dictate")}` }),
         h("span", { text: t("Their keys are set under Voice.") })),
       h("div", { class: "ctl" }, h("button", { class: "jv-link", text: `${t("Voice")} ›`, onclick: () => content.querySelector('[data-anchor="group-voice"]')?.scrollIntoView({ block: "start" }) })))] },
     { id: "sound", name: t("Sound"), say: t("JARVIS's sounds and your own."), body: sound },

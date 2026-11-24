@@ -10,8 +10,9 @@ import type { HubContext } from "../shell";
 import { codeLabel, icon, keycap } from "../ui";
 import { comboFromKeys } from "../keys";
 
-type Tile = "talk" | "ask" | "more" | "dictate";
-const TILES: Tile[] = ["talk", "ask", "more", "dictate"];
+// « Show more » (Shift + Win) went in #92: Ctrl + Shift + Z does it.
+type Tile = "talk" | "ask" | "dictate";
+const TILES: Tile[] = ["talk", "ask", "dictate"];
 
 /** The keys of dictation's shortcut, by their KeyboardEvent.code names. */
 export function dictationCodes(key: FlowKey, combo: string[]): string[] {
@@ -36,18 +37,16 @@ function current(prefs: FlowPrefs): Record<Tile, string[]> {
   return {
     talk: prefs.talkKeys?.length ? prefs.talkKeys : ["ControlLeft", "MetaLeft"],
     ask: prefs.askKeys?.length ? prefs.askKeys : ["ControlLeft", "ShiftLeft", "KeyZ"],
-    more: prefs.moreKeys?.length ? prefs.moreKeys : ["ShiftLeft", "MetaLeft"],
     dictate: dictationCodes(prefs.key, prefs.keyCombo),
   };
 }
 
 export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "windows" | "linux"): HTMLElement {
-  const names: Record<Tile, string> = { talk: t("Talk"), ask: t("Ask"), more: t("Show more"), dictate: t("Dictate") };
-  const icons: Record<Tile, string> = { talk: "mic", ask: "chat", more: "plus", dictate: "pencil" };
+  const names: Record<Tile, string> = { talk: t("Talk"), ask: t("Ask"), dictate: t("Dictate") };
+  const icons: Record<Tile, string> = { talk: "mic", ask: "chat", dictate: "pencil" };
   const how: Record<Tile, string> = {
     talk: t("Hold · tap"),
-    ask: t("Press"),
-    more: t("Hold · circle"),
+    ask: t("Press · hold to circle"),
     dictate: prefs.oneTapHandsFree ? t("Hold · tap") : t("Hold · tap twice"),
   };
   const grid = h("div", { class: "jv-tiles" });
@@ -58,7 +57,6 @@ export function shortcutTiles(ctx: HubContext, prefs: FlowPrefs, platform: "wind
     ctx.setPrefs((p) => {
       if (tile === "talk") p.talkKeys = combo;
       else if (tile === "ask") p.askKeys = combo;
-      else if (tile === "more") p.moreKeys = combo;
       else {
         p.key = "custom";
         p.keyCombo = combo;

@@ -3,7 +3,8 @@
 //
 // - Talk: held to talk, tapped for hands-free (talk.rs). Left Ctrl + Win.
 // - Ask: pressed to open the box at the cursor (ask.rs). Left Ctrl + Left Shift + Z.
-// - More: « show him more », held to circle something else (ask.rs). Left Shift + Win.
+// - More: « show him more », kept in the settings file only: since #92 Ctrl + Shift + Z does it
+//   (circling something with his cards up adds a card), and nothing listens for these keys.
 //
 // The keys are read with GetAsyncKeyState on each beat. A key of a shortcut that
 // isn't a modifier (the Z) is taken by a keyboard hook while the shortcut's
@@ -26,7 +27,6 @@ pub struct Shortcut {
 struct Both {
     talk: Shortcut,
     ask: Shortcut,
-    more: Shortcut,
 }
 
 static KEYS: RwLock<Option<Both>> = RwLock::new(None);
@@ -70,8 +70,7 @@ fn vk(_code: &str) -> Option<u32> {
 pub fn apply(prefs: &crate::flow::store::Prefs) {
     let talk = shortcut(&codes(&prefs.talk_keys, &DEFAULT_TALK));
     let ask = shortcut(&codes(&prefs.ask_keys, &DEFAULT_ASK));
-    let more = shortcut(&codes(&prefs.more_keys, &DEFAULT_MORE));
-    *KEYS.write().unwrap() = Some(Both { talk, ask, more });
+    *KEYS.write().unwrap() = Some(Both { talk, ask });
     #[cfg(windows)]
     os::start();
 }
@@ -80,7 +79,6 @@ pub fn apply(prefs: &crate::flow::store::Prefs) {
 pub enum Which {
     Talk,
     Ask,
-    More,
 }
 
 fn get(which: Which) -> Shortcut {
@@ -88,10 +86,8 @@ fn get(which: Which) -> Shortcut {
     match (keys.as_ref(), which) {
         (Some(b), Which::Talk) => b.talk.clone(),
         (Some(b), Which::Ask) => b.ask.clone(),
-        (Some(b), Which::More) => b.more.clone(),
         (None, Which::Talk) => shortcut(&DEFAULT_TALK.map(String::from)),
         (None, Which::Ask) => shortcut(&DEFAULT_ASK.map(String::from)),
-        (None, Which::More) => shortcut(&DEFAULT_MORE.map(String::from)),
     }
 }
 
@@ -203,7 +199,7 @@ mod os {
         }
         let keys = KEYS.read().unwrap();
         let Some(both) = keys.as_ref() else { return false };
-        for s in [&both.talk, &both.ask, &both.more] {
+        for s in [&both.talk, &both.ask] {
             let Some(i) = s.vks.iter().position(|&k| k == vk) else { continue };
             if s.modifier[i] {
                 continue;

@@ -91,7 +91,6 @@ function keysOf(action: string): string[] | null {
   switch (action) {
     case "talk": return [ctrl(), win()];
     case "ask": return [ctrl(), shift(), "Z"];
-    case "more": return [shift(), win()];
     case "dictate": return [rctrl()];
     case "toggleIsland": return [ctrl(), alt(), "N"];
     case "goToAlert": return [ctrl(), alt(), "A"];
@@ -503,8 +502,8 @@ const STEPS: Step[] = [
     id: "circle",
     title: N_("Circle it to show me."),
     say: N_("Hold the keys and draw a circle round anything with your mouse: a picture, an error, a part of a page. Then ask about it."),
-    keys: () => t("Hold {keys} and circle", { keys: K(shift(), win()) }),
-    task: N_("Hold <b>Shift + Win</b> and move your mouse round <b>one of the devices</b>, then let go."),
+    keys: () => t("Hold {keys} and circle", { keys: K(ctrl(), shift(), "Z") }),
+    task: N_("Hold <b>Ctrl + Shift + Z</b> and move your mouse round <b>one of the devices</b>, then let go."),
     build(p) {
       p.innerHTML = `<div class="practice"><div class="win dark photowin" style="width:min(520px,100%)">
           <div class="bar"><i></i><i></i><i></i><b>${t("Network")}</b></div>
@@ -513,13 +512,13 @@ const STEPS: Step[] = [
         <svg class="ink"><path class="trail" fill="none" stroke="#4fa3ff" stroke-width="1.8" stroke-dasharray="5 4" stroke-linecap="round"/></svg>
         <div class="ptr">${jarvis(true)}</div>
         <div class="ex"><div class="hd"><span class="dock"></span><b></b></div><div class="bd"></div></div>
-        <div class="under"><span>${t("Hold Shift + Win, then move the mouse round it: no clicking.")}</span></div>`;
+        <div class="under"><span>${t("Hold Ctrl + Shift + Z, then move the mouse round it: no clicking.")}</span></div>`;
     },
     play(p, s) {
       const path = $(".trail", p);
       let pts: [number, number][] | null = null, used = false, last: [number, number] | null = null;
       const at = (e: PointerEvent): [number, number] => { const r = p.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-      // The pointer is followed only while Shift + Win is held, as in the app (#90: a plain drag drew).
+      // The pointer is followed only while Ctrl + Shift + Z is held, as in the app (#90: a plain drag drew).
       const move = (e: PointerEvent) => {
         last = at(e);
         if (!pts) return;
@@ -528,7 +527,7 @@ const STEPS: Step[] = [
       };
       p.addEventListener("pointermove", move);
       s.onKey = (action, down) => {
-        if (action !== "more" || used) return;
+        if (action !== "ask" || used) return;
         if (down) {
           pts = last ? [last] : [];
           path.setAttribute("fill", "none");
@@ -638,7 +637,6 @@ const STEPS: Step[] = [
         ${row(t("Dictate anywhere"), K(rctrl()))}
         ${row(t("Talk to JARVIS"), K(ctrl(), win()))}
         ${row(t("Ask about the screen"), K(ctrl(), shift(), "Z"))}
-        ${row(t("Circle to show him"), K(shift(), win()))}
         ${row(t("Open the island"), K(ctrl(), alt(), "N"))}
         ${row(t("Put him to sleep"), K(ctrl(), alt(), "Z"))}
       </div></div>`;
@@ -778,7 +776,7 @@ async function main() {
   void onEvent<{ action: string; down: boolean }>("tutorial-key", ({ action, down }) => {
     light(action, down);
     // A one-press shortcut (the island's) lights for a moment.
-    if (down && !["talk", "ask", "more"].includes(action)) window.setTimeout(() => light(action, false), 350);
+    if (down && !["talk", "ask"].includes(action)) window.setTimeout(() => light(action, false), 350);
     current.onKey?.(action, down);
   });
   go(0);

@@ -87,21 +87,20 @@ pub fn setup(app: &AppHandle) {
         .name("jarvis-ask-keys".into())
         .spawn(move || {
             use super::shortcut::{keys, mask, needs_mask, Which};
-            let (mut ask, mut more) = (Press::default(), Press::default());
-            // While the keys are held after a press: the pointer's path (a circle, maybe),
-            // and whether it's « show him more » (its window joins the ones up).
-            let mut held: Option<(Trail, Which)> = None;
+            let mut ask = Press::default();
+            // While the keys are held after a press: the pointer's path (a circle, maybe), and
+            // whether his cards were already up then (#92: « show him more » is this same shortcut now).
+            let mut held: Option<(Trail, bool)> = None;
             loop {
                 std::thread::sleep(Duration::from_millis(30));
                 let a = keys(Which::Ask);
-                let m = keys(Which::More);
                 if ask.step(a.0, a.1) {
                     if needs_mask(Which::Ask) {
                         mask();
                     }
                     let open = app.get_webview_window(LABEL).is_some_and(|w| w.is_visible().unwrap_or(false));
-                    if open || super::explain::is_open() {
-                        // Pressed again: everything goes, the box and his windows.
+                    if open {
+                        // Pressed again with the box up: everything goes, the box and his windows.
                         if let Some((t, _)) = held.take() {
                             t.end();
                         }
@@ -109,19 +108,12 @@ pub fn setup(app: &AppHandle) {
                         let app2 = app.clone();
                         let _ = app.run_on_main_thread(move || close(&app2));
                     } else {
-                        held = Some((Trail::start(&app), Which::Ask));
+                        held = Some((Trail::start(&app), super::explain::is_open()));
                     }
                     continue;
                 }
-                if more.step(m.0, m.1) && held.is_none() {
-                    if needs_mask(Which::More) {
-                        mask();
-                    }
-                    held = Some((Trail::start(&app), Which::More));
-                    continue;
-                }
-                let Some((trail, which)) = held.as_mut() else { continue };
-                let (chord, other) = if matches!(which, Which::More) { m } else { a };
+                let Some((trail, _)) = held.as_mut() else { continue };
+                let (chord, other) = a;
                 if other {
                     // Another shortcut after all.
                     if let Some((t, _)) = held.take() {
@@ -136,15 +128,21 @@ pub fn setup(app: &AppHandle) {
                 } else {
                     // Let go: the screen is copied now (a few ms), the box opens at once, and
                     // the picture is made while you type.
-                    let (trail, which) = held.take().unwrap();
+                    let (trail, cards_up) = held.take().unwrap();
                     let ink = trail.end();
+                    // His cards were up and nothing was circled: pressed again, everything goes (as before).
+                    if cards_up && ink.circle().is_none() {
+                        super::explain::close_all(&app);
+                        continue;
+                    }
                     let (shot, what) = match (ink.area(), ink.circle()) {
                         (Some(area), Some(circle)) => (super::sight::circled(area, circle), "circled"),
                         _ => (super::sight::whole_screen(), "screen"),
                     };
                     let what = if shot.is_some() { what } else { "" };
                     *SEEN.lock().unwrap() = shot;
-                    ADD.store(matches!(which, Which::More), std::sync::atomic::Ordering::Relaxed);
+                    // Cards up and something new circled: its card joins them (what Shift + Win did).
+                    ADD.store(cards_up, std::sync::atomic::Ordering::Relaxed);
                     let app2 = app.clone();
                     let _ = app.run_on_main_thread(move || open(&app2, what));
                 }
@@ -155,7 +153,7 @@ pub fn setup(app: &AppHandle) {
 
 /// The picture taken when the box opened: sent with its first question.
 static SEEN: Mutex<Option<super::sight::Pending>> = Mutex::new(None);
-/// The box was opened with « show him more »: its window joins the ones already up.
+/// The box was opened by circling something with his cards up: its window joins them.
 static ADD: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// Where the box goes for the pointer at (cx, cy): below and right of it, kept

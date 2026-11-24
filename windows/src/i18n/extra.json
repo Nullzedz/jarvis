@@ -7939,21 +7939,6 @@
       "ko": "길게 누르기 · 탭",
       "ja": "長押し · タップ"
     },
-    "Press": {
-      "zh-Hans": "按下",
-      "hi": "दबाएँ",
-      "es": "Pulsar",
-      "ar": "اضغط",
-      "fr": "Appuyer",
-      "bn": "চাপুন",
-      "pt-BR": "Pressionar",
-      "ru": "Нажать",
-      "id": "Tekan",
-      "de": "Drücken",
-      "tr": "Bas",
-      "ko": "누르기",
-      "ja": "押す"
-    },
     "Hold · tap twice": {
       "zh-Hans": "按住 · 轻点两次",
       "hi": "दबाए रखें · दो बार टैप",
@@ -8028,36 +8013,6 @@
       "tr": "Ekranınız hakkında sorun",
       "ko": "화면에 대해 물어보세요",
       "ja": "画面について質問"
-    },
-    "Show more": {
-      "zh-Hans": "展示更多",
-      "hi": "और दिखाएँ",
-      "es": "Mostrar más",
-      "ar": "اعرض المزيد",
-      "fr": "Montrer plus",
-      "bn": "আরও দেখান",
-      "pt-BR": "Mostrar mais",
-      "ru": "Показать ещё",
-      "id": "Tunjukkan lagi",
-      "de": "Mehr zeigen",
-      "tr": "Daha fazla göster",
-      "ko": "더 보여주기",
-      "ja": "もっと見せる"
-    },
-    "Hold · circle": {
-      "zh-Hans": "按住 · 圈出",
-      "hi": "दबाए रखें · घेरें",
-      "es": "Mantener · rodear",
-      "ar": "اضغط مطولًا · ارسم دائرة",
-      "fr": "Maintenir · entourer",
-      "bn": "ধরে রাখুন · ঘিরুন",
-      "pt-BR": "Segurar · circular",
-      "ru": "Удерживать · обвести",
-      "id": "Tahan · lingkari",
-      "de": "Halten · einkreisen",
-      "tr": "Basılı tut · daire çiz",
-      "ko": "길게 누르기 · 동그라미",
-      "ja": "長押し · 囲む"
     },
     "Steps": {
       "zh-Hans": "步骤",
@@ -15170,21 +15125,6 @@
       "tr": "Ekran hakkında sor",
       "zh-Hans": "询问屏幕内容"
     },
-    "Circle to show him": {
-      "ar": "ارسم دائرة لتريه",
-      "bn": "দেখাতে বৃত্ত আঁকো",
-      "de": "Einkreisen, um es ihm zu zeigen",
-      "es": "Rodear para enseñárselo",
-      "fr": "Entourer pour lui montrer",
-      "hi": "दिखाने के लिए घेरा बनाएँ",
-      "id": "Lingkari untuk menunjukkan",
-      "ja": "囲んで見せる",
-      "ko": "동그라미로 보여 주기",
-      "pt-BR": "Circular para mostrar",
-      "ru": "Обвести, чтобы показать",
-      "tr": "Göstermek için daire çiz",
-      "zh-Hans": "圈出来给他看"
-    },
     "Open the island": {
       "ar": "افتح الجزيرة",
       "bn": "আইল্যান্ড খোলো",
@@ -15350,36 +15290,6 @@
       "tr": "“{said}” dediğinizi duydum. Turda şunu deneyin: “{try}”",
       "zh-Hans": "我听到的是“{said}”。在导览里试试说：“{try}”"
     },
-    "Hold <b>Shift + Win</b> and move your mouse round <b>one of the devices</b>, then let go.": {
-      "ar": "اضغط مطوّلًا على <b>Shift + Win</b> وحرّك الفأرة حول <b>أحد الأجهزة</b>، ثم اترك المفتاحين.",
-      "bn": "<b>Shift + Win</b> চেপে ধরে মাউসটা <b>একটি ডিভাইসের</b> চারপাশে ঘোরাও, তারপর ছেড়ে দাও।",
-      "de": "Halte <b>Umschalt + Win</b>, fahr mit der Maus um <b>eines der Geräte</b> herum und lass dann los.",
-      "es": "Mantén <b>Mayús + Win</b>, mueve el ratón alrededor de <b>uno de los dispositivos</b> y suelta.",
-      "fr": "Maintenez <b>Maj + Win</b>, faites le tour d'<b>un des appareils</b> avec la souris, puis relâchez.",
-      "hi": "<b>Shift + Win</b> दबाए रखें और माउस को <b>किसी एक डिवाइस</b> के चारों ओर घुमाएँ, फिर छोड़ दें।",
-      "id": "Tahan <b>Shift + Win</b> dan gerakkan mouse mengelilingi <b>salah satu perangkat</b>, lalu lepaskan.",
-      "ja": "<b>Shift + Win</b> を押したまま、マウスで<b>どれか一つの機器</b>の周りを回って、離してください。",
-      "ko": "<b>Shift + Win</b>을 누른 채 마우스로 <b>기기 하나</b>를 한 바퀴 돌린 뒤 떼세요.",
-      "pt-BR": "Segure <b>Shift + Win</b>, mova o mouse em volta de <b>um dos aparelhos</b> e solte.",
-      "ru": "Удерживайте <b>Shift + Win</b>, обведите мышью <b>одно из устройств</b> и отпустите.",
-      "tr": "<b>Shift + Win</b>'i basılı tutup fareyi <b>cihazlardan birinin</b> etrafında gezdirin, sonra bırakın.",
-      "zh-Hans": "按住 <b>Shift + Win</b>，用鼠标绕着<b>其中一台设备</b>转一圈，然后松开。"
-    },
-    "Hold Shift + Win, then move the mouse round it: no clicking.": {
-      "ar": "اضغط مطوّلًا على Shift + Win، ثم حرّك الفأرة حوله: دون نقر.",
-      "bn": "Shift + Win চেপে ধরো, তারপর মাউসটা চারপাশে ঘোরাও: ক্লিক করতে হবে না।",
-      "de": "Halte Umschalt + Win und fahr mit der Maus drumherum: ohne zu klicken.",
-      "es": "Mantén Mayús + Win y mueve el ratón a su alrededor: sin hacer clic.",
-      "fr": "Maintenez Maj + Win, puis faites-en le tour à la souris : sans cliquer.",
-      "hi": "Shift + Win दबाए रखें, फिर माउस को उसके चारों ओर घुमाएँ: क्लिक नहीं करना।",
-      "id": "Tahan Shift + Win, lalu gerakkan mouse mengelilinginya: tanpa klik.",
-      "ja": "Shift + Win を押したまま、マウスでその周りを回してください。クリックは不要です。",
-      "ko": "Shift + Win을 누른 채 마우스로 주위를 돌리세요. 클릭은 필요 없어요.",
-      "pt-BR": "Segure Shift + Win e mova o mouse em volta: sem clicar.",
-      "ru": "Удерживайте Shift + Win и обведите мышью: без щелчков.",
-      "tr": "Shift + Win'i basılı tutun, sonra fareyi etrafında gezdirin: tıklamak yok.",
-      "zh-Hans": "按住 Shift + Win，然后用鼠标绕它一圈：不用点击。"
-    },
     "Hold <b>Ctrl + Win</b> and ask: <b>“What's on my calendar today?”</b>": {
       "ar": "اضغط مطوّلًا على <b>Ctrl + Win</b> واسأل: <b>«ما الذي في تقويمي اليوم؟»</b>",
       "bn": "<b>Ctrl + Win</b> চেপে ধরে জিজ্ঞেস করো: <b>“আজ আমার ক্যালেন্ডারে কী আছে?”</b>",
@@ -15409,6 +15319,51 @@
       "ru": "Не расслышал. Держите клавиши, пока говорите.",
       "tr": "Anlayamadım. Konuşurken tuşları basılı tutun.",
       "zh-Hans": "没听清。说话时请按住这些键。"
+    },
+    "Press · hold to circle": {
+      "ar": "اضغط · أبقِه مضغوطًا لترسم دائرة",
+      "bn": "চাপো · বৃত্ত আঁকতে চেপে ধরো",
+      "de": "Drücken · halten zum Einkreisen",
+      "es": "Pulsa · mantén para rodear",
+      "fr": "Appuyer · maintenir pour entourer",
+      "hi": "दबाएँ · घेरा बनाने के लिए दबाए रखें",
+      "id": "Tekan · tahan untuk melingkari",
+      "ja": "押す · 長押しで囲む",
+      "ko": "누르기 · 누른 채 동그라미",
+      "pt-BR": "Pressione · segure para circular",
+      "ru": "Нажать · удерживать, чтобы обвести",
+      "tr": "Bas · daire için basılı tut",
+      "zh-Hans": "按下 · 按住画圈"
+    },
+    "Hold <b>Ctrl + Shift + Z</b> and move your mouse round <b>one of the devices</b>, then let go.": {
+      "ar": "اضغط مطوّلًا على <b>Ctrl + Shift + Z</b> وحرّك الفأرة حول <b>أحد الأجهزة</b>، ثم اترك المفاتيح.",
+      "bn": "<b>Ctrl + Shift + Z</b> চেপে ধরে মাউসটা <b>একটি ডিভাইসের</b> চারপাশে ঘোরাও, তারপর ছেড়ে দাও।",
+      "de": "Halte <b>Strg + Umschalt + Z</b>, fahr mit der Maus um <b>eines der Geräte</b> herum und lass dann los.",
+      "es": "Mantén <b>Ctrl + Mayús + Z</b>, mueve el ratón alrededor de <b>uno de los dispositivos</b> y suelta.",
+      "fr": "Maintenez <b>Ctrl + Maj + Z</b>, faites le tour d'<b>un des appareils</b> avec la souris, puis relâchez.",
+      "hi": "<b>Ctrl + Shift + Z</b> दबाए रखें और माउस को <b>किसी एक डिवाइस</b> के चारों ओर घुमाएँ, फिर छोड़ दें।",
+      "id": "Tahan <b>Ctrl + Shift + Z</b> dan gerakkan mouse mengelilingi <b>salah satu perangkat</b>, lalu lepaskan.",
+      "ja": "<b>Ctrl + Shift + Z</b> を押したまま、マウスで<b>どれか一つの機器</b>の周りを回って、離してください。",
+      "ko": "<b>Ctrl + Shift + Z</b>를 누른 채 마우스로 <b>기기 하나</b>를 한 바퀴 돌린 뒤 떼세요.",
+      "pt-BR": "Segure <b>Ctrl + Shift + Z</b>, mova o mouse em volta de <b>um dos aparelhos</b> e solte.",
+      "ru": "Удерживайте <b>Ctrl + Shift + Z</b>, обведите мышью <b>одно из устройств</b> и отпустите.",
+      "tr": "<b>Ctrl + Shift + Z</b>'yi basılı tutup fareyi <b>cihazlardan birinin</b> etrafında gezdirin, sonra bırakın.",
+      "zh-Hans": "按住 <b>Ctrl + Shift + Z</b>，用鼠标绕着<b>其中一台设备</b>转一圈，然后松开。"
+    },
+    "Hold Ctrl + Shift + Z, then move the mouse round it: no clicking.": {
+      "ar": "اضغط مطوّلًا على Ctrl + Shift + Z، ثم حرّك الفأرة حوله: دون نقر.",
+      "bn": "Ctrl + Shift + Z চেপে ধরো, তারপর মাউসটা চারপাশে ঘোরাও: ক্লিক করতে হবে না।",
+      "de": "Halte Strg + Umschalt + Z und fahr mit der Maus drumherum: ohne zu klicken.",
+      "es": "Mantén Ctrl + Mayús + Z y mueve el ratón a su alrededor: sin hacer clic.",
+      "fr": "Maintenez Ctrl + Maj + Z, puis faites-en le tour à la souris : sans cliquer.",
+      "hi": "Ctrl + Shift + Z दबाए रखें, फिर माउस को उसके चारों ओर घुमाएँ: क्लिक नहीं करना।",
+      "id": "Tahan Ctrl + Shift + Z, lalu gerakkan mouse mengelilinginya: tanpa klik.",
+      "ja": "Ctrl + Shift + Z を押したまま、マウスでその周りを回してください。クリックは不要です。",
+      "ko": "Ctrl + Shift + Z를 누른 채 마우스로 주위를 돌리세요. 클릭은 필요 없어요.",
+      "pt-BR": "Segure Ctrl + Shift + Z e mova o mouse em volta: sem clicar.",
+      "ru": "Удерживайте Ctrl + Shift + Z и обведите мышью: без щелчков.",
+      "tr": "Ctrl + Shift + Z'yi basılı tutun, sonra fareyi etrafında gezdirin: tıklamak yok.",
+      "zh-Hans": "按住 Ctrl + Shift + Z，然后用鼠标绕它一圈：不用点击。"
     }
   }
 }

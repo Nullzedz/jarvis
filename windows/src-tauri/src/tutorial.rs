@@ -83,9 +83,9 @@ pub fn note_phase(phase: &str) {
 fn watch_keys() {
     use crate::voice::shortcut::{held, Which};
     std::thread::spawn(|| {
-        let mut was = [false; 3];
+        let mut was = [false; 2];
         while is_open() {
-            for (n, (which, name)) in [(Which::Talk, "talk"), (Which::Ask, "ask"), (Which::More, "more")].into_iter().enumerate() {
+            for (n, (which, name)) in [(Which::Talk, "talk"), (Which::Ask, "ask")].into_iter().enumerate() {
                 // Elsewhere the keys are JARVIS's own (keys() lets them through).
                 let down = in_front() && held(which).0;
                 if down != was[n] {
