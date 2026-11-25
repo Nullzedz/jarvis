@@ -93,6 +93,35 @@ pub fn is_point(w: &Value) -> bool {
     w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
 }
 
+/// "Where is…? / how do I get to…?" answered with an explanation block that has a target
+/// (#94: « Click the profile icon, then Settings, then Billing » came as a card of steps): made
+/// the circle-and-guide it should have been, its clicks read from the idea.
+pub fn as_point(question: &str, w: Value) -> Value {
+    let q = question.to_lowercase();
+    let asks_where = ["where", "find", "get to", "go to", "how do i open", "how do i get", "locate", "which button"].iter().any(|k| q.contains(k));
+    let kind = w["kind"].as_str().unwrap_or("");
+    if !asks_where || is_point(&w) || kind == "island" || !w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2) {
+        return w;
+    }
+    let mut steps: Vec<String> = w["steps"].as_array().map(|a| a.iter().filter_map(|s| s.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    if steps.is_empty() {
+        let idea = w["idea"].as_str().unwrap_or("").trim_end_matches('.');
+        steps = idea
+            .split(", then ")
+            .flat_map(|p| p.split(" then "))
+            .flat_map(|p| p.split(", and "))
+            .map(|p| p.trim().trim_start_matches("and ").trim())
+            .filter(|p| !p.is_empty())
+            .map(|p| { let mut c = p.chars(); c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default() })
+            .collect();
+    }
+    let mut out = serde_json::json!({ "kind": "point", "target": w["target"].clone() });
+    if steps.len() >= 2 {
+        out["steps"] = serde_json::json!(steps);
+    }
+    out
+}
+
 /// The target box on the picture, if he gave a sensible one: [x, y, w, h], inside it.
 pub fn target(w: &Value, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
     picture_box(w, "target", size)
@@ -126,6 +155,11 @@ mod tests {
         assert_eq!(said, "Four steps, sir.");
         let w = w.unwrap();
         assert_eq!(w["steps"][1], "Choose PDF");
+        let card = serde_json::json!({ "idea": "Click the profile icon at bottom left, then Settings, then find Billing in the menu.", "about": [0, 650, 200, 70], "target": [0, 690, 90, 30] });
+        let p = as_point("where is billing", card.clone());
+        assert!(is_point(&p));
+        assert_eq!(p["steps"], serde_json::json!(["Click the profile icon at bottom left", "Settings", "Find Billing in the menu"]));
+        assert_eq!(as_point("explain this chart", card.clone()), card);
         assert_eq!(target(&w, (1280, 720)), Some((10.0, 20.0, 60.0, 24.0)));
     }
 

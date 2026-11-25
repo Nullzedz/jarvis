@@ -256,6 +256,7 @@ pub fn ask_send(app: AppHandle, question: String) {
         });
         // His window, if he drew one (window.rs): it takes over from the box.
         let (body, window) = super::window::split(&said);
+        let window = window.map(|w| super::window::as_point(&question, w));
         crate::log::line(match (&window, super::window::starts_at(&said)) {
             (Some(w), _) => format!("ask: answer with a {} window", w["kind"].as_str().unwrap_or("?")),
             (None, Some(at)) => format!("ask: a window block that couldn't be read: {}", said[at..].chars().take(160).collect::<String>()),
