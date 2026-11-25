@@ -20,6 +20,7 @@ pub mod explain;
 pub mod ink;
 pub mod gemini;
 pub mod piper;
+pub mod pocket;
 pub mod meter;
 pub mod print;
 pub mod shortcut;
@@ -97,6 +98,8 @@ pub fn sync(app: &AppHandle) {
             crate::tts::preload();
             // JARVIS: the offline backup, ready before Gemini first needs it.
             piper::preload();
+            // JARVIS: Peter, the live voice (issue #100).
+            pocket::preload();
             crate::log::line("voice: push-to-talk ready");
         }
         (false, true) => {
@@ -710,15 +713,27 @@ impl Speech {
                 }
                 return;
             }
+            let mut first = true;
             for piece in rx {
-                let (one_tx, one) = mpsc::channel();
-                if ready_tx.send(one).is_err() {
-                    break;
+                // JARVIS: Peter starts on the first clause of a long first sentence (pocket.rs).
+                let parts = if first && output == "pocket" { pocket::first_cut(&piece) } else { vec![piece] };
+                first = false;
+                for piece in parts {
+                    let (one_tx, one) = mpsc::channel();
+                    if ready_tx.send(one).is_err() {
+                        return;
+                    }
+                    // Peter's model is one at a time: rendered here, in order, so
+                    // a later piece never takes it before the one to say first.
+                    if output == "pocket" {
+                        let _ = one_tx.send(render(piece, &output, &voice_name, &render_gender));
+                        continue;
+                    }
+                    let (output, voice_name, gender) = (output.clone(), voice_name.clone(), render_gender.clone());
+                    std::thread::spawn(move || {
+                        let _ = one_tx.send(render(piece, &output, &voice_name, &gender));
+                    });
                 }
-                let (output, voice_name, gender) = (output.clone(), voice_name.clone(), render_gender.clone());
-                std::thread::spawn(move || {
-                    let _ = one_tx.send(render(piece, &output, &voice_name, &gender));
-                });
             }
         });
         let (app, heard) = (app.clone(), heard.to_string());
@@ -770,6 +785,14 @@ fn render(text: String, output: &str, voice: &str, gender: &str) -> Rendered {
     match output {
         "off" => Rendered { text, audio: None, mime: "audio/mpeg", ms: words * 320, silent: true },
         "jarvis" if crate::tts::is_ready() => match crate::tts::speak(&text, voice, 1.0) {
+            Some(wav) => {
+                let ms = wav_ms(&wav).unwrap_or(estimate);
+                Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
+            }
+            None => Rendered { text, audio: None, mime: "audio/mpeg", ms: estimate, silent: false },
+        },
+        // JARVIS: Peter, the live voice (Pocket TTS, issue #100), on this computer.
+        "pocket" if pocket::is_ready() => match pocket::speak(&text) {
             Some(wav) => {
                 let ms = wav_ms(&wav).unwrap_or(estimate);
                 Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }

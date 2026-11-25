@@ -219,7 +219,7 @@ export interface VoiceView {
   paceMs?: number;
 }
 
-export type VoiceOutput = "gemini" | "jarvis" | "system" | "elevenlabs" | "off";
+export type VoiceOutput = "gemini" | "jarvis" | "pocket" | "system" | "elevenlabs" | "off";
 
 export const FlowBridge = {
   status: () => call<FlowStatus>("flow_status"),

@@ -338,7 +338,12 @@ export const Bridge = {
   piperModel: () => call<{ status: VoiceModelState; size: number }>("piper_model"),
   piperModelDownload: () => call<void>("piper_model_download"),
   piperModelRemove: () => call<void>("piper_model_remove"),
+  // JARVIS: Peter, the live voice (Pocket TTS, issue #100).
+  pocketModel: () => call<{ status: VoiceModelState; size: number }>("pocket_model"),
+  pocketModelDownload: () => call<void>("pocket_model_download"),
+  pocketModelRemove: () => call<void>("pocket_model_remove"),
   piperPreview: () => callOrThrow<ArrayBuffer>("piper_preview"),
+  pocketPreview: () => callOrThrow<ArrayBuffer>("pocket_preview"),
   liveRead: (path: string, cwd: string, find: string | null, line: number | null) =>
     callOrThrow<LiveWindow>("live_read", { path, cwd, find, line }),
   /** The system's languages as the webview sees them, for Rust's own texts (i18n.rs). */
