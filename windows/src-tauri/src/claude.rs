@@ -181,11 +181,20 @@ pub async fn send(
 /// One question, one answer, no history: the dictation clean-up and the notes
 /// of a call. The text of the answer, or why there is none.
 pub async fn complete(model: &str, system: &str, user: &str, max_tokens: u32, timeout: Duration) -> Result<String, String> {
+    answer(model, system, user, max_tokens, timeout, false).await
+}
+
+/// The same, answered straight away, with no thinking first (#96: a « where is…? » route).
+pub async fn complete_quick(model: &str, system: &str, user: &str, max_tokens: u32, timeout: Duration) -> Result<String, String> {
+    answer(model, system, user, max_tokens, timeout, true).await
+}
+
+async fn answer(model: &str, system: &str, user: &str, max_tokens: u32, timeout: Duration, quick: bool) -> Result<String, String> {
     let Some(key) = secrets::get(KEY) else {
         if !claude_code::available() {
             return Err(t("API key missing. Open settings."));
         }
-        let request = claude_code::Request { model, system, prompt: user, tools: &[], read_dir: None, timeout };
+        let request = claude_code::Request { model, system, prompt: user, tools: &[], read_dir: None, timeout, quick };
         return claude_code::ask(&request).await;
     };
     let endpoint = endpoint()?;

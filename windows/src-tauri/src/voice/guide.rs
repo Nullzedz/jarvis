@@ -187,7 +187,7 @@ fn by_picture(app: &AppHandle) {
 
 // ---- The lean way (#96).
 
-const ROUTE_SYSTEM: &str = "You guide someone to a place in the app on their screen, one click at a time. You get the app's name, their question and the names of the things they can click right now (buttons, menu items, tabs, links). Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"route\": [\"names to click, in order\"]}. The first name must be copied exactly from the list. The later ones are what will appear after each click: your best guess at their exact label. The last one is the thing they asked for. If it is already in the list, the route is just that name. If you can't tell, the route is [].";
+const ROUTE_SYSTEM: &str = "You guide someone to a place in the app on their screen, one click at a time. You get the app's name, their question and the names of the things they can click right now (buttons, menu items, tabs, links). Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"route\": [\"names to click, in order\"]}. The first name must be copied exactly from the list. The route always goes all the way: the later names are what will appear after each click (your best guess at their exact label, as this app usually names them), and the last one is the thing they asked for, e.g. [\"Menu\", \"Settings\", \"Billing\"]. Only if the thing itself is in the list is the route just that name. If you can't tell, the route is [].";
 
 /// The route asked for by name: the sentence to show and the names to click. One text-only
 /// call with no history: about a hundred short names in, a few names out.
@@ -197,7 +197,7 @@ fn plan(question: &str, app_name: &str, list: &[super::uia::Named], done: &[Stri
     let user = format!("App: {app_name}\nQuestion: {question}\n{done}Clickable now: {names}");
     let cost = (ROUTE_SYSTEM.len() + user.len()) / 4;
     let started = std::time::Instant::now();
-    let reply = tauri::async_runtime::block_on(crate::claude::complete(super::brain::FAST_MODEL, ROUTE_SYSTEM, &user, 300, Duration::from_secs(30)));
+    let reply = tauri::async_runtime::block_on(crate::claude::complete_quick(super::brain::FAST_MODEL, ROUTE_SYSTEM, &user, 300, Duration::from_secs(30)));
     let reply = match reply {
         Ok(r) => r,
         Err(err) => {
@@ -283,7 +283,7 @@ pub fn where_is(app: &AppHandle, question: &str) -> Option<String> {
     };
     let first = super::uia::find(&list, route.first()?)?.clone();
     let said = if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said };
-    if route.len() < 2 {
+    if route.len() < 2 && reached(question, route.first()) {
         cancel();
         super::explain::circle(app, first.rect, &[], None);
         return Some(said);
@@ -305,7 +305,9 @@ fn by_name(app: &AppHandle) {
         guide.at += 1;
         guide.rect = None;
         let (pid, name) = guide.named.clone().unwrap_or_default();
-        if guide.at >= guide.steps.len() {
+        // There: the last click was the thing asked for (#96: a route that stopped at « Menu »
+        // goes on: what to click next is planned from what the menu shows).
+        if guide.at >= guide.steps.len() && (reached(&guide.question, guide.steps.last()) || guide.at >= MOST) {
             let id = guide.id;
             remember(&name, &question_key(&guide.question), &guide.steps);
             *g = None;
@@ -316,17 +318,20 @@ fn by_name(app: &AppHandle) {
         }
         (guide.id, guide.question.clone(), guide.steps.clone(), guide.at, pid, name)
     };
-    let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len(), "step": step_text(&steps[at]), "looking": true }));
+    // Past the planned route, short of the thing: the next click is planned from what's there.
+    let open_end = at >= steps.len();
+    let guess = steps.get(at).map(|s| step_text(s)).unwrap_or_else(|| "…".into());
+    let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len().max(at + 1), "step": guess, "looking": true }));
     // What the click opened, settled (a menu sliding in, a page loading): looked at a few times.
     let mut list = Vec::new();
     let mut found = None;
-    for wait in [350, 400, 600] {
-        std::thread::sleep(Duration::from_millis(wait));
+    for wait in if open_end { &[700][..] } else { &[350, 400, 600][..] } {
+        std::thread::sleep(Duration::from_millis(*wait));
         if GUIDE.lock().unwrap().as_ref().map(|g| g.id) != Some(id) {
             return;
         }
         list = read_buttons(pid);
-        found = super::uia::find(&list, &steps[at]).cloned();
+        found = steps.get(at).and_then(|n| super::uia::find(&list, n)).cloned();
         if found.is_some() {
             break;
         }
@@ -334,7 +339,7 @@ fn by_name(app: &AppHandle) {
     let (mut steps, mut at) = (steps, at);
     if found.is_some() {
         crate::log::line(format!("guide: step {} found by name", at + 1));
-    } else if let Some(i) = (0..steps.len()).rev().find(|i| super::uia::find(&list, &steps[*i]).is_some()) {
+    } else if let Some(i) = (0..steps.len()).rev().filter(|_| !open_end).find(|i| super::uia::find(&list, &steps[*i]).is_some()) {
         // Clicked off the route (or a menu closed): his place again, by name.
         at = i;
         found = super::uia::find(&list, &steps[i]).cloned();
@@ -350,7 +355,7 @@ fn by_name(app: &AppHandle) {
     let Some(guide) = g.as_mut().filter(|g| g.id == id) else { return };
     let Some(found) = found else {
         // No name to go by: the picture way for this step.
-        crate::log::line(format!("guide: \"{}\" not among the names: a picture", steps[at]));
+        crate::log::line(format!("guide: \"{}\" not among the names: a picture", steps.get(at).map_or("the next click", |s| s.as_str())));
         guide.named = None;
         guide.steps = steps;
         guide.at = at.saturating_sub(1);
@@ -362,6 +367,13 @@ fn by_name(app: &AppHandle) {
     guide.rect = Some(found.rect);
     drop(g);
     let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len(), "step": step_text(&steps[at]), "target": super::explain::to_page(found.rect) }));
+}
+
+/// The last click was the thing asked for: one of the question's words is in its name.
+fn reached(question: &str, last: Option<&String>) -> bool {
+    let Some(last) = last else { return false };
+    let name = last.to_lowercase();
+    question_key(question).split(' ').filter(|w| w.len() >= 3).any(|w| name.contains(w.trim_end_matches('s')))
 }
 
 /// The label's words for a step named « Settings »: « Click Settings ».
@@ -400,6 +412,9 @@ mod tests {
         assert_eq!(question_key("where's the Billing"), "billing");
         assert_eq!(question_key("How do I get to dark mode"), "dark mode");
         assert_eq!(step_text("Settings"), "Click Settings");
+        assert!(reached("where is billing?", Some(&"Billing & plans".to_string())));
+        assert!(reached("where are the plugins", Some(&"Plugins".to_string())));
+        assert!(!reached("where is billing?", Some(&"Menu".to_string())));
         assert_eq!(step_text("Open Appearance"), "Open Appearance");
     }
 
@@ -410,5 +425,19 @@ mod tests {
         let n = read_next(r#"<window>{"kind": "point", "target": [10, 10, 20, 10], "step": "Choose Settings"}</window>"#, (100, 100));
         assert!(matches!(n, Next::Click(Some(ref s), Some(_)) if s == "Choose Settings"));
         assert_eq!(read_next("not found", (100, 100)), Next::Click(None, None));
+    }
+}
+
+#[cfg(all(test, windows))]
+mod live {
+    /// By hand: UIA_PID=<an app's process id> GUIDE_Q="where is billing" cargo test --lib guide::live -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn plans_a_route_from_a_running_app() {
+        let pid: u32 = std::env::var("UIA_PID").ok().and_then(|p| p.parse().ok()).expect("UIA_PID");
+        let q = std::env::var("GUIDE_Q").unwrap_or_else(|_| "where is billing".into());
+        let list = super::super::uia::clickable(pid);
+        let route = super::plan(&q, &super::super::uia::app_name(pid), &list, &[]);
+        println!("ROUTE {route:?} first found: {:?}", route.as_ref().and_then(|r| r.1.first()).and_then(|n| super::super::uia::find(&list, n)));
     }
 }

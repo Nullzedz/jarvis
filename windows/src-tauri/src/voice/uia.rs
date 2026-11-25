@@ -20,6 +20,11 @@ pub fn note_front() {
     if let Some(pid) = front_pid_now() {
         if pid != std::process::id() {
             FRONT.store(pid, Ordering::Relaxed);
+            // Chromium and Electron apps fill in their list only once something asks for it:
+            // asked now, it's ready by the time the question is typed.
+            std::thread::spawn(move || {
+                let _ = read(pid);
+            });
         }
     }
 }
@@ -112,13 +117,24 @@ pub fn app_name(_pid: u32) -> String {
 
 /// Everything clickable with a name that the app `pid` shows now, in all its windows (a
 /// menu that pops up is a window of its own). Empty when the app shares none.
-#[cfg(windows)]
 pub fn clickable(pid: u32) -> Vec<Named> {
+    let started = std::time::Instant::now();
+    let mut out = read(pid);
+    // Only the window's own buttons: the app was just woken up (Chromium, Electron); again.
+    if out.len() < 8 {
+        std::thread::sleep(std::time::Duration::from_millis(400));
+        out = read(pid);
+    }
+    crate::log::line(format!("uia: {} named things in {} ms", out.len(), started.elapsed().as_millis()));
+    out
+}
+
+#[cfg(windows)]
+fn read(pid: u32) -> Vec<Named> {
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
     use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
 
-    let started = std::time::Instant::now();
     let read = || -> windows::core::Result<Vec<Named>> {
         unsafe {
             let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
@@ -168,16 +184,14 @@ pub fn clickable(pid: u32) -> Vec<Named> {
             Ok(out)
         }
     };
-    let out = read().unwrap_or_else(|e| {
+    read().unwrap_or_else(|e| {
         crate::log::line(format!("uia: couldn't read the app's buttons: {e}"));
         Vec::new()
-    });
-    crate::log::line(format!("uia: {} named things in {} ms", out.len(), started.elapsed().as_millis()));
-    out
+    })
 }
 
 #[cfg(not(windows))]
-pub fn clickable(_pid: u32) -> Vec<Named> {
+fn read(_pid: u32) -> Vec<Named> {
     Vec::new()
 }
 
@@ -205,5 +219,17 @@ mod tests {
         let got = names(&list, 10);
         assert_eq!(got, vec!["Save".to_string(), "New chat".to_string(), "x".repeat(48)]);
         assert_eq!(names(&list, 1).len(), 1);
+    }
+}
+
+#[cfg(all(test, windows))]
+mod live {
+    /// By hand: UIA_PID=<an app's process id> cargo test --lib uia::live -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn reads_a_running_app() {
+        let pid: u32 = std::env::var("UIA_PID").ok().and_then(|p| p.parse().ok()).expect("UIA_PID");
+        let list = super::clickable(pid);
+        println!("{} ({}): {:?}", super::app_name(pid), list.len(), super::names(&list, 60));
     }
 }

@@ -592,7 +592,7 @@ function point(p: Point) {
   at(p.cursor[0], p.cursor[1]);
   ptr.style.opacity = "1";
   const steps = p.steps ?? [];
-  const guide = p.guide != null && steps.length >= 2 ? p.guide : null;
+  const guide = p.guide != null && steps.length >= 1 ? p.guide : null;
   later(0, () => at(target.x + target.w / 2, target.y - 12, PACE.go));
   later(PACE.go, () => {
     const r = ring(target, PACE.ring);

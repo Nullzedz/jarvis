@@ -40,6 +40,8 @@ pub struct Request<'a> {
     /// A folder the run may read from, besides its own.
     pub read_dir: Option<&'a Path>,
     pub timeout: Duration,
+    /// No thinking first (#96: a route of a few names took 30 s with it, 3 without).
+    pub quick: bool,
 }
 
 /// The Claude Code CLI, when it is installed.
@@ -66,6 +68,7 @@ pub async fn ask(request: &Request<'_>) -> Result<String, String> {
     cmd.args(args(request))
         .current_dir(&workdir)
         .env_remove("CLAUDECODE")
+        .envs(request.quick.then_some(("MAX_THINKING_TOKENS", "0")))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -188,6 +191,7 @@ mod tests {
             tools: &[],
             read_dir: None,
             timeout: Duration::from_secs(1),
+            quick: false,
         };
         let a = strings(&args(&request));
         assert_eq!(&a[..8], ["-p", "--output-format", "json", "--model", "claude-x", "--system-prompt", "sys", "--tools"]);

@@ -507,6 +507,7 @@ pub async fn send(
             tools,
             read_dir: reads_file.then_some(inbox.as_path()),
             timeout: CHAT_TIMEOUT,
+            quick: false,
         })
         .await?
     } else {
