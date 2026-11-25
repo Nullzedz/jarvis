@@ -903,7 +903,8 @@ async function main() {
   $("#skipAll").onclick = () => void Bridge.tutorialClose();
   addEventListener("keydown", (e) => {
     if ((e.target as HTMLElement).closest?.("input,textarea")) return;
-    if (e.key === "ArrowRight" && !e.ctrlKey) go(i + 1);
+    // A step that waits (your name, your passkey) waits for the arrow too.
+    if (e.key === "ArrowRight" && !e.ctrlKey && !$<HTMLButtonElement>("#next").disabled) $("#next").click();
     if (e.key === "ArrowLeft" && !e.ctrlKey) go(i - 1);
     if (e.key === "Escape") void Bridge.tutorialClose();
   });
