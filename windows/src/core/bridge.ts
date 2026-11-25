@@ -327,6 +327,8 @@ export const Bridge = {
   askResize: (height: number) => call<void>("ask_resize", { height }),
   /** JARVIS: where the explanation windows are (page px), so only they take the mouse. */
   explainHot: (rects: [number, number, number, number][]) => call<void>("explain_hot", { rects }),
+  /** JARVIS (#115): « did that help? » for guide `id`; only a yes keeps the way as his note. */
+  guideHelped: (id: number, helped: boolean) => call<void>("guide_helped", { id, helped }),
   /** JARVIS: window `draw` drawn again: in a form not in `tried`, or the same one with `fix` (its text overlapped). Comes back as `explain-drawn`. */
   explainRedraw: (draw: number, tried: string[], fix: string | null) => call<void>("explain_redraw", { draw, tried, fix }),
   /** JARVIS: who can draw his windows (Settings → Voice → Windows), issue #14. */

@@ -30,7 +30,7 @@ type Show = { add: boolean; draw: number; question: string; said: string; window
 /** "Where is…?" (#88): only the place to circle. */
 type Point = { add: boolean; target: Box; cursor: [number, number]; steps?: string[]; guide?: number | null };
 /** #94: the next step of a guide: being looked for, found (target), or « you're there » (done). */
-type GuideStep = { id: number; at?: number; total?: number; step?: string; looking?: boolean; target?: Box | null; done?: boolean };
+type GuideStep = { id: number; at?: number; total?: number; step?: string; looking?: boolean; target?: Box | null; done?: boolean; ask?: boolean };
 type Drawn = { draw: number; window?: Record<string, any>; failed?: boolean };
 type Answer = { card: number; said?: string; draw?: number; window?: Record<string, any>; failed?: boolean };
 /** One answer in a window: the first, or a follow-up (`question`). `draw`: its drawing's id (0: none);
@@ -118,8 +118,8 @@ let pointing = false;
 function report() {
   // #92: closing what was up before a circle said "nothing up" 170 ms later, and the layer was
   // moved off screen, circle and all, before it was drawn.
-  if (pointing && !cards.length) return;
-  void Bridge.explainHot(cards.map(({ el }) => {
+  if (pointing && !cards.length && !helpCard) return;
+  void Bridge.explainHot([...cards.map(({ el }) => el), ...(helpCard ? [helpCard] : [])].map((el) => {
     const r = bounds(el);
     return [r.x, r.y, r.w, r.h] as Box;
   }));
@@ -149,6 +149,8 @@ function closeAll() {
   era++;
   pointing = false;
   if (guiding) { guiding.chip.remove(); guiding = null; }
+  helpCard?.remove();
+  helpCard = null;
   timers.forEach(clearTimeout);
   timers = [];
   loose.forEach(fadeMark);
@@ -654,7 +656,8 @@ function guideStep(s: GuideStep) {
     g.chip.classList.remove("looking");
     g.chip.querySelectorAll(".dots i").forEach((d) => (d.className = "done"));
     ptr.style.opacity = "0";
-    later(1800, () => endGuide());
+    if (s.ask) askHelped(g, s.id);
+    else later(1800, () => endGuide());
     return;
   }
   const idx = s.at ?? 0, step = s.step ?? "";
@@ -683,6 +686,44 @@ function guideStep(s: GuideStep) {
   }
 }
 const at_ = (target: Rect) => at(target.x + target.w / 2, target.y - 12, PACE.go);
+
+/** #115, design C: a small card under « You're there » asks; only a yes keeps the way as his note.
+ *  No answer in 12 s: it goes, and nothing is kept. */
+let helpCard: HTMLElement | null = null;
+
+function askHelped(g: NonNullable<typeof guiding>, id: number) {
+  const card = Object.assign(document.createElement("div"), { className: "ex-help" });
+  const b = Object.assign(document.createElement("b"), { textContent: t("Did that help?") });
+  const p = Object.assign(document.createElement("p"), { textContent: t("Yes keeps the way for next time.") });
+  const row = Object.assign(document.createElement("div"), { className: "row" });
+  const yes = Object.assign(document.createElement("button"), { type: "button", textContent: t("Yes") });
+  const no = Object.assign(document.createElement("button"), { type: "button", textContent: t("No") });
+  row.append(yes, no);
+  card.append(b, p, row);
+  const c = g.chip.getBoundingClientRect();
+  card.style.left = `${Math.min(c.left, window.innerWidth - 240 - EDGE)}px`;
+  card.style.top = `${c.bottom + 8 + 120 < window.innerHeight ? c.bottom + 8 : Math.max(EDGE, c.top - 8 - 112)}px`;
+  document.body.append(card);
+  helpCard = card;
+  later(400, () => { card.classList.add("on"); report(); });
+  const close = () => {
+    if (helpCard !== card) return;
+    helpCard = null;
+    card.classList.remove("on");
+    window.setTimeout(() => card.remove(), 300);
+  };
+  const answer = (helped: boolean) => {
+    if (helpCard !== card) return;
+    void Bridge.guideHelped(id, helped);
+    close();
+    g.chip.querySelector(".k")!.textContent = helped ? t("Saved") : t("Not kept");
+    g.chip.querySelector(".txt")!.textContent = helped ? t("I'll remember the way") : t("I'll look it up afresh next time");
+    later(1800, () => endGuide());
+  };
+  yes.onclick = () => answer(true);
+  no.onclick = () => answer(false);
+  later(12000, () => { if (helpCard === card) { close(); endGuide(); } });
+}
 
 function endGuide() {
   const g = guiding;

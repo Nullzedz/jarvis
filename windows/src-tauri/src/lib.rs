@@ -1001,6 +1001,7 @@ pub fn run() {
             voice::draw::draw_models,
             voice::explain::explain_focus,
             voice::explain::explain_ask,
+            voice::guide::guide_helped,
             tutorial::tutorial_open,
             tutorial::tutorial_close,
             tutorial::tutorial_key,

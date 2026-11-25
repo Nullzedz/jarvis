@@ -13,7 +13,7 @@
 //
 // His brain (howto.rs, Documents\JARVIS Brain): a question he has a note for is followed from
 // it, for free. One he hasn't is looked up on the web once (the app's own help pages), its
-// steps matched to the button names on your screen; the note is written when you get there.
+// steps matched to the button names on your screen; the note is written when you get there and say it helped (#115).
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
@@ -43,12 +43,48 @@ struct Guide {
     /// Started part-way (what was asked for, or a later step, already on screen): no note is
     /// written from it, the whole route isn't known.
     partial: bool,
+    /// Followed from his note: a « no, it didn't help » deletes it (#115).
+    from_note: bool,
     /// The names on screen when this step was circled: what's new after the click is the panel
     /// it opened (uia::focused).
     before: Vec<String>,
 }
 
 static GUIDE: Mutex<Option<Guide>> = Mutex::new(None);
+
+/// A guide that got there, waiting for « did that help? » (#115): Yes writes its note (`save`:
+/// the whole route is known); No deletes the note it was followed from. No answer keeps nothing.
+struct Helped {
+    id: u64,
+    app: String,
+    asked: String,
+    note: Note,
+    save: bool,
+    from_note: bool,
+}
+static HELPED: Mutex<Option<Helped>> = Mutex::new(None);
+
+/// Your answer to « did that help? » for guide `id`.
+#[tauri::command]
+pub fn guide_helped(id: u64, helped: bool) {
+    let mut h = HELPED.lock().unwrap();
+    if h.as_ref().map(|h| h.id) != Some(id) {
+        return;
+    }
+    let Some(h) = h.take() else { return };
+    let key = question_key(&h.asked);
+    if helped {
+        crate::log::line("guide: it helped");
+        if h.save {
+            super::howto::write(&h.app, &h.asked, &key, &h.note);
+        }
+    } else {
+        crate::log::line("guide: it didn't help: nothing kept");
+        if h.from_note {
+            super::howto::forget(&h.app, &key);
+        }
+    }
+}
 static NEXT: AtomicU64 = AtomicU64::new(1);
 /// The next step is being looked for: clicks meanwhile don't count.
 static BUSY: AtomicBool = AtomicBool::new(false);
@@ -56,7 +92,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false, before: Vec::new() });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false, from_note: false, before: Vec::new() });
     watch(app);
     id
 }
@@ -361,6 +397,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
     let qkey = question_key(question);
     // His note first (free); else the web once; else the names alone; else the picture way.
     let note = super::howto::read(&app_name, &qkey).filter(|n| furthest(&list, pid, &n.route, 0).is_some());
+    let from_note = note.is_some();
     let (said, mut note, open) = match note {
         Some(n) => {
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
@@ -425,7 +462,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0, before: list.iter().map(|n| n.name.clone()).collect() });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0, from_note, before: list.iter().map(|n| n.name.clone()).collect() });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -449,11 +486,13 @@ fn by_name(app: &AppHandle) {
             guide.steps.truncate(guide.at.min(guide.steps.len()));
             let mut words = guide.words.clone();
             words.truncate(guide.steps.len());
-            if !guide.partial { super::howto::write(&name, &guide.question, &question_key(&guide.question), &Note { route: guide.steps.clone(), words, source: guide.source.clone() }); }
+            // #115: kept only once you say it helped; asked when there's a note to keep or forget.
+            let ask = !guide.partial || guide.from_note;
+            *HELPED.lock().unwrap() = ask.then(|| Helped { id, app: name.clone(), asked: guide.question.clone(), note: Note { route: guide.steps.clone(), words, source: guide.source.clone() }, save: !guide.partial, from_note: guide.from_note });
             *g = None;
             drop(g);
             crate::log::line("guide: there");
-            let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "done": true }));
+            let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "done": true, "ask": ask }));
             return;
         }
         (guide.id, guide.question.clone(), guide.steps.clone(), guide.at, pid, name, guide.before.clone())
@@ -531,6 +570,12 @@ fn by_name(app: &AppHandle) {
     }
     let mut g = GUIDE.lock().unwrap();
     let Some(guide) = g.as_mut().filter(|g| g.id == id) else { return };
+    // A step that changed keeps no words of the old one (#115: « Usage » was noted « Go to Settings »).
+    for (i, w) in guide.words.iter_mut().enumerate() {
+        if guide.steps.get(i) != steps.get(i) {
+            w.clear();
+        }
+    }
     let Some(found) = found else {
         // No name to go by: the picture way for this step.
         crate::log::line(format!("guide: \"{}\" not among the names: a picture", steps.get(at).map_or("the next click", |s| s.as_str())));

@@ -123,6 +123,17 @@ pub fn write(app: &str, asked: &str, question: &str, note: &Note) {
     }
 }
 
+/// A note that didn't help (#115): deleted, so the way is looked up afresh next time.
+pub fn forget(app: &str, question: &str) {
+    if app.is_empty() || question.is_empty() {
+        return;
+    }
+    match std::fs::remove_file(path(app, question)) {
+        Ok(()) => crate::log::line(format!("howto: note forgotten for {app} · {question}")),
+        Err(err) => crate::log::line(format!("howto: nothing forgotten: {err}")),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

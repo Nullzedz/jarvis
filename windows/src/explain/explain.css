@@ -397,6 +397,16 @@ body {
 .ex-step-chip .dots i.on { background: #4fa3ff; }
 .ex-step-chip .dots i.done { background: #30d158; }
 .ex-step-chip.looking .txt { animation: ex-look 1.1s ease-in-out infinite; }
+/* #115: « did that help? », a small card under the chip. */
+.ex-help { position: absolute; z-index: 4; width: 240px; padding: 12px 14px; border-radius: 14px; background: rgba(0, 0, 0, 0.88); color: #fff; font-size: 12px;
+  opacity: 0; transform: translateY(4px); transition: opacity 0.3s, transform 0.35s cubic-bezier(0.32, 0.72, 0, 1); pointer-events: none; }
+.ex-help.on { opacity: 1; transform: none; pointer-events: auto; }
+.ex-help b { display: block; font-size: 13px; font-weight: 600; margin-bottom: 2px; }
+.ex-help p { margin: 0 0 10px; color: #8e8e93; }
+.ex-help .row { display: flex; gap: 6px; }
+.ex-help button { flex: 1; padding: 5px 0; border: 0; border-radius: 8px; background: #2c2c2e; color: #fff; font: inherit; cursor: pointer; }
+.ex-help button:hover { background: #3a3a3c; }
+.ex-help button:focus-visible { outline: 2px solid #4fa3ff; outline-offset: 2px; }
 @keyframes ex-look { 50% { opacity: 0.45; } }
 
 /* His pointer: the white visor with the blue eye. */
