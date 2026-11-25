@@ -37,6 +37,9 @@ struct Guide {
     /// For his note (howto.rs): the steps in words, and the page they came from.
     words: Vec<String>,
     source: String,
+    /// Planned from the names alone and short of the thing: it may go on past its end. A route
+    /// from his note or the web ends where it ends (#96: in Word it went on to « Save as type »).
+    open: bool,
 }
 
 static GUIDE: Mutex<Option<Guide>> = Mutex::new(None);
@@ -47,7 +50,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new() });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true });
     watch(app);
     id
 }
@@ -243,7 +246,7 @@ fn question_key(q: &str) -> String {
     q.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !SKIP.contains(w)).collect::<Vec<_>>().join(" ")
 }
 
-const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. The last step is the thing they asked for. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is [].";
+const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. Give the shortest way: the last step is the thing they asked for itself (to find Export, the route ends at Export, not at what you do inside it); never add steps that go on to do a task with it. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is [].";
 
 /// What the web says (#96): the official steps for `question` in this app, matched to the names
 /// on the screen. Once per question: his note keeps it after.
@@ -335,10 +338,10 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
     let qkey = question_key(question);
     // His note first (free); else the web once; else the names alone; else the picture way.
     let note = super::howto::read(&app_name, &qkey).filter(|n| super::uia::find(&list, &n.route[0]).is_some());
-    let (said, note) = match note {
+    let (said, mut note, open) = match note {
         Some(n) => {
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
-            (String::new(), n)
+            (String::new(), n, false)
         }
         None => match look_up(question, &app_name, &list) {
             // The first step had no name to go by: found on the picture from its words.
@@ -346,25 +349,36 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
                 let words = n.words.first().cloned().unwrap_or_else(|| n.route[0].clone());
                 let spot = seen.and_then(|shot| locate(app, question, &words, shot)).filter(|s| !s.name.is_empty())?;
                 n.route[0] = spot.name;
-                (said, n)
+                (said, n, false)
             }
-            Some(found) => found,
+            Some((said, n)) => (said, n, false),
             None => {
                 let (said, route) = plan(question, &app_name, &list, &[])?;
-                (said, Note { route, ..Note::default() })
+                (said, Note { route, ..Note::default() }, true)
             }
         },
     };
+    // The shortest way: the route ends at the first click that is the thing asked for (#96: Export
+    // was it, but the help page's recipe went on to Change File Type and Save As).
+    let goal = goal_at(question, &app_name, &note.route);
+    if let Some(i) = goal {
+        if i + 1 < note.route.len() {
+            crate::log::line(format!("guide: shortened to {} steps: {:?} is what was asked for", i + 1, note.route[i]));
+        }
+        note.route.truncate(i + 1);
+        note.words.truncate(i + 1);
+    }
+    let open = open && goal.is_none();
     let route = note.route.clone();
     let first = super::uia::find(&list, route.first()?)?.clone();
     let said = if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said };
-    if route.len() < 2 && reached(question, route.first()) {
+    if route.len() < 2 && goal.is_some() {
         cancel();
         super::explain::circle(app, first.rect, &[], None);
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -382,8 +396,10 @@ fn by_name(app: &AppHandle) {
         let (pid, name) = guide.named.clone().unwrap_or_default();
         // There: the last click was the thing asked for (#96: a route that stopped at « Menu »
         // goes on: what to click next is planned from what the menu shows).
-        if guide.at >= guide.steps.len() && (reached(&guide.question, guide.steps.last()) || guide.at >= MOST) {
+        let clicked_goal = goal_at(&guide.question, &name, &guide.steps[..guide.at.min(guide.steps.len())]).is_some();
+        if clicked_goal || (guide.at >= guide.steps.len() && (!guide.open || reached(&guide.question, guide.steps.last()) || guide.at >= MOST)) {
             let id = guide.id;
+            guide.steps.truncate(guide.at.min(guide.steps.len()));
             let mut words = guide.words.clone();
             words.truncate(guide.steps.len());
             super::howto::write(&name, &guide.question, &question_key(&guide.question), &Note { route: guide.steps.clone(), words, source: guide.source.clone() });
@@ -453,6 +469,26 @@ fn reached(question: &str, last: Option<&String>) -> bool {
     question_key(question).split(' ').filter(|w| w.len() >= 3).any(|w| name.contains(w.trim_end_matches('s')))
 }
 
+/// Where the route reaches what was asked for: the first step whose name holds every word that
+/// names it (« export » → « Export »; « dark mode » → « Dark mode », not « Settings »). Words
+/// that only say where (« tab », « button »…) and the app's own name don't count.
+fn goal_at(question: &str, app_name: &str, route: &[String]) -> Option<usize> {
+    const WHERE: [&str; 12] = ["tab", "tabs", "button", "buttons", "page", "section", "option", "options", "screen", "menu", "app", "in"];
+    let app = app_name.to_lowercase();
+    let words: Vec<String> = question_key(question)
+        .split(' ')
+        .filter(|w| w.len() >= 3 && !WHERE.contains(w) && !app.contains(w))
+        .map(|w| w.trim_end_matches('s').to_string())
+        .collect();
+    if words.is_empty() {
+        return None;
+    }
+    route.iter().position(|name| {
+        let name = name.to_lowercase();
+        words.iter().all(|w| name.contains(w.as_str()))
+    })
+}
+
 /// The label's words for a step named « Settings »: « Click Settings ».
 fn step_text(name: &str) -> String {
     let lower = name.to_lowercase();
@@ -503,6 +539,12 @@ mod tests {
         assert!(reached("where is billing?", Some(&"Billing & plans".to_string())));
         assert!(reached("where are the plugins", Some(&"Plugins".to_string())));
         assert!(!reached("where is billing?", Some(&"Menu".to_string())));
+        let word: Vec<String> = ["File Tab", "Export", "Change File Type", "Save As"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(goal_at("where is the export tab in word", "winword", &word), Some(1));
+        let dark: Vec<String> = ["nullzeed Pro", "Settings", "Appearance", "Dark mode"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(goal_at("where is dark mode", "claude", &dark), Some(3));
+        assert_eq!(goal_at("where are the dark mode settings", "claude", &dark), None);
+        assert_eq!(goal_at("where is it", "claude", &dark), None);
         assert_eq!(step_text("Open Appearance"), "Open Appearance");
     }
 
