@@ -244,8 +244,18 @@ pub fn clickable(pid: u32) -> Vec<Named> {
     out
 }
 
-#[cfg(windows)]
 fn read(pid: u32) -> Vec<Named> {
+    read_with(pid, false)
+}
+
+/// What the app has that you could click but that's scrolled out of view (#96): Windows still
+/// lists it, marked off screen.
+pub fn hidden(pid: u32) -> Vec<Named> {
+    read_with(pid, true)
+}
+
+#[cfg(windows)]
+fn read_with(pid: u32, offscreen: bool) -> Vec<Named> {
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
     use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
@@ -261,7 +271,7 @@ fn read(pid: u32) -> Vec<Named> {
             for p in [UIA_NamePropertyId, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_IsEnabledPropertyId] {
                 cache.AddProperty(p)?;
             }
-            let shown = uia.CreateAndCondition(&uia.ControlViewCondition()?, &uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(false))?)?;
+            let shown = uia.CreateAndCondition(&uia.ControlViewCondition()?, &uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(offscreen))?)?;
             let kinds = [
                 UIA_ButtonControlTypeId,
                 UIA_MenuItemControlTypeId,
@@ -287,7 +297,7 @@ fn read(pid: u32) -> Vec<Named> {
                     let name = e.CachedName()?.to_string();
                     let r = e.CachedBoundingRectangle()?;
                     let (w, h) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
-                    if name.trim().is_empty() || w < 4.0 || h < 4.0 {
+                    if name.trim().is_empty() || (!offscreen && (w < 4.0 || h < 4.0)) {
                         continue;
                     }
                     out.push(Named { name: name.trim().to_string(), rect: (r.left as f64, r.top as f64, w, h) });
@@ -306,7 +316,7 @@ fn read(pid: u32) -> Vec<Named> {
 }
 
 #[cfg(not(windows))]
-fn read(_pid: u32) -> Vec<Named> {
+fn read_with(_pid: u32, _offscreen: bool) -> Vec<Named> {
     Vec::new()
 }
 
@@ -344,6 +354,95 @@ pub fn named(pid: u32, name: &str) -> Option<Named> {
 
 #[cfg(not(windows))]
 pub fn named(_pid: u32, _name: &str) -> Option<Named> {
+    None
+}
+
+/// The thing called `name` in the app `pid`, scrolled into view by the app itself (#96: a
+/// setting further down a list). Whether it could be.
+#[cfg(windows)]
+pub fn scroll_to(pid: u32, name: &str) -> bool {
+    use windows::core::{Interface, BSTR};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::*;
+    let go = || -> windows::core::Result<bool> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+            let root = uia.GetRootElement()?;
+            let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
+            let tops = root.FindAll(TreeScope_Children, &of_app)?;
+            let called = uia.CreatePropertyConditionEx(UIA_NamePropertyId, &VARIANT::from(BSTR::from(name)), PropertyConditionFlags_IgnoreCase)?;
+            let walker = uia.ControlViewWalker()?;
+            for t in 0..tops.Length()? {
+                let Ok(mut e) = tops.GetElement(t).and_then(|top| top.FindFirst(TreeScope_Descendants, &called)) else { continue };
+                // It, or the row it's in, knows how to come into view.
+                for _ in 0..3 {
+                    if let Ok(p) = e.GetCurrentPattern(UIA_ScrollItemPatternId) {
+                        if let Ok(item) = p.cast::<IUIAutomationScrollItemPattern>() {
+                            item.ScrollIntoView()?;
+                            return Ok(true);
+                        }
+                    }
+                    let Ok(up) = walker.GetParentElement(&e) else { break };
+                    e = up;
+                }
+            }
+            Ok(false)
+        }
+    };
+    go().unwrap_or(false)
+}
+
+#[cfg(not(windows))]
+pub fn scroll_to(_pid: u32, _name: &str) -> bool {
+    false
+}
+
+/// The app's search box, if one is on screen: a text field whose name says search or find.
+#[cfg(windows)]
+pub fn search_box(pid: u32) -> Option<Named> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::*;
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let root = uia.GetRootElement().ok()?;
+        let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32)).ok()?;
+        let tops = root.FindAll(TreeScope_Children, &of_app).ok()?;
+        // A text field, or a box you type in that drops a list (Discord's « Search … » is one).
+        let edit = uia
+            .CreateOrCondition(
+                &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_EditControlTypeId.0)).ok()?,
+                &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_ComboBoxControlTypeId.0)).ok()?,
+            )
+            .ok()?;
+        let shown = uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(false)).ok()?;
+        let both = uia.CreateAndCondition(&edit, &shown).ok()?;
+        for t in 0..tops.Length().ok()? {
+            let Ok(found) = tops.GetElement(t).and_then(|top| top.FindAll(TreeScope_Descendants, &both)) else { continue };
+            for i in 0..found.Length().unwrap_or(0) {
+                let Ok(e) = found.GetElement(i) else { continue };
+                let name = e.CurrentName().map(|n| n.to_string()).unwrap_or_default();
+                let help = e.CurrentHelpText().map(|n| n.to_string()).unwrap_or_default();
+                let says = format!("{name} {help}").to_lowercase();
+                if !(says.contains("search") || says.contains("find")) {
+                    continue;
+                }
+                let Ok(r) = e.CurrentBoundingRectangle() else { continue };
+                let (w, h) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
+                if w >= 20.0 && h >= 8.0 {
+                    return Some(Named { name, rect: (r.left as f64, r.top as f64, w, h) });
+                }
+            }
+        }
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub fn search_box(_pid: u32) -> Option<Named> {
     None
 }
 
@@ -425,5 +524,7 @@ mod live {
         let pid: u32 = std::env::var("UIA_PID").ok().and_then(|p| p.parse().ok()).expect("UIA_PID");
         let list = super::clickable(pid);
         println!("{} ({}): {:?}", super::app_name(pid), list.len(), super::described(&list, 400));
+        let hidden = super::hidden(pid);
+        println!("HIDDEN {} e.g. {:?} SEARCH {:?}", hidden.len(), super::names(&hidden, 8), super::search_box(pid));
     }
 }

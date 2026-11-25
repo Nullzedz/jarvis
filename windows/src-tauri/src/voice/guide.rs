@@ -401,7 +401,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         std::thread::sleep(Duration::from_millis(350));
         list = super::uia::clickable(pid);
     }
-    let (start, first) = furthest(&list, pid, &note.route, 0)?;
+    let (start, first) = furthest(&list, pid, &note.route, 0).or_else(|| into_view(pid, &note.route, 0))?;
     if start > 0 {
         crate::log::line(format!("guide: step {} already on screen, starting there", start + 1));
         note.route.drain(..start);
@@ -487,6 +487,12 @@ fn by_name(app: &AppHandle) {
         }
         None => None,
     };
+    if found.is_none() && !open_end {
+        if let Some((i, n)) = into_view(pid, &steps, at) {
+            at = i;
+            found = Some(n);
+        }
+    }
     if found.is_some() {
         crate::log::line(format!("guide: step {} found by name", at + 1));
     } else if let Some(i) = (0..steps.len()).rev().filter(|_| !open_end).find(|i| super::uia::find(&list, &steps[*i]).is_some()) {
@@ -494,6 +500,9 @@ fn by_name(app: &AppHandle) {
         at = i;
         found = super::uia::find(&list, &steps[i]).cloned();
         crate::log::line(format!("guide: found his place again at step {}", i + 1));
+    } else if let Some((i, n)) = Some(()).filter(|_| !open_end).and_then(|_| by_search(app, id, pid, &steps, at)) {
+        at = i;
+        found = Some(n);
     } else if let Some((_, rest)) = plan(&question, &app_name, &list, &steps[..at]).filter(|(_, r)| r.first().is_some_and(|n| super::uia::find(&list, n).is_some())) {
         // His guess of the next label was wrong: planned again from what's there now.
         steps.truncate(at);
@@ -544,6 +553,50 @@ fn goal_at(question: &str, app_name: &str, route: &[String]) -> Option<usize> {
         let name = name.to_lowercase();
         words.iter().all(|w| name.contains(w.as_str()))
     })
+}
+
+/// A step not on the screen but further down a list (#96): the app scrolls it into view, and
+/// it's found where it now is. The furthest such step from `from` on.
+fn into_view(pid: u32, steps: &[String], from: usize) -> Option<(usize, super::uia::Named)> {
+    let hidden = super::uia::hidden(pid);
+    for i in (from..steps.len()).rev() {
+        let Some(n) = super::uia::find(&hidden, &steps[i]) else { continue };
+        if !super::uia::scroll_to(pid, &n.name) {
+            continue;
+        }
+        std::thread::sleep(Duration::from_millis(450));
+        let list = super::uia::clickable(pid);
+        if let Some(f) = super::uia::find(&list, &steps[i]) {
+            crate::log::line(format!("guide: step {} was out of view: scrolled to it", i + 1));
+            return Some((i, f.clone()));
+        }
+    }
+    None
+}
+
+/// A step that's nowhere yet but the app has a search box (#96): the box is circled with
+/// « Search “Accessibility” » and he waits, up to a minute, for what you type to bring it up.
+fn by_search(app: &AppHandle, id: u64, pid: u32, steps: &[String], at: usize) -> Option<(usize, super::uia::Named)> {
+    let bx = super::uia::search_box(pid)?;
+    let goal = steps.last()?.clone();
+    crate::log::line("guide: not on screen: the search box");
+    if let Some(g) = GUIDE.lock().unwrap().as_mut().filter(|g| g.id == id) {
+        g.rect = None;
+    }
+    let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len(), "step": format!("Search “{goal}”"), "target": super::explain::to_page(bx.rect) }));
+    for _ in 0..75 {
+        std::thread::sleep(Duration::from_millis(800));
+        if GUIDE.lock().unwrap().as_ref().map(|g| g.id) != Some(id) {
+            return None;
+        }
+        let list = super::uia::clickable(pid);
+        if let Some(found) = furthest(&list, pid, steps, at) {
+            crate::log::line(format!("guide: step {} came up in the search", found.0 + 1));
+            return Some(found);
+        }
+    }
+    crate::log::line("guide: nothing came up in the search");
+    None
 }
 
 /// His line: what he said, or the route in words.
