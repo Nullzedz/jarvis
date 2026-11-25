@@ -43,6 +43,9 @@ struct Guide {
     /// Started part-way (what was asked for, or a later step, already on screen): no note is
     /// written from it, the whole route isn't known.
     partial: bool,
+    /// The names on screen when this step was circled: what's new after the click is the panel
+    /// it opened (uia::focused).
+    before: Vec<String>,
 }
 
 static GUIDE: Mutex<Option<Guide>> = Mutex::new(None);
@@ -53,7 +56,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false, before: Vec::new() });
     watch(app);
     id
 }
@@ -348,6 +351,8 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
     };
     crate::log::line(format!("guide: where is…? in {}", super::uia::app_name(pid)));
     let list = super::uia::clickable(pid);
+    let ai_list = super::uia::focused(pid, &[]).list;
+    let ai_list = if ai_list.len() >= 3 { ai_list } else { list.clone() };
     if list.len() < 3 {
         crate::log::line("guide: the app shares no button names: the picture way");
         return None;
@@ -361,7 +366,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
             (String::new(), n, false)
         }
-        None => match look_up(question, &app_name, &list) {
+        None => match look_up(question, &app_name, &ai_list) {
             // The first step had no name to go by: found on the picture from its words.
             Some((said, mut n)) if furthest(&list, pid, &n.route, 0).is_none() => {
                 let words = n.words.first().cloned().unwrap_or_else(|| n.route[0].clone());
@@ -371,7 +376,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
             }
             Some((said, n)) => (said, n, false),
             None => {
-                let (said, route) = plan(question, &app_name, &list, &[])?;
+                let (said, route) = plan(question, &app_name, &ai_list, &[])?;
                 (said, Note { route, ..Note::default() }, true)
             }
         },
@@ -420,7 +425,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0 });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0, before: list.iter().map(|n| n.name.clone()).collect() });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -430,7 +435,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
 
 /// The circled step was clicked: the next one found by name, for free.
 fn by_name(app: &AppHandle) {
-    let (id, question, steps, at, pid, app_name) = {
+    let (id, question, steps, at, pid, app_name, before) = {
         let mut g = GUIDE.lock().unwrap();
         let Some(guide) = g.as_mut() else { return };
         guide.at += 1;
@@ -451,7 +456,7 @@ fn by_name(app: &AppHandle) {
             let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "done": true }));
             return;
         }
-        (guide.id, guide.question.clone(), guide.steps.clone(), guide.at, pid, name)
+        (guide.id, guide.question.clone(), guide.steps.clone(), guide.at, pid, name, guide.before.clone())
     };
     // Past the planned route, short of the thing: the next click is planned from what's there.
     let open_end = at >= steps.len();
@@ -511,10 +516,10 @@ fn by_name(app: &AppHandle) {
         at = i;
         found = super::uia::find(&list, &steps[i]).cloned();
         crate::log::line(format!("guide: found his place again at step {}", i + 1));
-    } else if let Some((i, n)) = Some(()).filter(|_| !open_end).and_then(|_| by_search(app, id, pid, &steps, at)) {
+    } else if let Some((i, n)) = Some(()).filter(|_| !open_end).and_then(|_| by_search(app, id, pid, &steps, at, &before)) {
         at = i;
         found = Some(n);
-    } else if let Some((_, rest)) = plan(&question, &app_name, &list, &steps[..at]).filter(|(_, r)| r.first().is_some_and(|n| super::uia::find(&list, n).is_some())) {
+    } else if let Some((_, rest)) = plan(&question, &app_name, &super::uia::focused(pid, &before).list, &steps[..at]).filter(|(_, r)| r.first().is_some_and(|n| super::uia::find(&list, n).is_some())) {
         // His guess of the next label was wrong: planned again from what's there now.
         steps.truncate(at);
         steps.extend(rest);
@@ -535,6 +540,7 @@ fn by_name(app: &AppHandle) {
     guide.steps = steps.clone();
     guide.at = at;
     guide.rect = Some(found.rect);
+    guide.before = list.iter().map(|n| n.name.clone()).collect();
     drop(g);
     let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len(), "step": step_text(&steps[at]), "target": super::explain::to_page(found.rect) }));
 }
@@ -597,8 +603,10 @@ fn into_view(pid: u32, steps: &[String], from: usize) -> Option<(usize, super::u
 
 /// A step that's nowhere yet but the app has a search box (#96): the box is circled with
 /// « Search “Accessibility” » and he waits, up to a minute, for what you type to bring it up.
-fn by_search(app: &AppHandle, id: u64, pid: u32, steps: &[String], at: usize) -> Option<(usize, super::uia::Named)> {
-    let bx = super::uia::search_box(pid)?;
+fn by_search(app: &AppHandle, id: u64, pid: u32, steps: &[String], at: usize, before: &[String]) -> Option<(usize, super::uia::Named)> {
+    // The search box of the panel your click opened (#96: in Discord's settings, not the
+    // server's message search behind them).
+    let bx = super::uia::focused(pid, before).search?;
     let goal = steps.last()?.clone();
     crate::log::line("guide: not on screen: the search box");
     if let Some(g) = GUIDE.lock().unwrap().as_mut().filter(|g| g.id == id) {

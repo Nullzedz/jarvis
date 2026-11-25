@@ -157,7 +157,9 @@ pub fn described(list: &[Named], most: usize) -> Vec<String> {
     let mut seen: Vec<String> = Vec::new();
     for n in list {
         let s: String = n.name.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(48).collect();
-        if s.is_empty() || seen.contains(&s) {
+        // A long name is content (a chat's title, a message), not a control (#96): left out, like
+        // the compressed lists that did better on fewer tokens.
+        if s.is_empty() || seen.contains(&s) || n.name.chars().count() > 40 {
             continue;
         }
         let (cx, cy) = ((n.rect.0 + n.rect.2 / 2.0 - x0) / w, (n.rect.1 + n.rect.3 / 2.0 - y0) / h);
@@ -446,6 +448,173 @@ pub fn search_box(_pid: u32) -> Option<Named> {
     None
 }
 
+/// One thing in the app's layout (#96): what it is, and where it sits in the app's tree (the
+/// path of child numbers from its window), with the dialog it's in, if any.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Spot {
+    pub named: Named,
+    pub path: Vec<u16>,
+    pub dialog: Option<Vec<u16>>,
+    pub search: bool,
+}
+
+/// What to work from now: the names, the panel you're in first, and that panel's search box.
+#[derive(Clone, Debug, Default)]
+pub struct Focus {
+    pub list: Vec<Named>,
+    pub search: Option<Named>,
+}
+
+/// The panel you're working in (#96: Discord's settings, a layer over the server, with its own
+/// search box): a dialog if one is open (the one with the most in it); else the smallest part
+/// of the tree holding what's new since `before` (what your click opened). A path prefix.
+pub fn panel_of(spots: &[Spot], before: &[String]) -> Option<Vec<u16>> {
+    let mut dialogs: Vec<(Vec<u16>, usize)> = Vec::new();
+    for s in spots.iter().filter_map(|s| s.dialog.as_ref()) {
+        match dialogs.iter_mut().find(|(d, _)| d == s) {
+            Some((_, n)) => *n += 1,
+            None => dialogs.push((s.clone(), 1)),
+        }
+    }
+    if let Some((d, _)) = dialogs.into_iter().max_by_key(|(_, n)| *n) {
+        return Some(d);
+    }
+    if before.is_empty() {
+        return None;
+    }
+    let new: Vec<&Spot> = spots.iter().filter(|s| !s.search && !before.contains(&s.named.name)).collect();
+    if new.len() < 3 {
+        return None;
+    }
+    let mut common = new[0].path.clone();
+    for s in &new[1..] {
+        let same = common.iter().zip(&s.path).take_while(|(a, b)| a == b).count();
+        common.truncate(same);
+    }
+    // The whole window (or just its frame) isn't a panel.
+    (common.len() >= 2).then_some(common)
+}
+
+/// What to work from now, the panel you're in first (all of it, then 25 from elsewhere), and
+/// the search box in that panel (or, with none, the one nearest what's new).
+pub fn focused(pid: u32, before: &[String]) -> Focus {
+    let spots = snapshot(pid);
+    let panel = panel_of(&spots, before);
+    let inside = |s: &Spot| panel.as_ref().is_some_and(|p| s.path.starts_with(p));
+    let mut list: Vec<Named> = spots.iter().filter(|s| !s.search && inside(s)).map(|s| s.named.clone()).collect();
+    let outside = spots.iter().filter(|s| !s.search && !inside(s)).map(|s| s.named.clone());
+    if panel.is_some() {
+        list.extend(outside.take(25));
+    } else {
+        list.extend(outside);
+    }
+    let boxes: Vec<&Spot> = spots.iter().filter(|s| s.search).collect();
+    // The box in the panel, or nearest above it in the tree (a settings search sits beside its list).
+    let in_tree = panel.as_ref().and_then(|p| (2..=p.len()).rev().find_map(|k| boxes.iter().find(|b| b.path.starts_with(&p[..k]))));
+    let search = in_tree.or_else(|| {
+        // No box in the panel: the one nearest what's new.
+        let new: Vec<&Spot> = spots.iter().filter(|s| !s.search && !before.contains(&s.named.name)).collect();
+        if new.is_empty() || before.is_empty() {
+            return boxes.first();
+        }
+        let (cx, cy) = new.iter().fold((0.0, 0.0), |(x, y), s| (x + s.named.rect.0 / new.len() as f64, y + s.named.rect.1 / new.len() as f64));
+        boxes.iter().min_by(|a, b| {
+            let d = |s: &Spot| (s.named.rect.0 - cx).powi(2) + (s.named.rect.1 - cy).powi(2);
+            d(a).total_cmp(&d(b))
+        })
+    }).map(|s| s.named.clone());
+    crate::log::line(format!("uia: focus: {} of {} things{}, search box {}", list.len(), spots.len(), if panel.is_some() { " (a panel)" } else { "" }, if search.is_some() { "found" } else { "none" }));
+    Focus { list, search }
+}
+
+/// The app's layout in one go (#96): its whole tree read at once, then walked here, so each
+/// thing comes with where it sits (UFO²'s way of reading a Windows app).
+#[cfg(windows)]
+pub fn snapshot(pid: u32) -> Vec<Spot> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::*;
+
+    struct Walk {
+        out: Vec<Spot>,
+        seen: usize,
+    }
+    fn walk(e: &IUIAutomationElement, path: &mut Vec<u16>, dialog: Option<Vec<u16>>, w: &mut Walk) {
+        w.seen += 1;
+        if w.seen > 6000 || path.len() > 80 {
+            return;
+        }
+        unsafe {
+            let kind = e.CachedControlType().unwrap_or_default();
+            let is_dialog = e.GetCachedPropertyValue(UIA_IsDialogPropertyId).ok().and_then(|v| bool::try_from(&v).ok()).unwrap_or(false);
+            let dialog = if (is_dialog || kind == UIA_WindowControlTypeId) && path.len() > 1 { Some(path.clone()) } else { dialog };
+            let offscreen = e.CachedIsOffscreen().map(|b| b.as_bool()).unwrap_or(false);
+            let name = e.CachedName().map(|n| n.to_string()).unwrap_or_default();
+            if !offscreen && !name.trim().is_empty() {
+                let clickable = [
+                    UIA_ButtonControlTypeId, UIA_MenuItemControlTypeId, UIA_TabItemControlTypeId, UIA_ListItemControlTypeId, UIA_HyperlinkControlTypeId,
+                    UIA_CheckBoxControlTypeId, UIA_RadioButtonControlTypeId, UIA_TreeItemControlTypeId, UIA_ComboBoxControlTypeId, UIA_SplitButtonControlTypeId, UIA_DataItemControlTypeId,
+                ]
+                .contains(&kind);
+                let typed = kind == UIA_EditControlTypeId || kind == UIA_ComboBoxControlTypeId;
+                let help = e.CachedHelpText().map(|n| n.to_string()).unwrap_or_default();
+                let says = format!("{name} {help}").to_lowercase();
+                let search = typed && (says.contains("search") || says.contains("find"));
+                if clickable || search {
+                    if let Ok(r) = e.CachedBoundingRectangle() {
+                        let (rw, rh) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
+                        if rw >= 4.0 && rh >= 4.0 {
+                            w.out.push(Spot { named: Named { name: name.trim().to_string(), rect: (r.left as f64, r.top as f64, rw, rh) }, path: path.clone(), dialog: dialog.clone(), search });
+                        }
+                    }
+                }
+            }
+            let Ok(kids) = e.GetCachedChildren() else { return };
+            for i in 0..kids.Length().unwrap_or(0) {
+                let Ok(k) = kids.GetElement(i) else { continue };
+                path.push(i as u16);
+                walk(&k, path, dialog.clone(), w);
+                path.pop();
+            }
+        }
+    }
+
+    let started = std::time::Instant::now();
+    let read = || -> windows::core::Result<Vec<Spot>> {
+        unsafe {
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+            let root = uia.GetRootElement()?;
+            let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
+            let tops = root.FindAll(TreeScope_Children, &of_app)?;
+            let cache = uia.CreateCacheRequest()?;
+            for p in [UIA_NamePropertyId, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_IsOffscreenPropertyId, UIA_IsDialogPropertyId, UIA_HelpTextPropertyId] {
+                cache.AddProperty(p)?;
+            }
+            cache.SetTreeScope(TreeScope_Subtree)?;
+            cache.SetTreeFilter(&uia.ControlViewCondition()?)?;
+            let mut w = Walk { out: Vec::new(), seen: 0 };
+            for t in 0..tops.Length()? {
+                let Ok(top) = tops.GetElement(t).and_then(|top| top.BuildUpdatedCache(&cache)) else { continue };
+                let mut path = vec![t as u16];
+                walk(&top, &mut path, None, &mut w);
+            }
+            Ok(w.out)
+        }
+    };
+    let out = read().unwrap_or_else(|e| {
+        crate::log::line(format!("uia: couldn't read the app's layout: {e}"));
+        Vec::new()
+    });
+    crate::log::line(format!("uia: layout of {} things in {} ms", out.len(), started.elapsed().as_millis()));
+    out
+}
+
+#[cfg(not(windows))]
+pub fn snapshot(_pid: u32) -> Vec<Spot> {
+    Vec::new()
+}
+
 /// The clickable thing at a point on the screen (physical px), and its name: what the AI saw
 /// on a picture, named as the app names it.
 #[cfg(windows)]
@@ -508,6 +677,26 @@ mod tests {
     }
 
     #[test]
+    fn the_panel_is_the_open_dialog_or_what_the_click_opened() {
+        let s = |name: &str, path: &[u16], dialog: Option<&[u16]>, search: bool| Spot { named: n(name), path: path.to_vec(), dialog: dialog.map(|d| d.to_vec()), search };
+        // A dialog open: it's the panel.
+        let with_dialog = [s("Chat", &[0, 1, 0], None, false), s("Close", &[0, 2, 0, 1], Some(&[0, 2]), false), s("OK", &[0, 2, 0, 2], Some(&[0, 2]), false)];
+        assert_eq!(panel_of(&with_dialog, &[]), Some(vec![0, 2]));
+        // No dialog: where the new things are (the settings layer), not the server behind it.
+        let layered = [
+            s("Search Server", &[0, 0, 1, 3], None, true),
+            s("General", &[0, 0, 1, 5], None, false),
+            s("My Account", &[0, 0, 4, 1, 0], None, false),
+            s("Connections", &[0, 0, 4, 1, 1], None, false),
+            s("Connected Apps", &[0, 0, 4, 1, 2], None, false),
+            s("Search", &[0, 0, 4, 0], None, true),
+        ];
+        let before = ["Search Server".to_string(), "General".to_string()];
+        assert_eq!(panel_of(&layered, &before), Some(vec![0, 0, 4, 1]));
+        assert_eq!(panel_of(&layered, &[]), None);
+    }
+
+    #[test]
     fn each_name_says_where_it_sits() {
         let at = |name: &str, x: f64, y: f64| Named { name: name.into(), rect: (x, y, 10.0, 10.0) };
         let list = [at("Menu", 0.0, 0.0), at("nullzeed Pro", 0.0, 990.0), at("Share", 990.0, 0.0), at("Send", 500.0, 500.0)];
@@ -525,6 +714,8 @@ mod live {
         let list = super::clickable(pid);
         println!("{} ({}): {:?}", super::app_name(pid), list.len(), super::described(&list, 400));
         let hidden = super::hidden(pid);
+        let f = super::focused(pid, &[]);
+        println!("FOCUS {} first {:?} SEARCH {:?}", f.list.len(), super::described(&f.list, 12), f.search.map(|s| s.name));
         println!("HIDDEN {} e.g. {:?} SEARCH {:?}", hidden.len(), super::names(&hidden, 8), super::search_box(pid));
     }
 }
