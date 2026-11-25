@@ -245,9 +245,10 @@ pub fn ask_send(app: AppHandle, question: String) {
     let seen = SEEN.lock().unwrap().take().or_else(super::sight::whole_screen);
     let add = ADD.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
-        // #96: « where is…? » by the app's button names: one small call, then free; no picture.
+        let seen = seen.and_then(super::sight::Pending::wait);
+        // #96: « where is…? » from his brain's note (free), or looked up once, by the app's button names.
         if super::window::asks_where(&question) {
-            if let Some(said) = super::guide::where_is(&app, &question) {
+            if let Some(said) = super::guide::where_is(&app, &question, seen.as_ref()) {
                 let _ = app.emit_to(LABEL, "ask-done", said.clone());
                 crate::last_answer::set(&app, &question, &said);
                 return;
@@ -255,7 +256,6 @@ pub fn ask_send(app: AppHandle, question: String) {
         }
         let mut brain = brain().lock().unwrap();
         let mut said = String::new();
-        let seen = seen.and_then(super::sight::Pending::wait);
         let reply = brain.respond(&app, &question, seen.as_ref(), &mut |delta| {
             said.push_str(delta);
             // Cleaned as it streams: nothing in brackets (a date he copied), no links, no markdown ever flashes.

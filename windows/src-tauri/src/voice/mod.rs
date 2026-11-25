@@ -18,6 +18,7 @@ pub mod circle;
 pub mod draw;
 pub mod explain;
 pub mod guide;
+pub mod howto;
 pub mod ink;
 pub mod gemini;
 pub mod piper;

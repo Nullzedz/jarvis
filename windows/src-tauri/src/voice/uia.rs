@@ -61,6 +61,32 @@ pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
     near.first().copied()
 }
 
+/// The names as sent to the AI, each with where it sits in the app (#96: the account button
+/// was « nullzeed Pro »; « bottom-left » is what tells it's the account menu): « nullzeed Pro
+/// (bottom-left) ». Each once, short, at most `most`.
+pub fn described(list: &[Named], most: usize) -> Vec<String> {
+    let (x0, y0) = list.iter().fold((f64::MAX, f64::MAX), |(x, y), n| (x.min(n.rect.0), y.min(n.rect.1)));
+    let (x1, y1) = list.iter().fold((f64::MIN, f64::MIN), |(x, y), n| (x.max(n.rect.0 + n.rect.2), y.max(n.rect.1 + n.rect.3)));
+    let (w, h) = ((x1 - x0).max(1.0), (y1 - y0).max(1.0));
+    let mut out: Vec<String> = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+    for n in list {
+        let s: String = n.name.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(48).collect();
+        if s.is_empty() || seen.contains(&s) {
+            continue;
+        }
+        let (cx, cy) = ((n.rect.0 + n.rect.2 / 2.0 - x0) / w, (n.rect.1 + n.rect.3 / 2.0 - y0) / h);
+        let v = if cy < 0.2 { "top" } else if cy > 0.8 { "bottom" } else { "middle" };
+        let hz = if cx < 0.25 { "left" } else if cx > 0.75 { "right" } else { "centre" };
+        out.push(format!("{s} ({v}-{hz})"));
+        seen.push(s);
+        if out.len() >= most {
+            break;
+        }
+    }
+    out
+}
+
 /// The names as sent to the AI: each once, short, at most `most`.
 pub fn names(list: &[Named], most: usize) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
@@ -195,6 +221,38 @@ fn read(_pid: u32) -> Vec<Named> {
     Vec::new()
 }
 
+/// The clickable thing at a point on the screen (physical px), and its name: what the AI saw
+/// on a picture, named as the app names it.
+#[cfg(windows)]
+pub fn at(x: f64, y: f64) -> Option<Named> {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::UI::Accessibility::*;
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let walker = uia.ControlViewWalker().ok()?;
+        let mut e = uia.ElementFromPoint(POINT { x: x as i32, y: y as i32 }).ok()?;
+        // Up from what's under the point (an icon, a label) to the button it's part of.
+        for _ in 0..5 {
+            let name = e.CurrentName().map(|n| n.to_string()).unwrap_or_default();
+            let kind = e.CurrentControlType().unwrap_or_default();
+            let clickable = [UIA_ButtonControlTypeId, UIA_MenuItemControlTypeId, UIA_TabItemControlTypeId, UIA_ListItemControlTypeId, UIA_HyperlinkControlTypeId, UIA_SplitButtonControlTypeId, UIA_TreeItemControlTypeId].contains(&kind);
+            if clickable && !name.trim().is_empty() {
+                let r = e.CurrentBoundingRectangle().ok()?;
+                return Some(Named { name: name.trim().to_string(), rect: (r.left as f64, r.top as f64, (r.right - r.left) as f64, (r.bottom - r.top) as f64) });
+            }
+            e = walker.GetParentElement(&e).ok()?;
+        }
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub fn at(_x: f64, _y: f64) -> Option<Named> {
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,6 +278,13 @@ mod tests {
         assert_eq!(got, vec!["Save".to_string(), "New chat".to_string(), "x".repeat(48)]);
         assert_eq!(names(&list, 1).len(), 1);
     }
+
+    #[test]
+    fn each_name_says_where_it_sits() {
+        let at = |name: &str, x: f64, y: f64| Named { name: name.into(), rect: (x, y, 10.0, 10.0) };
+        let list = [at("Menu", 0.0, 0.0), at("nullzeed Pro", 0.0, 990.0), at("Share", 990.0, 0.0), at("Send", 500.0, 500.0)];
+        assert_eq!(described(&list, 10), vec!["Menu (top-left)", "nullzeed Pro (bottom-left)", "Share (top-right)", "Send (middle-centre)"]);
+    }
 }
 
 #[cfg(all(test, windows))]
@@ -230,6 +295,6 @@ mod live {
     fn reads_a_running_app() {
         let pid: u32 = std::env::var("UIA_PID").ok().and_then(|p| p.parse().ok()).expect("UIA_PID");
         let list = super::clickable(pid);
-        println!("{} ({}): {:?}", super::app_name(pid), list.len(), super::names(&list, 60));
+        println!("{} ({}): {:?}", super::app_name(pid), list.len(), super::described(&list, 400));
     }
 }

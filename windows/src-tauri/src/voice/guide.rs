@@ -10,12 +10,18 @@
 // found by name after your click, for free. Off the route he finds his place again by name, or
 // plans again from the names; only if a name can't be found does he look at a picture. A route
 // that got you there is remembered: the same question in the same app costs nothing next time.
+//
+// His brain (howto.rs, Documents\JARVIS Brain): a question he has a note for is followed from
+// it, for free. One he hasn't is looked up on the web once (the app's own help pages), its
+// steps matched to the button names on your screen; the note is written when you get there.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
 use serde_json::json;
+
+use super::howto::Note;
 use tauri::{AppHandle, Emitter};
 
 /// The guide being followed: its question, its steps, the one now, and where to click for it
@@ -28,6 +34,9 @@ struct Guide {
     rect: Option<(f64, f64, f64, f64)>,
     /// Followed by name (#96): the app (its process and exe name) whose buttons are read.
     named: Option<(u32, String)>,
+    /// For his note (howto.rs): the steps in words, and the page they came from.
+    words: Vec<String>,
+    source: String,
 }
 
 static GUIDE: Mutex<Option<Guide>> = Mutex::new(None);
@@ -38,7 +47,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new() });
     watch(app);
     id
 }
@@ -187,12 +196,12 @@ fn by_picture(app: &AppHandle) {
 
 // ---- The lean way (#96).
 
-const ROUTE_SYSTEM: &str = "You guide someone to a place in the app on their screen, one click at a time. You get the app's name, their question and the names of the things they can click right now (buttons, menu items, tabs, links). Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"route\": [\"names to click, in order\"]}. The first name must be copied exactly from the list. The route always goes all the way: the later names are what will appear after each click (your best guess at their exact label, as this app usually names them), and the last one is the thing they asked for, e.g. [\"Menu\", \"Settings\", \"Billing\"]. Only if the thing itself is in the list is the route just that name. If you can't tell, the route is [].";
+const ROUTE_SYSTEM: &str = "You guide someone to a place in the app on their screen, one click at a time. You get the app's name, their question and the names of the things they can click right now (buttons, menu items, tabs, links), each with where it sits in the app's window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"route\": [\"names to click, in order\"]}. The first name must be copied exactly from the list. The route always goes all the way: the later names are what will appear after each click (your best guess at their exact label, as this app usually names them), and the last one is the thing they asked for, e.g. [\"Menu\", \"Settings\", \"Billing\"]. Only if the thing itself is in the list is the route just that name. Think like someone who knows the app: settings, billing, plan and account things are usually under the account button, often named after the person or their plan (\"Sam Pro\", \"Account\"), at the bottom-left of a sidebar or the top-right; a title-bar \"Menu\" holds File, Edit, View and Help only. Copy names without the place in brackets. If you can't tell where to start, the route is [] (then the screen is looked at instead): an empty route is better than a wrong one.";
 
 /// The route asked for by name: the sentence to show and the names to click. One text-only
 /// call with no history: about a hundred short names in, a few names out.
 fn plan(question: &str, app_name: &str, list: &[super::uia::Named], done: &[String]) -> Option<(String, Vec<String>)> {
-    let names = super::uia::names(list, 150).join(" | ");
+    let names = super::uia::described(list, 150).join(" | ");
     let done = if done.is_empty() { String::new() } else { format!("Already clicked, in order: {}.\n", done.join(" › ")) };
     let user = format!("App: {app_name}\nQuestion: {question}\n{done}Clickable now: {names}");
     let cost = (ROUTE_SYSTEM.len() + user.len()) / 4;
@@ -214,8 +223,17 @@ fn plan(question: &str, app_name: &str, list: &[super::uia::Named], done: &[Stri
 fn read_route(reply: &str) -> Option<(String, Vec<String>)> {
     let (a, b) = (reply.find('{')?, reply.rfind('}')?);
     let v: serde_json::Value = serde_json::from_str(reply.get(a..=b)?).ok()?;
-    let route: Vec<String> = v["route"].as_array()?.iter().filter_map(|s| s.as_str()).map(|s| s.trim().chars().take(60).collect::<String>()).filter(|s| !s.is_empty()).take(MOST).collect();
+    let route: Vec<String> = v["route"].as_array()?.iter().filter_map(|s| s.as_str()).map(|s| unplaced(s).chars().take(60).collect::<String>()).filter(|s| !s.is_empty()).take(MOST).collect();
     Some((v["say"].as_str().unwrap_or("").trim().to_string(), route))
+}
+
+/// « nullzeed Pro (bottom-left) » copied with its place: the name only.
+fn unplaced(s: &str) -> &str {
+    let s = s.trim();
+    match s.rfind(" (") {
+        Some(i) if s.ends_with(')') && ["top-", "middle-", "bottom-"].iter().any(|p| s[i + 2..].starts_with(p)) => s[..i].trim(),
+        _ => s,
+    }
 }
 
 /// The question as remembered: lower case, the « where is » and « the » words left out.
@@ -225,32 +243,69 @@ fn question_key(q: &str) -> String {
     q.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !SKIP.contains(w)).collect::<Vec<_>>().join(" ")
 }
 
-fn routes_file() -> std::path::PathBuf {
-    crate::settings::config_dir().join("guide-routes.json")
+const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. The last step is the thing they asked for. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is [].";
+
+/// What the web says (#96): the official steps for `question` in this app, matched to the names
+/// on the screen. Once per question: his note keeps it after.
+fn look_up(question: &str, app_name: &str, list: &[super::uia::Named]) -> Option<(String, Note)> {
+    let names = super::uia::described(list, 150).join(" | ");
+    let user = format!("App: {app_name} (its program is {app_name}.exe, on Windows)\nQuestion: {question}\nClickable now: {names}");
+    let started = std::time::Instant::now();
+    let reply = if crate::secrets::present(crate::claude::KEY) {
+        tauri::async_runtime::block_on(async {
+            let tools = [json!({ "type": "web_search_20250305", "name": "web_search", "max_uses": 2 })];
+            let turn = crate::claude::voice_turn(super::brain::FAST_MODEL, LOOKUP_SYSTEM, &[json!({ "role": "user", "content": user })], &tools).await?;
+            Ok::<String, String>(turn["content"].as_array().into_iter().flatten().filter(|b| b["type"] == "text").filter_map(|b| b["text"].as_str()).collect())
+        })
+    } else {
+        let request = crate::claude_code::Request { model: super::brain::FAST_MODEL, system: LOOKUP_SYSTEM, prompt: &user, tools: &["WebSearch"], read_dir: None, timeout: Duration::from_secs(75), quick: true };
+        tauri::async_runtime::block_on(crate::claude_code::ask(&request))
+    };
+    let reply = match reply {
+        Ok(r) => r,
+        Err(err) => {
+            crate::log::line(format!("guide: no lookup: {err}"));
+            return None;
+        }
+    };
+    let found = read_lookup(&reply);
+    crate::log::line(format!("guide: looked up on the web in {} ms: {:?}", started.elapsed().as_millis(), found.as_ref().map(|f| (&f.1.route, &f.1.source))));
+    found.filter(|f| !f.1.route.is_empty() && (!f.1.route[0].is_empty() || f.1.words.first().is_some_and(|w| !w.is_empty())))
 }
 
-fn remembered(app_name: &str, question: &str) -> Option<Vec<String>> {
-    let all: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(routes_file()).ok()?).ok()?;
-    let r: Vec<String> = all[format!("{app_name}|{question}")].as_array()?.iter().filter_map(|s| s.as_str().map(str::to_string)).collect();
-    (!r.is_empty()).then_some(r)
+/// The first step, found on the picture from its words (#96: « Open the account menu » is the
+/// button named « nullzeed Pro »), and its real name read at that spot: the note keeps the name,
+/// so this picture is looked at once.
+fn locate(app: &AppHandle, question: &str, words: &str, shot: &super::sight::Shot) -> Option<super::uia::Named> {
+    let ask = format!(
+        "On this picture of their screen, find what to click for this step: \"{words}\" (they want: \"{question}\"). Reply with nothing but this block: <window>{{\"kind\": \"point\", \"target\": [x, y, w, h]}}</window> (the box round it, in the picture's pixels), or \"not found\". Don't search the web."
+    );
+    let mut written = String::new();
+    let _ = super::ask::brain().lock().unwrap().respond(app, &ask, Some(shot), &mut |d| written.push_str(d));
+    let (x, y, w, h) = super::window::split(&written).1.and_then(|v| super::window::target(&v, shot.size))?;
+    let (x0, y0) = shot.to_screen(x, y);
+    let (x1, y1) = shot.to_screen(x + w, y + h);
+    let rect = (x0, y0, x1 - x0, y1 - y0);
+    let named = super::uia::at(rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0);
+    crate::log::line(format!("guide: \"{words}\" found on the picture: {:?}", named.as_ref().map(|n| &n.name)));
+    Some(named.unwrap_or(super::uia::Named { name: String::new(), rect }))
 }
 
-/// A route that got you there: kept (the last 200) for the same question in the same app.
-fn remember(app_name: &str, question: &str, route: &[String]) {
-    if app_name.is_empty() || question.is_empty() || route.is_empty() {
-        return;
+/// {"say", "steps": [{"do", "name"}], "source"} from his reply.
+fn read_lookup(reply: &str) -> Option<(String, Note)> {
+    let (a, b) = (reply.find('{')?, reply.rfind('}')?);
+    let v: serde_json::Value = serde_json::from_str(reply.get(a..=b)?).ok()?;
+    let mut note = Note { source: v["source"].as_str().unwrap_or("").trim().to_string(), ..Note::default() };
+    for s in v["steps"].as_array()?.iter().take(MOST) {
+        let name = unplaced(s["name"].as_str().unwrap_or("")).chars().take(60).collect::<String>();
+        // Only the first may have no name yet: it's found on the screen from its words.
+        if name.is_empty() && !note.route.is_empty() {
+            continue;
+        }
+        note.route.push(name);
+        note.words.push(s["do"].as_str().unwrap_or("").trim().chars().take(120).collect());
     }
-    let mut all: serde_json::Map<String, serde_json::Value> = std::fs::read_to_string(routes_file()).ok().and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
-    let k = format!("{app_name}|{question}");
-    all.remove(&k);
-    all.insert(k, json!(route));
-    while all.len() > 200 {
-        let first = all.keys().next().cloned().unwrap_or_default();
-        all.remove(&first);
-    }
-    let _ = crate::platform::ensure_private_dir(&crate::settings::config_dir());
-    let _ = std::fs::write(routes_file(), serde_json::Value::Object(all).to_string());
-    crate::log::line("guide: route remembered");
+    Some((v["say"].as_str().unwrap_or("").trim().to_string(), note))
 }
 
 /// What the app (and whatever is in front now, if another app opened) shows that you can click.
@@ -265,7 +320,7 @@ fn read_buttons(pid: u32) -> Vec<super::uia::Named> {
 /// « Where is…? » the lean way: the sentence he says, with the first click circled and the
 /// guide started; None when the app shares no names or no route was found from them (then
 /// the question goes the picture way, as before).
-pub fn where_is(app: &AppHandle, question: &str) -> Option<String> {
+pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Shot>) -> Option<String> {
     let pid = super::uia::user_app()?;
     let list = super::uia::clickable(pid);
     if list.len() < 3 {
@@ -274,13 +329,29 @@ pub fn where_is(app: &AppHandle, question: &str) -> Option<String> {
     }
     let app_name = super::uia::app_name(pid);
     let qkey = question_key(question);
-    let (said, route) = match remembered(&app_name, &qkey).filter(|r| super::uia::find(&list, &r[0]).is_some()) {
-        Some(r) => {
-            crate::log::line(format!("guide: remembered route, no AI: {r:?}"));
-            (String::new(), r)
+    // His note first (free); else the web once; else the names alone; else the picture way.
+    let note = super::howto::read(&app_name, &qkey).filter(|n| super::uia::find(&list, &n.route[0]).is_some());
+    let (said, note) = match note {
+        Some(n) => {
+            crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
+            (String::new(), n)
         }
-        None => plan(question, &app_name, &list, &[])?,
+        None => match look_up(question, &app_name, &list) {
+            // The first step had no name to go by: found on the picture from its words.
+            Some((said, mut n)) if super::uia::find(&list, &n.route[0]).is_none() => {
+                let words = n.words.first().cloned().unwrap_or_else(|| n.route[0].clone());
+                let spot = seen.and_then(|shot| locate(app, question, &words, shot)).filter(|s| !s.name.is_empty())?;
+                n.route[0] = spot.name;
+                (said, n)
+            }
+            Some(found) => found,
+            None => {
+                let (said, route) = plan(question, &app_name, &list, &[])?;
+                (said, Note { route, ..Note::default() })
+            }
+        },
     };
+    let route = note.route.clone();
     let first = super::uia::find(&list, route.first()?)?.clone();
     let said = if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said };
     if route.len() < 2 && reached(question, route.first()) {
@@ -289,7 +360,7 @@ pub fn where_is(app: &AppHandle, question: &str) -> Option<String> {
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)) });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -309,7 +380,9 @@ fn by_name(app: &AppHandle) {
         // goes on: what to click next is planned from what the menu shows).
         if guide.at >= guide.steps.len() && (reached(&guide.question, guide.steps.last()) || guide.at >= MOST) {
             let id = guide.id;
-            remember(&name, &question_key(&guide.question), &guide.steps);
+            let mut words = guide.words.clone();
+            words.truncate(guide.steps.len());
+            super::howto::write(&name, &guide.question, &question_key(&guide.question), &Note { route: guide.steps.clone(), words, source: guide.source.clone() });
             *g = None;
             drop(g);
             crate::log::line("guide: there");
@@ -404,6 +477,17 @@ mod tests {
         assert_eq!(r, ("Profile, then Settings.".to_string(), vec!["Profile".to_string(), "Settings".to_string()]));
         assert_eq!(read_route(r#"{"say": "", "route": []}"#).unwrap().1.len(), 0);
         assert!(read_route("no idea").is_none());
+        assert_eq!(read_route(r#"{"say": "", "route": ["nullzeed Pro (bottom-left)", "Settings"]}"#).unwrap().1[0], "nullzeed Pro");
+    }
+
+    #[test]
+    fn the_web_steps_are_read_with_their_words() {
+        let (said, note) = read_lookup(r#"{"say": "Your name, then Settings, then Billing.", "steps": [{"do": "Click your name at the bottom-left", "name": "nullzeed Pro (bottom-left)"}, {"do": "Choose Settings", "name": "Settings"}, {"do": "Open Billing", "name": "Billing"}], "source": "https://support.example.com/a"}"#).unwrap();
+        assert_eq!(said, "Your name, then Settings, then Billing.");
+        assert_eq!(note.route, vec!["nullzeed Pro", "Settings", "Billing"]);
+        assert_eq!(note.words[0], "Click your name at the bottom-left");
+        assert_eq!(note.source, "https://support.example.com/a");
+        assert!(read_lookup(r#"{"say": "", "steps": [], "source": ""}"#).unwrap().1.route.is_empty());
     }
 
     #[test]
@@ -437,7 +521,7 @@ mod live {
         let pid: u32 = std::env::var("UIA_PID").ok().and_then(|p| p.parse().ok()).expect("UIA_PID");
         let q = std::env::var("GUIDE_Q").unwrap_or_else(|_| "where is billing".into());
         let list = super::super::uia::clickable(pid);
-        let route = super::plan(&q, &super::super::uia::app_name(pid), &list, &[]);
-        println!("ROUTE {route:?} first found: {:?}", route.as_ref().and_then(|r| r.1.first()).and_then(|n| super::super::uia::find(&list, n)));
+        let found = super::look_up(&q, &super::super::uia::app_name(pid), &list);
+        println!("LOOKUP {found:?} first found: {:?}", found.as_ref().and_then(|f| f.1.route.first()).and_then(|n| super::super::uia::find(&list, n)));
     }
 }
