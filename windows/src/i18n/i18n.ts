@@ -126,11 +126,27 @@ export function applyDocumentLanguage() {
   if (root.dataset) root.dataset.dir = isRtl() ? "rtl" : "ltr";
 }
 
-/** JARVIS rebrand: the catalogs keep jarvis's English keys; what shows says JARVIS. */
+/** What he calls you (#102): « sir » unless the tour's profile said otherwise. */
+let addressedAs = "sir";
+export function setAddress(title: string) {
+  addressedAs = title.trim() || "sir";
+}
+
+/** What shows says JARVIS where a catalog still says Mochi, and calls you as you chose. */
 export function brand(text: string): string {
-  const out = text.replace(/Hey JARVIS/g, "Hey JARVIS").replace(/JARVIS|Mochi/g, "JARVIS");
-  // jarvis's English keys quote with French « »: English shows “ ”.
-  return current === "en" ? out.replace(/«\s?/g, "“").replace(/\s?»/g, "”") : out;
+  const out = text.replace(/Mochi/g, "JARVIS");
+  if (current !== "en") return out;
+  // The English keys quote with French « »: English shows “ ”. « sir » is what you chose.
+  const cap = addressedAs[0].toUpperCase() + addressedAs.slice(1);
+  const named = addressedAs === "sir" ? out : out.replace(/\bsir\b/g, addressedAs).replace(/\bSir\b/g, cap);
+  return named.replace(/«\s?/g, "“").replace(/\s?»/g, "”");
+}
+
+/** The title for an address choice ("sir", "maam", "name") and a name. */
+export function titleFor(address: string | undefined, name: string | undefined): string {
+  if (address === "maam") return "ma'am";
+  if (address === "name" && name?.trim()) return name.trim().split(/\s+/)[0];
+  return "sir";
 }
 
 function interpolate(text: string, vars?: Vars): string {

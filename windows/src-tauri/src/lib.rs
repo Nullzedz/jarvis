@@ -1,6 +1,7 @@
 // JARVIS for Windows — app wiring and the commands the island calls.
 
 mod legacy;
+mod profile;
 mod agent_hooks;
 mod tutorial;
 mod pocket;
@@ -120,6 +121,9 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         // Where Mochi sits on the desktop is desktop.rs's to say, not a webview's.
         let mut settings = settings.clone();
         settings.desktop_mochi = current.desktop_mochi.clone();
+        // Your profile is the tour's to set (profile_save), not a webview's (#102).
+        settings.profile_name = current.profile_name.clone();
+        settings.address = current.address.clone();
         // Same for the phone link: only its own commands turn it on or off.
         settings.phone_link = current.phone_link;
         settings.phone_chat = current.phone_chat;
@@ -921,6 +925,7 @@ pub fn run() {
     // JARVIS: no settings file yet: a fresh install, which gets the tutorial (#90).
     let fresh = !settings::exists();
     let loaded = settings::load();
+    profile::note(&loaded);
     i18n::set_picked(&loaded.language);
     let gate = Arc::new(PollGate::new());
 
@@ -951,6 +956,11 @@ pub fn run() {
         .manage(recap::load())
         .invoke_handler(tauri::generate_handler![
             hub_window,
+            profile::profile_save,
+            profile::passkey_set,
+            profile::passkey_check,
+            profile::passkey_present,
+            profile::subscription_sign_in,
             clipboard_history::clipboard_history,
             last_answer::last_answer,
             last_answer::conversation,

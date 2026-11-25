@@ -337,6 +337,11 @@ export const Bridge = {
   explainAsk: (card: number, question: string) => call<void>("explain_ask", { card, question }),
   /** JARVIS: the first-launch tutorial (#90) ends, finished or skipped: its window closes and it isn't shown on its own again. */
   tutorialClose: () => call<void>("tutorial_close"),
+  /** The tour's last steps (#102): your profile, your passkey (kept only as a salted hash), your AI. */
+  profileSave: (name: string, address: string) => call<void>("profile_save", { name, address }),
+  passkeySet: (pin: string) => call<void>("passkey_set", { pin }),
+  /** "terminal": its sign-in opened in a terminal; "install": its install page opened. */
+  subscriptionSignIn: (provider: string) => call<string>("subscription_sign_in", { provider }),
   /** JARVIS: shows the first-launch tutorial again (Settings › General). */
   tutorialOpen: () => call<void>("tutorial_open"),
   /** JARVIS (#92): the island's reminders, notes and today's calendar, in words, for his voice. */

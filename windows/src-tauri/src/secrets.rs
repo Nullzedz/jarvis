@@ -134,6 +134,8 @@ pub fn warm_up() {
 pub const INTERNAL_KEYS: &[&str] = &[
     // JARVIS: the Google Calendar secret iCal address (gcal.rs). Rust only: the island never reads it.
     "gcal-ics-url",
+    // JARVIS (#102): the passkey, as its salted hash only (profile.rs).
+    "passkey",
     "phone-link-cert",
     "phone-link-key",
     "phone-link-token",

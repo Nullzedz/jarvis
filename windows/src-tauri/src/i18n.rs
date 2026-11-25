@@ -155,7 +155,7 @@ thread_local! {
 
 /// What shows says JARVIS where a catalog still says Mochi (the character the code came with).
 pub fn brand(text: &str) -> String {
-    let out = text.replace("Mochi", "JARVIS");
+    let out = crate::profile::addressed(&text.replace("Mochi", "JARVIS"));
     // The English keys quote with French « »: English shows “ ”.
     if current() == "en" {
         out.replace("« ", "“").replace('«', "“").replace(" »", "”").replace('»', "”")

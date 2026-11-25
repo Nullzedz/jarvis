@@ -7,7 +7,7 @@
 
 import "./tutorial.css";
 import { Bridge, onEvent } from "../core/bridge";
-import { N_, resolveLanguage, setLanguage, systemLanguages, t } from "../i18n/i18n";
+import { N_, resolveLanguage, setAddress, setLanguage, systemLanguages, t, titleFor } from "../i18n/i18n";
 
 type Step = {
   id: string;
@@ -16,6 +16,10 @@ type Step = {
   next?: string;
   keys?: () => string;
   task?: string;
+  /** Next waits until the step says it's done (#102: a name, a passkey). */
+  gate?: boolean;
+  /** Before moving on from it (#102: the profile is saved). */
+  leave?(p: HTMLElement): Promise<void> | void;
   build(p: HTMLElement): void;
   play?(p: HTMLElement, s: Run): void | Promise<void>;
 };
@@ -271,6 +275,22 @@ async function explain(p: HTMLElement, target: HTMLElement, card: HTMLElement, l
   dock.innerHTML = jarvis(true);
   $(".bd", card).animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none" }], { duration: 400, easing: "ease-out" });
   speak(line);
+}
+
+/* The tour's last steps (#102): the three AI and what their free plans can do (checked Nov 2026). */
+const AIS = [
+  { provider: "google", name: "Gemini", mark: "G", free: true, what: N_("Free works: about 1,000 requests a day with a Google account.") },
+  { provider: "openai", name: "ChatGPT", mark: "C", free: true, what: N_("Free works, with smaller limits. Plus or Pro for more.") },
+  { provider: "anthropic", name: "Claude", mark: "A", free: false, what: N_("Needs Pro or Max: a free account can't be used here.") },
+] as const;
+
+/** A row of choices, one on; `pick` hears each change. */
+function seg(el: HTMLElement, pick?: (v: string) => void) {
+  const all = $$<HTMLButtonElement>("button", el);
+  all.forEach((b) => (b.onclick = () => {
+    all.forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-checked", String(x === b)); });
+    pick?.(b.dataset.v ?? "");
+  }));
 }
 
 const days = () => Array.from({ length: 7 }, (_, k) => new Date(2024, 0, 1 + k).toLocaleDateString(document.documentElement.lang || undefined, { weekday: "short" }));
@@ -627,6 +647,131 @@ const STEPS: Step[] = [
     },
   },
   {
+    id: "profile",
+    title: N_("Who am I working for?"),
+    say: N_("Tell me your name, and how you'd like me to address you."),
+    next: N_("Continue"),
+    gate: true,
+    build(p) {
+      p.innerHTML = `<div class="practice"><div class="sheet">
+        <div class="avatar" aria-hidden="true">?</div>
+        <div class="field"><label for="pf-name">${t("Your name")}</label><input class="input" id="pf-name" autocomplete="off" maxlength="60"></div>
+        <div class="field"><label id="pf-call-l">${t("Call me")}</label>
+          <div class="seg" id="pf-call" role="radiogroup" aria-labelledby="pf-call-l">
+            <button role="radio" aria-checked="true" class="on" data-v="sir">${t("Sir")}</button><button role="radio" aria-checked="false" data-v="maam">${t("Ma'am")}</button><button role="radio" aria-checked="false" data-v="name">${t("By my name")}</button>
+          </div></div>
+      </div></div>`;
+    },
+    play(p, s) {
+      const name = $<HTMLInputElement>("#pf-name", p), av = $(".avatar", p);
+      seg($("#pf-call", p));
+      name.focus();
+      name.addEventListener("input", () => {
+        const v = name.value.trim();
+        av.textContent = (v[0] || "?").toUpperCase();
+        av.classList.toggle("set", !!v);
+        if (v) s.done();
+        else $<HTMLButtonElement>("#next").disabled = true;
+      });
+    },
+    async leave(p) {
+      const name = $<HTMLInputElement>("#pf-name", p).value.trim();
+      const address = $("#pf-call .on", p)?.dataset.v ?? "sir";
+      await Bridge.profileSave(name, address);
+      setAddress(titleFor(address, name));
+    },
+  },
+  {
+    id: "passkey",
+    title: N_("Your passkey"),
+    say: N_("Six digits only you know. Keep it safe: it can't be recovered if you forget it."),
+    next: N_("Continue"),
+    gate: true,
+    build(p) {
+      p.innerHTML = `<div class="practice"><div class="sheet">
+        <div class="field"><label id="pk-l">${t("Passkey")}</label>
+          <div class="pin" id="pk" aria-labelledby="pk-l"></div>
+          <input class="pin-in" id="pk-in" inputmode="numeric" maxlength="6" autocomplete="off" aria-labelledby="pk-l"></div>
+        <div class="pk-msg" id="pk-msg" aria-live="polite"></div>
+      </div></div>`;
+    },
+    play(p, s) {
+      const box = $("#pk", p), inp = $<HTMLInputElement>("#pk-in", p), msg = $("#pk-msg", p);
+      let first: string | null = null;
+      const draw = () => {
+        const v = inp.value;
+        box.innerHTML = Array.from({ length: 6 }, (_, k) => `<span class="${k < v.length ? "f" : ""}${k === v.length ? " cur" : ""}">${k < v.length ? "•" : ""}</span>`).join("");
+      };
+      const say = (text: string, kind = "") => { msg.textContent = text; msg.className = `pk-msg ${kind}`; };
+      box.onclick = () => inp.focus();
+      inp.addEventListener("input", async () => {
+        inp.value = inp.value.replace(/\D/g, "").slice(0, 6);
+        draw();
+        if (inp.value.length < 6) return;
+        if (first === null) {
+          first = inp.value;
+          inp.value = "";
+          draw();
+          say(t("Type it once more."));
+        } else if (inp.value === first) {
+          const pin = inp.value;
+          inp.value = "";
+          inp.blur();
+          await Bridge.passkeySet(pin);
+          box.classList.add("ok");
+          say(t("Passkey set."), "ok");
+          s.done();
+        } else {
+          first = null;
+          inp.value = "";
+          draw();
+          say(t("They didn't match. Choose it again."), "bad");
+        }
+      });
+      draw();
+      inp.focus();
+    },
+  },
+  {
+    id: "ai",
+    title: N_("Which AI do you have?"),
+    say: N_("Tell me which you already use, free or paid: I search and answer through them."),
+    build(p) {
+      const row = (a: (typeof AIS)[number]) => `<div class="ai" data-p="${a.provider}">
+        <div class="mark" aria-hidden="true">${a.mark}</div>
+        <div class="who"><div class="name">${a.name} <span class="tag ${a.free ? "free" : "paid"}">${a.free ? t("Free plan works") : t("Paid plans only")}</span></div><div class="what">${t(a.what)}</div></div>
+        <div class="right"><div class="seg" role="radiogroup" aria-label="${a.name}"><button role="radio" aria-checked="true" class="on" data-v="none">${t("None")}</button><button role="radio" aria-checked="false" data-v="free">${t("Free")}</button><button role="radio" aria-checked="false" data-v="paid">${t("Paid")}</button></div><button class="connect" hidden>${t("Sign in")}</button></div>
+      </div>`;
+      p.innerHTML = `<div class="practice"><div class="sheet wide">${AIS.map(row).join("")}
+        <div class="keynote"><b>${t("Free accounts are limited.")}</b> ${t("Searches and answers stop when the day's free use runs out, and pick up again the next day.")}</div>
+      </div></div>`;
+    },
+    play(p) {
+      $$(".ai", p).forEach((r) => {
+        const a = AIS.find((x) => x.provider === r.dataset.p)!;
+        const connect = $<HTMLButtonElement>(".connect", r), what = $(".what", r);
+        seg($(".seg", r), (v) => {
+          // A free Claude account can't be used: said where it's picked.
+          const usable = v === "paid" || (v === "free" && a.free);
+          connect.hidden = !usable;
+          connect.disabled = false;
+          connect.textContent = t("Sign in");
+          connect.classList.remove("ok");
+          what.classList.toggle("warn", v === "free" && !a.free);
+          what.textContent = v === "free" && !a.free ? t("A free Claude account can't be used: it needs Pro or Max.") : t(a.what);
+        });
+        connect.onclick = async () => {
+          connect.disabled = true;
+          const how = await Bridge.subscriptionSignIn(a.provider);
+          what.classList.remove("warn");
+          what.textContent = how === "install" ? t("Install it, then come back.") : t("A terminal opened: sign in there.");
+          if (how === "terminal") { connect.textContent = "✓"; connect.classList.add("ok"); }
+          else connect.disabled = false;
+        };
+      });
+    },
+  },
+  {
     id: "done",
     title: N_("You're all set, sir."),
     say: N_("That's the tour. Everything here is in Settings when you want it, and you can run this again from Settings › General. The keys, once more:"),
@@ -715,13 +860,17 @@ function go(n: number) {
   task.classList.remove("ok");
   $("#taskText").innerHTML = st.task ? t(st.task) : "";
   $("#back").style.visibility = i === 0 ? "hidden" : "visible";
+  $<HTMLButtonElement>("#next").disabled = !!st.gate;
   label(st.next ? t(st.next) : st.task ? t("Skip") : t("Next"));
   $$("#dots i").forEach((d, k) => (d.className = k === i ? "on" : k < i ? "past" : ""));
   const run: Run = {
     alive: true,
     cleanup: [],
     done: () => {
-      if (!run.alive || task.classList.contains("ok")) return;
+      if (!run.alive) return;
+      $<HTMLButtonElement>("#next").disabled = false;
+      if (st.gate) return;
+      if (task.classList.contains("ok")) return;
       task.classList.add("ok");
       mood("happy");
       label(t("Next"));
@@ -738,13 +887,18 @@ function go(n: number) {
 async function main() {
   const boot = await Bridge.boot();
   setLanguage(resolveLanguage(boot?.settings.language, systemLanguages()));
+  setAddress(titleFor(boot?.settings.address, boot?.settings.profileName));
   if ("speechSynthesis" in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
   $("#back").textContent = t("Back");
   $("#taskDone").append(t("Nicely done."));
   $("#skipAll").textContent = t("Skip the tour");
   $("#dots").innerHTML = STEPS.map(() => "<i></i>").join("");
   // The last step's button, or skipping, ends the tour; it isn't shown on its own again.
-  $("#next").onclick = () => (i === STEPS.length - 1 ? void Bridge.tutorialClose() : go(i + 1));
+  $("#next").onclick = async () => {
+    if (i === STEPS.length - 1) return void Bridge.tutorialClose();
+    await STEPS[i].leave?.(panes[i]);
+    go(i + 1);
+  };
   $("#back").onclick = () => go(i - 1);
   $("#skipAll").onclick = () => void Bridge.tutorialClose();
   addEventListener("keydown", (e) => {

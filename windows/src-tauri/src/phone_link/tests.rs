@@ -1842,11 +1842,13 @@ fn every_secret_the_phone_link_stores_is_in_the_keystores_key_list() {
         assert!(crate::secrets::INTERNAL_KEYS.contains(&key), "{key} is not in secrets::INTERNAL_KEYS");
     }
     // And nothing in the list is a stray: each one is used by the phone link, by WhatsApp
-    // (checked in whatsapp/mod.rs), or by JARVIS's Google Calendar (gcal.rs).
+    // (checked in whatsapp/mod.rs), by JARVIS's Google Calendar (gcal.rs), or the passkey.
     let whatsapp = crate::secrets::INTERNAL_KEYS.iter().filter(|k| k.starts_with("whatsapp-")).count();
     let gcal = crate::secrets::INTERNAL_KEYS.iter().filter(|k| k.starts_with("gcal-")).count();
     assert_eq!(gcal, 1);
-    assert_eq!(crate::secrets::INTERNAL_KEYS.len() - whatsapp - gcal, 6);
+    // And the passkey's hash (profile.rs, #102).
+    assert!(crate::secrets::INTERNAL_KEYS.contains(&"passkey"));
+    assert_eq!(crate::secrets::INTERNAL_KEYS.len() - whatsapp - gcal - 1, 6);
 }
 
 #[test]

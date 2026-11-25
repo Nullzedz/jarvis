@@ -73,6 +73,10 @@ pub struct Settings {
     /// ("fr", "pt-BR", "zh-Hans"…). Kept as it comes, like `mochi_outfit`: a
     /// code this build doesn't know reads as "".
     pub language: String,
+    /// JARVIS (#102): your name and how he addresses you ("sir", "maam" or "name";
+    /// "" is sir), from the end of the tour. profile.rs.
+    pub profile_name: String,
+    pub address: String,
     /// Mochi on the desktop: whether he lives there, and his spot. Owned by
     /// the Rust side (desktop.rs) — what a webview sends back is ignored.
     pub desktop_mochi: DesktopMochiPref,
@@ -177,6 +181,8 @@ impl Default for Settings {
             mochi_outfit: "auto".into(),
             pill_colors: BTreeMap::new(),
             language: String::new(),
+            profile_name: String::new(),
+            address: String::new(),
             desktop_mochi: DesktopMochiPref::default(),
             phone_link: false,
             phone_chat: false,
@@ -485,6 +491,8 @@ mod tests {
   "mochiOutfit": "witchHat",
   "pillColors": { "integration_claude": "#2DD4BF" },
   "language": "pt-BR",
+  "profileName": "Sam",
+  "address": "maam",
   "desktopMochi": { "onDesktop": true, "spot": { "x": 1500.5, "y": -300.0, "space": "screen" } },
   "phoneLink": true,
   "phoneChat": true,
@@ -1008,6 +1016,8 @@ mod tests {
                 "mochiOutfit",
                 "pillColors",
                 "language",
+                "profileName",
+                "address",
                 "desktopMochi",
                 "phoneLink",
                 "phoneChat",

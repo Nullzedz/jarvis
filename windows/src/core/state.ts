@@ -158,6 +158,9 @@ export interface Settings {
    * else English), or one of src/i18n's ten codes ("fr", "pt-BR", "zh-Hans"…).
    */
   language: string;
+  /** JARVIS (#102): your name and how he addresses you ("sir", "maam", "name"), from the tour. */
+  profileName?: string;
+  address?: string;
   /**
    * The phone link for JARVIS for Android is on. Rust owns it (only the switch in
    * Settings → Android phone turns it on): whatever the page sends back is ignored.
