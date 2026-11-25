@@ -554,9 +554,11 @@ fn reached(question: &str, last: Option<&String>) -> bool {
 
 /// What was asked for, on the screen under its own name (#96: asked for « connected apps », the
 /// web's plan said « Authorized Apps » while « Connected Apps » was in view): the shortest name
-/// that holds every word naming it. It goes before any plan.
+/// that holds every word naming it. It goes before any plan. At most one word more than asked
+/// (#114: « usage » isn't the chat « Claude token usage mystery »).
 fn goal_visible(question: &str, app_name: &str, list: &[super::uia::Named]) -> Option<super::uia::Named> {
-    let mut named: Vec<&super::uia::Named> = list.iter().filter(|n| n.name.chars().count() <= 40 && n.name.split_whitespace().count() <= 4).collect();
+    let most = goal_words(question, app_name).len() + 1;
+    let mut named: Vec<&super::uia::Named> = list.iter().filter(|n| n.name.chars().count() <= 40 && n.name.split_whitespace().count() <= most).collect();
     named.sort_by_key(|n| n.name.len());
     let names: Vec<String> = named.iter().map(|n| n.name.clone()).collect();
     goal_at(question, app_name, &names).map(|i| named[i].clone())
@@ -566,13 +568,7 @@ fn goal_visible(question: &str, app_name: &str, list: &[super::uia::Named]) -> O
 /// names it (« export » → « Export »; « dark mode » → « Dark mode », not « Settings »). Words
 /// that only say where (« tab », « button »…) and the app's own name don't count.
 fn goal_at(question: &str, app_name: &str, route: &[String]) -> Option<usize> {
-    const WHERE: [&str; 12] = ["tab", "tabs", "button", "buttons", "page", "section", "option", "options", "screen", "menu", "app", "in"];
-    let app = app_name.to_lowercase();
-    let words: Vec<String> = question_key(question)
-        .split(' ')
-        .filter(|w| w.len() >= 3 && !WHERE.contains(w) && !app.contains(w))
-        .map(|w| w.trim_end_matches('s').to_string())
-        .collect();
+    let words = goal_words(question, app_name);
     if words.is_empty() {
         return None;
     }
@@ -580,6 +576,17 @@ fn goal_at(question: &str, app_name: &str, route: &[String]) -> Option<usize> {
         let name = name.to_lowercase();
         words.iter().all(|w| name.contains(w.as_str()))
     })
+}
+
+/// The words that name what was asked for: not the ones that only say where, nor the app's name.
+fn goal_words(question: &str, app_name: &str) -> Vec<String> {
+    const WHERE: [&str; 12] = ["tab", "tabs", "button", "buttons", "page", "section", "option", "options", "screen", "menu", "app", "in"];
+    let app = app_name.to_lowercase();
+    question_key(question)
+        .split(' ')
+        .filter(|w| w.len() >= 3 && !WHERE.contains(w) && !app.contains(w))
+        .map(|w| w.trim_end_matches('s').to_string())
+        .collect()
 }
 
 /// A step not on the screen but further down a list (#96): the app scrolls it into view, and
@@ -734,6 +741,9 @@ mod tests {
         let shown = [n("Authorized Apps"), n("Connected Apps and more things to read"), n("Connected Apps"), n("Connections")];
         assert_eq!(goal_visible("show me connected apps", "discord", &shown).unwrap().name, "Connected Apps");
         assert!(goal_visible("show me billing", "discord", &shown).is_none());
+        let side = [n("Claude token usage mystery"), n("New chat")];
+        assert!(goal_visible("where is usage?", "claude", &side).is_none());
+        assert_eq!(goal_visible("where is usage?", "claude", &[n("Usage"), side[0].clone()]).unwrap().name, "Usage");
         let at = |s: &str, y: f64| super::super::uia::Named { name: s.into(), rect: (0.0, y, 10.0, 10.0) };
         let results = [at("Messaging Permissions", 10.0), at("Connected Apps", 50.0)];
         assert_eq!(best_result(&results, "User Settings Authorized Apps").unwrap().name, "Connected Apps");
