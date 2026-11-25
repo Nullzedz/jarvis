@@ -256,11 +256,11 @@ fn unplaced(s: &str) -> &str {
 /// The question as remembered: lower case, the « where is » and « the » words left out.
 fn question_key(q: &str) -> String {
     let q = q.to_lowercase();
-    const SKIP: [&str; 17] = ["where", "is", "s", "are", "the", "my", "how", "do", "i", "get", "to", "find", "go", "can", "open", "a", "jarvis"];
+    const SKIP: &[&str] = &["where", "is", "s", "are", "the", "my", "how", "do", "i", "get", "to", "find", "go", "can", "open", "a", "jarvis", "show", "me", "take", "walk", "through", "guide", "navigate", "please"];
     q.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !SKIP.contains(w)).collect::<Vec<_>>().join(" ")
 }
 
-const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. Each step is something clicked (a button, a menu item, a tab, a sidebar entry): a heading that only groups items, like a section title in a settings sidebar, is never a step. Give the shortest way: the last step is the thing they asked for itself (to find Export, the route ends at Export, not at what you do inside it); never add steps that go on to do a task with it. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is []. If the question isn't about finding or doing something in this app (a fact, an explanation, something about the content on screen), reply {\"say\": \"\", \"steps\": [], \"source\": \"\"} at once, without searching.";
+const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. Use the person's own words for what they want when the app names it that way (asked for \"connected apps\", the item is \"Connected Apps\", not a similar one). Each step is something clicked (a button, a menu item, a tab, a sidebar entry): a heading that only groups items, like a section title in a settings sidebar, is never a step. Give the shortest way: the last step is the thing they asked for itself (to find Export, the route ends at Export, not at what you do inside it); never add steps that go on to do a task with it. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is []. If the question isn't about finding or doing something in this app (a fact, an explanation, something about the content on screen), reply {\"say\": \"\", \"steps\": [], \"source\": \"\"} at once, without searching.";
 
 /// What the web says (#96): the official steps for `question` in this app, matched to the names
 /// on the screen. Once per question: his note keeps it after.
@@ -401,6 +401,11 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         std::thread::sleep(Duration::from_millis(350));
         list = super::uia::clickable(pid);
     }
+    if let Some(n) = goal_visible(question, &app_name, &list) {
+        crate::log::line(format!("guide: what was asked for is on screen: {:?}", n.name));
+        note.route = vec![n.name.clone()];
+        note.words.clear();
+    }
     let (start, first) = furthest(&list, pid, &note.route, 0).or_else(|| into_view(pid, &note.route, 0))?;
     if start > 0 {
         crate::log::line(format!("guide: step {} already on screen, starting there", start + 1));
@@ -471,13 +476,19 @@ fn by_name(app: &AppHandle) {
         if let Some(front) = super::uia::user_app().filter(|p| *p != pid) {
             list.extend(super::uia::clickable(front));
         }
-        found = furthest(&list, pid, &steps, at);
+        found = goal_visible(&question, &app_name, &list).map(|n| (usize::MAX, n)).or_else(|| furthest(&list, pid, &steps, at));
         if found.is_some() {
             break;
         }
     }
     let (mut steps, mut at) = (steps, at);
     let mut found = match found {
+        Some((usize::MAX, n)) => {
+            crate::log::line(format!("guide: what was asked for is on screen: {:?}", n.name));
+            steps.truncate(at);
+            steps.push(n.name.clone());
+            Some(n)
+        }
         Some((i, n)) => {
             if i > at {
                 crate::log::line(format!("guide: step {} already on screen, skipping ahead", i + 1));
@@ -495,7 +506,7 @@ fn by_name(app: &AppHandle) {
     }
     if found.is_some() {
         crate::log::line(format!("guide: step {} found by name", at + 1));
-    } else if let Some(i) = (0..steps.len()).rev().filter(|_| !open_end).find(|i| super::uia::find(&list, &steps[*i]).is_some()) {
+    } else if let Some(i) = (0..steps.len()).rev().filter(|i| !open_end && *i + 1 != at).find(|i| super::uia::find(&list, &steps[*i]).is_some()) {
         // Clicked off the route (or a menu closed): his place again, by name.
         at = i;
         found = super::uia::find(&list, &steps[i]).cloned();
@@ -533,6 +544,16 @@ fn reached(question: &str, last: Option<&String>) -> bool {
     let Some(last) = last else { return false };
     let name = last.to_lowercase();
     question_key(question).split(' ').filter(|w| w.len() >= 3).any(|w| name.contains(w.trim_end_matches('s')))
+}
+
+/// What was asked for, on the screen under its own name (#96: asked for « connected apps », the
+/// web's plan said « Authorized Apps » while « Connected Apps » was in view): the shortest name
+/// that holds every word naming it. It goes before any plan.
+fn goal_visible(question: &str, app_name: &str, list: &[super::uia::Named]) -> Option<super::uia::Named> {
+    let mut named: Vec<&super::uia::Named> = list.iter().filter(|n| n.name.chars().count() <= 40 && n.name.split_whitespace().count() <= 4).collect();
+    named.sort_by_key(|n| n.name.len());
+    let names: Vec<String> = named.iter().map(|n| n.name.clone()).collect();
+    goal_at(question, app_name, &names).map(|i| named[i].clone())
 }
 
 /// Where the route reaches what was asked for: the first step whose name holds every word that
@@ -660,6 +681,10 @@ mod tests {
         assert_eq!(goal_at("where is dark mode", "claude", &dark), Some(3));
         assert_eq!(goal_at("where are the dark mode settings", "claude", &dark), None);
         assert_eq!(goal_at("where is it", "claude", &dark), None);
+        let n = |s: &str| super::super::uia::Named { name: s.into(), rect: (0.0, 0.0, 10.0, 10.0) };
+        let shown = [n("Authorized Apps"), n("Connected Apps and more things to read"), n("Connected Apps"), n("Connections")];
+        assert_eq!(goal_visible("show me connected apps", "discord", &shown).unwrap().name, "Connected Apps");
+        assert!(goal_visible("show me billing", "discord", &shown).is_none());
         assert_eq!(step_text("Open Appearance"), "Open Appearance");
     }
 
