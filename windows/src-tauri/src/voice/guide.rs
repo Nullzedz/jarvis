@@ -518,6 +518,9 @@ fn by_name(app: &AppHandle) {
         crate::log::line(format!("guide: found his place again at step {}", i + 1));
     } else if let Some((i, n)) = Some(()).filter(|_| !open_end).and_then(|_| by_search(app, id, pid, &steps, at, &before)) {
         at = i;
+        if super::uia::find(std::slice::from_ref(&n), &steps[i]).is_none() {
+            steps[i] = n.name.clone();
+        }
         found = Some(n);
     } else if let Some((_, rest)) = plan(&question, &app_name, &super::uia::focused(pid, &before).list, &steps[..at]).filter(|(_, r)| r.first().is_some_and(|n| super::uia::find(&list, n).is_some())) {
         // His guess of the next label was wrong: planned again from what's there now.
@@ -613,6 +616,10 @@ fn by_search(app: &AppHandle, id: u64, pid: u32, steps: &[String], at: usize, be
         g.rect = None;
     }
     let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": steps.len(), "step": format!("Search “{goal}”"), "target": super::explain::to_page(bx.rect) }));
+    // What was there before you typed: what's new after is what the search brought up.
+    let start: Vec<String> = super::uia::clickable(pid).into_iter().map(|n| n.name).collect();
+    let mut last = start.clone();
+    let mut settled = 0;
     for _ in 0..75 {
         std::thread::sleep(Duration::from_millis(800));
         if GUIDE.lock().unwrap().as_ref().map(|g| g.id) != Some(id) {
@@ -623,9 +630,39 @@ fn by_search(app: &AppHandle, id: u64, pid: u32, steps: &[String], at: usize, be
             crate::log::line(format!("guide: step {} came up in the search", found.0 + 1));
             return Some(found);
         }
+        // Still typing (the results keep changing): wait till they hold still a moment.
+        let names: Vec<String> = list.iter().map(|n| n.name.clone()).collect();
+        if names == last {
+            settled += 1;
+        } else {
+            settled = 0;
+            last = names;
+        }
+        if settled < 2 || last == start {
+            continue;
+        }
+        // Typed and settled, the name not among the results (#96: « authorized » brought up
+        // « Connected Apps »): the result that fits what you asked best is the next step.
+        let results: Vec<super::uia::Named> = list.into_iter().filter(|n| !start.contains(&n.name)).collect();
+        if let Some(best) = best_result(&results, &goal) {
+            crate::log::line(format!("guide: the search brought up {:?}: next", best.name));
+            return Some((steps.len() - 1, best));
+        }
     }
     crate::log::line("guide: nothing came up in the search");
     None
+}
+
+/// Of what a search brought up, the one sharing most words with what's looked for (ties: the
+/// top-most, as results are listed). None if nothing shares a word, unless there's only one.
+fn best_result(results: &[super::uia::Named], wanted: &str) -> Option<super::uia::Named> {
+    let words: Vec<String> = question_key(wanted).split(' ').filter(|w| w.len() >= 3).map(|w| w.trim_end_matches('s').to_string()).collect();
+    let score = |n: &super::uia::Named| {
+        let name = n.name.to_lowercase();
+        words.iter().filter(|w| name.contains(w.as_str())).count()
+    };
+    let best = results.iter().max_by(|a, b| score(a).cmp(&score(b)).then(b.rect.1.total_cmp(&a.rect.1)))?;
+    (score(best) > 0 || results.len() == 1).then(|| best.clone())
 }
 
 /// His line: what he said, or the route in words.
@@ -693,6 +730,11 @@ mod tests {
         let shown = [n("Authorized Apps"), n("Connected Apps and more things to read"), n("Connected Apps"), n("Connections")];
         assert_eq!(goal_visible("show me connected apps", "discord", &shown).unwrap().name, "Connected Apps");
         assert!(goal_visible("show me billing", "discord", &shown).is_none());
+        let at = |s: &str, y: f64| super::super::uia::Named { name: s.into(), rect: (0.0, y, 10.0, 10.0) };
+        let results = [at("Messaging Permissions", 10.0), at("Connected Apps", 50.0)];
+        assert_eq!(best_result(&results, "User Settings Authorized Apps").unwrap().name, "Connected Apps");
+        assert!(best_result(&results, "billing").is_none());
+        assert_eq!(best_result(&results[..1], "billing").unwrap().name, "Messaging Permissions");
         assert_eq!(step_text("Open Appearance"), "Open Appearance");
     }
 
