@@ -342,3 +342,9 @@ kbd.tap, kbd.down { transform: translateY(1.5px); background: #e5e5ea; color: #0
 .wt.on .dot { background: var(--c); }
 .wt.on::after { content: "✓"; position: absolute; right: 10px; top: 10px; width: 18px; height: 18px; border-radius: 50%; background: var(--green); color: #000; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
 .wt.off { opacity: .4; pointer-events: none; }
+
+/* Beta (#108): an outlined word beside what's still being worked out (prototypes/jarvis-experimental-labels.html, B). */
+.jv-beta { display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.5;
+  color: #8e8e93; border: 1px solid #3a3a3c; border-radius: 6px; padding: 0 6px; margin-left: 8px; white-space: nowrap; }
+.copy .say .beta-note { display: block; margin-top: 8px; font-size: 12.5px; color: #8e8e93; }
+.wt b .jv-beta { margin-left: 6px; font-size: 9px; }

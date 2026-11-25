@@ -16114,6 +16114,51 @@
       "ru": "Ключи вы добавите в Настройки › Подключения. А пока каждое на острове скажет, чего ему не хватает.",
       "tr": "Anahtarlarını Ayarlar › Bağlantılar'da ekleyeceksiniz. O zamana kadar adada her biri neye ihtiyacı olduğunu söyler.",
       "zh-Hans": "它们的密钥稍后在设置 › 连接中添加。在此之前，岛上的每一项都会说明它需要什么。"
+    },
+    "Beta": {
+      "ar": "تجريبي",
+      "bn": "বেটা",
+      "de": "Beta",
+      "es": "Beta",
+      "fr": "Bêta",
+      "hi": "बीटा",
+      "id": "Beta",
+      "ja": "ベータ",
+      "ko": "베타",
+      "pt-BR": "Beta",
+      "ru": "Бета",
+      "tr": "Beta",
+      "zh-Hans": "测试版"
+    },
+    "Still being worked out: I may point at the wrong place.": {
+      "ar": "ما زال قيد التطوير: قد أشير إلى المكان الخطأ.",
+      "bn": "এখনও কাজ চলছে: আমি ভুল জায়গা দেখাতে পারি।",
+      "de": "Noch in Arbeit: Ich zeige vielleicht auf die falsche Stelle.",
+      "es": "Aún en desarrollo: puede que señale el sitio equivocado.",
+      "fr": "Encore en chantier : je peux montrer le mauvais endroit.",
+      "hi": "अभी इस पर काम चल रहा है: मैं गलत जगह दिखा सकता हूँ।",
+      "id": "Masih dikembangkan: saya mungkin menunjuk tempat yang salah.",
+      "ja": "まだ改良中です。違う場所を指すことがあります。",
+      "ko": "아직 다듬는 중이에요. 엉뚱한 곳을 가리킬 수 있어요.",
+      "pt-BR": "Ainda em desenvolvimento: posso apontar o lugar errado.",
+      "ru": "Ещё в работе: я могу указать не туда.",
+      "tr": "Hâlâ geliştiriliyor: yanlış yeri gösterebilirim.",
+      "zh-Hans": "仍在完善中：我可能会指错地方。"
+    },
+    "Still being worked out: messages may arrive late or not at all.": {
+      "ar": "ما زال قيد التطوير: قد تصل الرسائل متأخرة أو لا تصل أبدًا.",
+      "bn": "এখনও কাজ চলছে: মেসেজ দেরিতে আসতে পারে বা একেবারেই না আসতে পারে।",
+      "de": "Noch in Arbeit: Nachrichten kommen vielleicht spät oder gar nicht an.",
+      "es": "Aún en desarrollo: los mensajes pueden llegar tarde o no llegar.",
+      "fr": "Encore en chantier : les messages peuvent arriver en retard, ou pas du tout.",
+      "hi": "अभी इस पर काम चल रहा है: मैसेज देर से आ सकते हैं या बिल्कुल नहीं।",
+      "id": "Masih dikembangkan: pesan bisa datang terlambat atau tidak sama sekali.",
+      "ja": "まだ改良中です。メッセージが遅れて届いたり、届かなかったりすることがあります。",
+      "ko": "아직 다듬는 중이에요. 메시지가 늦게 오거나 아예 안 올 수 있어요.",
+      "pt-BR": "Ainda em desenvolvimento: as mensagens podem chegar atrasadas ou nem chegar.",
+      "ru": "Ещё в работе: сообщения могут приходить с опозданием или не приходить вовсе.",
+      "tr": "Hâlâ geliştiriliyor: mesajlar geç gelebilir ya da hiç gelmeyebilir.",
+      "zh-Hans": "仍在完善中：消息可能会延迟，甚至收不到。"
     }
   }
 }

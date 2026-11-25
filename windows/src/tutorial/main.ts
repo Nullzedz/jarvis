@@ -20,6 +20,8 @@ type Step = {
   task?: string;
   /** Next waits until the step says it's done (#102: a name, a passkey). */
   gate?: boolean;
+  /** Still being worked out (#108): a Beta tag by the title, and what may go wrong. */
+  beta?: string;
   /** Before moving on from it (#102: the profile is saved). */
   leave?(p: HTMLElement): Promise<void> | void;
   build(p: HTMLElement): void;
@@ -301,6 +303,8 @@ const WATCH: [string, string][] = [
   ["integration_whatsapp", N_("Messages that need you")],
 ];
 let watchPicks: string[] = [];
+/** Still being worked out (#108). */
+const BETA = new Set(["integration_whatsapp"]);
 
 /** A row of choices, one on; `pick` hears each change. */
 function seg(el: HTMLElement, pick?: (v: string) => void) {
@@ -496,6 +500,7 @@ const STEPS: Step[] = [
     id: "where",
     title: N_("Lost something? Ask where it is."),
     say: N_("When you ask where something is, I don't open anything: I fly to it, circle it, and tell you."),
+    beta: N_("Still being worked out: I may point at the wrong place."),
     keys: () => t("Hold {keys}", { keys: K(ctrl(), win()) }),
     task: N_("Ask: <b>“Where's the export button?”</b>"),
     build(p) {
@@ -798,7 +803,7 @@ const STEPS: Step[] = [
       const tile = ([id, what]: (typeof WATCH)[number]) => {
         const def = pillDefinition(id);
         const name = def?.name ?? id;
-        return `<button class="wt" data-id="${id}" style="--c:${def?.color ?? "#8e8e93"}" aria-pressed="false"><span class="dot">${name[0]}</span><b>${name}</b><span class="need">${t(what)}</span></button>`;
+        return `<button class="wt" data-id="${id}" style="--c:${def?.color ?? "#8e8e93"}" aria-pressed="false"><span class="dot">${name[0]}</span><b>${name}${BETA.has(id) ? `<span class="jv-beta">${t("Beta")}</span>` : ""}</b><span class="need">${t(what)}</span></button>`;
       };
       const rooms: [string, string][] = [["code", t("Code")], ["money", t("Money")], ["life", t("Life")]];
       p.innerHTML = `<div class="practice"><div class="sheet wide watch"><div class="count" aria-live="polite"></div>
@@ -911,7 +916,9 @@ function go(n: number) {
   const last = STEPS.length - 1;
   $("#stepN").textContent = i === 0 || i === last ? "" : t("Step {n} of {total}", { n: i, total: last - 1 });
   $("#title").textContent = t(st.title);
+  if (st.beta) $("#title").append(Object.assign(document.createElement("span"), { className: "jv-beta", textContent: t("Beta") }));
   $("#say").textContent = t(st.say);
+  if (st.beta) $("#say").append(Object.assign(document.createElement("span"), { className: "beta-note", textContent: t(st.beta) }));
   $("#keys").innerHTML = st.keys ? st.keys() : "";
   $("#keys").hidden = !st.keys;
   const task = $("#task");

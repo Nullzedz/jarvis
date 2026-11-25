@@ -431,3 +431,7 @@ body {
   background: #378add;
   display: block;
 }
+
+/* Beta (#108): an outlined word beside what's still being worked out (prototypes/jarvis-experimental-labels.html, B). */
+.jv-beta { display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.5;
+  color: #8e8e93; border: 1px solid #3a3a3c; border-radius: 6px; padding: 0 6px; margin-left: 2px; white-space: nowrap; }

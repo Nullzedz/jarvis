@@ -618,7 +618,9 @@ function point(p: Point) {
 /** The label by the ring: « 1 of 3 · Click the gear » and the progress dots. */
 function chipFor(): HTMLElement {
   const c = Object.assign(document.createElement("div"), { className: "ex-step-chip" });
-  c.append(Object.assign(document.createElement("span"), { className: "k" }), Object.assign(document.createElement("span"), { className: "txt" }), Object.assign(document.createElement("span"), { className: "dots" }));
+  c.append(Object.assign(document.createElement("span"), { className: "k" }), Object.assign(document.createElement("span"), { className: "txt" }), Object.assign(document.createElement("span"), { className: "dots" }),
+    // Still being worked out (#108).
+    Object.assign(document.createElement("span"), { className: "jv-beta", textContent: t("Beta") }));
   document.body.append(c);
   return c;
 }
