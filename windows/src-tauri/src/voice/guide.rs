@@ -45,6 +45,8 @@ struct Guide {
     partial: bool,
     /// Followed from his note: a « no, it didn't help » deletes it (#115).
     from_note: bool,
+    /// That note was one you said helped: no need to ask again.
+    approved: bool,
     /// The names on screen when this step was circled: what's new after the click is the panel
     /// it opened (uia::focused).
     before: Vec<String>,
@@ -92,7 +94,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false, from_note: false, before: Vec::new() });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false, from_note: false, approved: false, before: Vec::new() });
     watch(app);
     id
 }
@@ -398,6 +400,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
     // His note first (free); else the web once; else the names alone; else the picture way.
     let note = super::howto::read(&app_name, &qkey).filter(|n| furthest(&list, pid, &n.route, 0).is_some());
     let from_note = note.is_some();
+    let approved = note.as_ref().is_some_and(|n| n.approved);
     let (said, mut note, open) = match note {
         Some(n) => {
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
@@ -462,7 +465,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0, from_note, before: list.iter().map(|n| n.name.clone()).collect() });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0, from_note, approved, before: list.iter().map(|n| n.name.clone()).collect() });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -486,9 +489,10 @@ fn by_name(app: &AppHandle) {
             guide.steps.truncate(guide.at.min(guide.steps.len()));
             let mut words = guide.words.clone();
             words.truncate(guide.steps.len());
-            // #115: kept only once you say it helped; asked when there's a note to keep or forget.
-            let ask = !guide.partial || guide.from_note;
-            *HELPED.lock().unwrap() = ask.then(|| Helped { id, app: name.clone(), asked: guide.question.clone(), note: Note { route: guide.steps.clone(), words, source: guide.source.clone() }, save: !guide.partial, from_note: guide.from_note });
+            // #115: kept only once you say it helped; asked when there's a note to keep or forget,
+            // not for one you already said helped.
+            let ask = (!guide.partial || guide.from_note) && !guide.approved;
+            *HELPED.lock().unwrap() = ask.then(|| Helped { id, app: name.clone(), asked: guide.question.clone(), note: Note { route: guide.steps.clone(), words, source: guide.source.clone(), approved: true }, save: !guide.partial, from_note: guide.from_note });
             *g = None;
             drop(g);
             crate::log::line("guide: there");

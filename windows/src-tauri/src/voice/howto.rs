@@ -15,6 +15,8 @@ pub struct Note {
     pub route: Vec<String>,
     pub words: Vec<String>,
     pub source: String,
+    /// You said it helped (#115): followed again without asking.
+    pub approved: bool,
 }
 
 /// Documents\JARVIS Brain (where Windows keeps Documents, OneDrive included).
@@ -76,20 +78,21 @@ fn parse(text: &str) -> Option<Note> {
     if route.is_empty() {
         return None;
     }
-    Some(Note { route, words: list("steps"), source: field("source").map(|s| s.trim_matches('"').to_string()).unwrap_or_default() })
+    Some(Note { route, words: list("steps"), source: field("source").map(|s| s.trim_matches('"').to_string()).unwrap_or_default(), approved: field("approved").is_some_and(|v| v == "yes") })
 }
 
 /// The note as written: front matter for him, numbered steps for you.
 fn render(app: &str, asked: &str, question: &str, note: &Note, day: &str) -> String {
     let q = |v: &str| serde_json::to_string(v).unwrap_or_default();
     let mut out = format!(
-        "---\napp: {}\nquestion: {}\nasked: {}\nroute: {}\nsteps: {}\nsource: {}\nworked: {day}\n---\n\n# {} in {}\n\n",
+        "---\napp: {}\nquestion: {}\nasked: {}\nroute: {}\nsteps: {}\nsource: {}\nworked: {day}\napproved: {}\n---\n\n# {} in {}\n\n",
         q(app),
         q(question),
         q(asked),
         serde_json::to_string(&note.route).unwrap_or_default(),
         serde_json::to_string(&note.words).unwrap_or_default(),
         q(&note.source),
+        if note.approved { "yes" } else { "no" },
         title(question),
         title(app),
     );
@@ -144,6 +147,7 @@ mod tests {
             route: vec!["Sam Pro".into(), "Settings".into(), "Billing".into()],
             words: vec!["Click your name at the bottom-left".into(), "Choose Settings".into()],
             source: "https://support.example.com/billing".into(),
+            approved: true,
         };
         let text = render("claude", "Where is billing?", "billing", &note, "2026-11-25");
         assert!(text.contains("1. Click your name at the bottom-left — **Sam Pro**"));
@@ -155,6 +159,7 @@ mod tests {
     fn an_edited_or_empty_note() {
         let edited = "---\nroute: [\"Account\", \"Billing\"]\n---\n# mine\n";
         assert_eq!(parse(edited).unwrap().route, vec!["Account", "Billing"]);
+        assert!(!parse(edited).unwrap().approved);
         assert!(parse("---\nroute: []\n---\n").is_none());
         assert!(parse("no front matter").is_none());
         assert_eq!(file_name("billing / plans?"), "billing plans");
