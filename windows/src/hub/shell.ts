@@ -11,7 +11,8 @@ import { SECTIONS, sectionOf, type Section } from "./sections";
 import { windowControls } from "./winctl";
 import { h, clear } from "../views/dom";
 import { t, onLanguageChange } from "../i18n/i18n";
-import { onEvent } from "../core/bridge";
+import { Bridge, onEvent } from "../core/bridge";
+import { photo } from "./pages/profile";
 import { FlowBridge, type FlowPrefs, type FlowStatus, type ModelsStatus, flowKeyId } from "../core/flow";
 import { hero, setVoiceLevel, setWindowShown } from "./hero";
 import { icon, keyLabel } from "./ui";
@@ -20,7 +21,7 @@ import { searchSettings, type SettingsSearchHit } from "./search";
 export type PageId =
   | "home" | "dictation" | "notes" | "insights" | "dictionary" | "snippets" | "styles" | "flowsettings"
   | "general" | "pills" | "agents" | "chat" | "voice" | "integrations" | "phone" | "shortcuts"
-  | "mail" | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk" | "prefs";
+  | "mail" | "mailOverview" | "mailRules" | "mailBanned" | "mailVIP" | "sessions" | "talk" | "prefs" | "profile";
 
 interface PageDef {
   id: PageId;
@@ -67,7 +68,9 @@ const SESSIONS_PAGE: PageDef = { id: "sessions", icon: "terminal", title: () => 
 const TALK_PAGE: PageDef = { id: "talk", icon: "wave", title: () => t("Conversation") };
 /** Settings (#70): the demo's groups, every setting of the old pages in them. */
 const PREFS_PAGE: PageDef = { id: "prefs", icon: "gear", title: () => t("Settings") };
-const ALL = [HOME_PAGE, SESSIONS_PAGE, TALK_PAGE, PREFS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
+/** Your profile (#104): the first tab of Settings, drawn by pages/profile.ts. */
+const PROFILE_PAGE: PageDef = { id: "profile", icon: "person", title: () => t("Profile") };
+const ALL = [HOME_PAGE, SESSIONS_PAGE, TALK_PAGE, PROFILE_PAGE, PREFS_PAGE, ...FLOW_PAGES, ...NOTCH_PAGES, ...MAIL_PAGES];
 /** Old pages that now live elsewhere: opening one opens its new home (page, and where on it). */
 const MOVED: Partial<Record<PageId, [PageId, string]>> = {
   general: ["prefs", "group-general"], pills: ["prefs", "group-island"], shortcuts: ["prefs", "group-shortcuts"],
@@ -326,7 +329,19 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
     if (sec.id === "settings" || (sec.windowsOnly && status.platform !== "windows")) continue;
     side.append(railItem(sec));
   }
-  side.append(h("div", { class: "spacer" }), railItem(SECTIONS.find((x) => x.id === "settings")!), statusLine);
+  // You, where Settings was (#104, as in Claude's app): your photo, and your name when it widens.
+  const meName = h("b", { text: "" }), mePhoto = h("span", { class: "g jv-me-g" }), meSub = h("span", { text: t("Profile · Settings") });
+  const meItem = h("button", { class: "jv-ri jv-me", title: t("Profile · Settings"), "aria-label": t("Profile · Settings"), onclick: () => go("settings") },
+    mePhoto, h("span", { class: "n jv-me-n" }, meName, meSub));
+  rail.set("settings", meItem);
+  const drawMe = async () => {
+    const me = await Bridge.profileGet();
+    meName.textContent = me?.name?.trim() || t("You");
+    mePhoto.replaceChildren(photo(me?.photo));
+  };
+  void drawMe();
+  void onEvent("profile-changed", () => void drawMe());
+  side.append(h("div", { class: "spacer" }), meItem, statusLine);
   // #84, hover intent (docs/jarvis/design/UX-PRINCIPLES.md H1, H2): it opens when the pointer
   // RESTS on it (no move for 300 ms), never as it crosses on its way to the window's edge or
   // overshoots a tab by a few pixels. Leaving towards the page closes it at once, so it never
@@ -526,6 +541,13 @@ export async function startHub(root: HTMLElement, opts: HubOptions) {
       for (const sec of SECTIONS) {
         const b = rail.get(sec.id);
         if (!b) continue;
+        // You (#104): your name stays; the line under it and its label follow the language.
+        if (b.classList.contains("jv-me")) {
+          b.title = t("Profile · Settings");
+          b.setAttribute("aria-label", t("Profile · Settings"));
+          meSub.textContent = t("Profile · Settings");
+          continue;
+        }
         b.title = sec.name();
         b.setAttribute("aria-label", sec.name());
         (b.querySelector(".n") as HTMLElement).textContent = sec.name();

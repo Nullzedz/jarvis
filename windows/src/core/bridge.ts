@@ -338,8 +338,13 @@ export const Bridge = {
   /** JARVIS: the first-launch tutorial (#90) ends, finished or skipped: its window closes and it isn't shown on its own again. */
   tutorialClose: () => call<void>("tutorial_close"),
   /** The tour's last steps (#102): your profile, your passkey (kept only as a salted hash), your AI. */
-  profileSave: (name: string, address: string) => call<void>("profile_save", { name, address }),
+  profileSave: (name: string, address: string, about?: string) => call<void>("profile_save", { name, address, about }),
   passkeySet: (pin: string) => call<void>("passkey_set", { pin }),
+  passkeyCheck: (pin: string) => call<boolean>("passkey_check", { pin }),
+  /** Your profile (#104): name, how he calls you, about you, your photo (a data: URL) and whether a passkey is set. */
+  profileGet: () => call<Profile>("profile_get"),
+  /** Your photo (256 px, a data: URL), or null: back to the default. */
+  profilePhotoSet: (photo: string | null) => call<void>("profile_photo_set", { photo }),
   /** "terminal": its sign-in opened in a terminal; "install": its install page opened. */
   subscriptionSignIn: (provider: string) => call<string>("subscription_sign_in", { provider }),
   /** JARVIS: shows the first-launch tutorial again (Settings › General). */
@@ -742,6 +747,15 @@ export type ChatContext =
 export interface ModelInfo {
   id: string;
   label: string;
+}
+
+/** Your profile (profile.rs, #104). */
+export interface Profile {
+  name: string;
+  address: string;
+  about: string;
+  photo: string | null;
+  passkey: boolean;
 }
 
 /** One row of Settings → Chat → Your AI subscriptions (cli_relay.rs `Status`). */

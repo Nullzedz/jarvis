@@ -124,6 +124,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         // Your profile is the tour's to set (profile_save), not a webview's (#102).
         settings.profile_name = current.profile_name.clone();
         settings.address = current.address.clone();
+        settings.profile_about = current.profile_about.clone();
         // Same for the phone link: only its own commands turn it on or off.
         settings.phone_link = current.phone_link;
         settings.phone_chat = current.phone_chat;
@@ -957,6 +958,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             hub_window,
             profile::profile_save,
+            profile::profile_get,
+            profile::profile_photo_set,
             profile::passkey_set,
             profile::passkey_check,
             profile::passkey_present,

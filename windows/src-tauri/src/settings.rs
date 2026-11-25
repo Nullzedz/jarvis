@@ -77,6 +77,8 @@ pub struct Settings {
     /// "" is sir), from the end of the tour. profile.rs.
     pub profile_name: String,
     pub address: String,
+    /// JARVIS (#104): a few lines about you that he keeps in mind when he answers.
+    pub profile_about: String,
     /// Mochi on the desktop: whether he lives there, and his spot. Owned by
     /// the Rust side (desktop.rs) — what a webview sends back is ignored.
     pub desktop_mochi: DesktopMochiPref,
@@ -183,6 +185,7 @@ impl Default for Settings {
             language: String::new(),
             profile_name: String::new(),
             address: String::new(),
+            profile_about: String::new(),
             desktop_mochi: DesktopMochiPref::default(),
             phone_link: false,
             phone_chat: false,
@@ -493,6 +496,7 @@ mod tests {
   "language": "pt-BR",
   "profileName": "Sam",
   "address": "maam",
+  "profileAbout": "I build JARVIS.",
   "desktopMochi": { "onDesktop": true, "spot": { "x": 1500.5, "y": -300.0, "space": "screen" } },
   "phoneLink": true,
   "phoneChat": true,
@@ -1018,6 +1022,7 @@ mod tests {
                 "language",
                 "profileName",
                 "address",
+                "profileAbout",
                 "desktopMochi",
                 "phoneLink",
                 "phoneChat",

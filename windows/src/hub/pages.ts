@@ -16,6 +16,7 @@ import { dictationHomePage } from "./pages/dictation-home";
 import { notetakerPage } from "./pages/notetaker";
 import { prefsPage } from "./pages/prefs";
 import { connectionsPage } from "./pages/connections";
+import { profilePage } from "./pages/profile";
 
 export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   dictation: dictationHomePage,
@@ -31,5 +32,6 @@ export const FLOW_PAGE_RENDERERS: Partial<Record<PageId, FlowPageRenderer>> = {
   sessions: sessionsPage,
   talk: talkPage,
   prefs: prefsPage,
+  profile: profilePage,
   integrations: connectionsPage,
 };

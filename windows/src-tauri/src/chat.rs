@@ -127,7 +127,7 @@ pub fn system_prompt(web_search: bool) -> String {
 
 fn system_prompt_for(first_name: Option<&str>, web_search: bool) -> String {
     let opening = match first_name {
-        Some(name) => format!("You are JARVIS, {name}'s personal AI assistant living at the top of their screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address {name} as \"{}\".", crate::profile::title()),
+        Some(name) => format!("You are JARVIS, {name}'s personal AI assistant living at the top of their screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address {name} as \"{}\".{}", crate::profile::title(), crate::profile::about_line()),
         None => format!("You are JARVIS, a personal AI assistant living at the top of the user's screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. {}", crate::profile::address_rule()),
     };
     let abilities = if web_search {

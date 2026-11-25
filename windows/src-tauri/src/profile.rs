@@ -15,10 +15,13 @@ use crate::Shared;
 /// How he addresses you, as last saved: (address, your name). Read by his prompts and the
 /// strings shown, which say « sir » as written.
 static NOW: RwLock<(String, String)> = RwLock::new((String::new(), String::new()));
+/// What you wrote about yourself (#104).
+static ABOUT: RwLock<String> = RwLock::new(String::new());
 
 /// At start-up and after each save.
 pub fn note(settings: &crate::settings::Settings) {
     *NOW.write().unwrap() = (settings.address.clone(), settings.profile_name.trim().to_string());
+    *ABOUT.write().unwrap() = settings.profile_about.trim().to_string();
 }
 
 /// What he calls you: « sir » (also when nothing was chosen), « ma'am », or your first name.
@@ -41,9 +44,20 @@ pub fn name() -> Option<String> {
     (!name.is_empty()).then_some(name)
 }
 
-/// The line his prompts end their persona with.
+/// The line his prompts end their persona with: how to address you, and what you told him
+/// about yourself, if anything.
 pub fn address_rule() -> String {
-    format!("Address the user as \"{}\".", title())
+    format!("Address the user as \"{}\".{}", title(), about_line())
+}
+
+/// « What they told you about themselves: … », or nothing.
+pub fn about_line() -> String {
+    let about = ABOUT.read().unwrap().clone();
+    if about.is_empty() {
+        String::new()
+    } else {
+        format!(" What they told you about themselves, to keep in mind: {about}")
+    }
 }
 
 /// A text written with « sir » in it, saying what you chose instead. English text only: other
@@ -75,20 +89,75 @@ fn replace_word(text: &str, word: &str, with: &str) -> String {
     out
 }
 
-/// The tour's profile step: your name and how he addresses you ("sir", "maam" or "name").
+/// The tour's profile step and the profile page: your name, how he addresses you ("sir",
+/// "maam" or "name") and, from the page, what you tell him about yourself.
 #[tauri::command]
-pub fn profile_save(app: AppHandle, shared: State<Shared>, name: String, address: String) -> Result<(), String> {
+pub fn profile_save(app: AppHandle, shared: State<Shared>, name: String, address: String, about: Option<String>) -> Result<(), String> {
     let address = if ["sir", "maam", "name"].contains(&address.as_str()) { address } else { "sir".into() };
     let settings = {
         let mut s = shared.settings.lock().unwrap();
         s.profile_name = name.trim().chars().take(60).collect();
         s.address = address;
+        if let Some(about) = about {
+            s.profile_about = about.trim().chars().take(600).collect();
+        }
         s.clone()
     };
     crate::settings::save(&settings).map_err(|e| e.to_string())?;
     note(&settings);
     crate::log::line("profile: saved");
     let _ = app.emit("settings-changed", settings);
+    let _ = app.emit("profile-changed", ());
+    Ok(())
+}
+
+/// Your profile, for the hub's page and its sidebar (#104).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Profile {
+    name: String,
+    address: String,
+    about: String,
+    /// Your photo as a data: URL, or None for the default.
+    photo: Option<String>,
+    passkey: bool,
+}
+
+#[tauri::command]
+pub fn profile_get(shared: State<Shared>) -> Profile {
+    let s = shared.settings.lock().unwrap();
+    Profile {
+        name: s.profile_name.clone(),
+        address: s.address.clone(),
+        about: s.profile_about.clone(),
+        photo: std::fs::read_to_string(photo_file()).ok().filter(|p| is_photo(p)),
+        passkey: crate::secrets::get_internal(KEY).is_some(),
+    }
+}
+
+fn photo_file() -> std::path::PathBuf {
+    crate::settings::config_dir().join("profile-photo.txt")
+}
+
+/// A small picture, as the page sends it: a PNG, JPEG or WebP data: URL, under 400 KB.
+fn is_photo(p: &str) -> bool {
+    p.len() < 400_000 && ["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,"].iter().any(|h| p.starts_with(h))
+}
+
+/// Your photo (the page shrinks it to 256 px first), or None: back to the default.
+#[tauri::command]
+pub fn profile_photo_set(app: AppHandle, photo: Option<String>) -> Result<(), String> {
+    match photo {
+        Some(p) if is_photo(&p) => {
+            let _ = crate::platform::ensure_private_dir(&crate::settings::config_dir());
+            std::fs::write(photo_file(), p).map_err(|e| e.to_string())?;
+        }
+        Some(_) => return Err("not a picture".into()),
+        None => {
+            let _ = std::fs::remove_file(photo_file());
+        }
+    }
+    let _ = app.emit("profile-changed", ());
     Ok(())
 }
 
@@ -222,6 +291,7 @@ mod tests {
         assert_eq!(title_for("maam", "Sam"), "ma'am");
         assert_eq!(title_for("name", "Sam Lee"), "Sam");
         assert_eq!(title_for("name", ""), "sir");
+        assert!(is_photo("data:image/jpeg;base64,AAAA") && !is_photo("javascript:alert(1)") && !is_photo("data:text/html;base64,AA"));
         assert_eq!(replace_word("Good evening, sir. Sir? Desire, sirloin.", "sir", "ma'am"), "Good evening, ma'am. Sir? Desire, sirloin.");
     }
 }
