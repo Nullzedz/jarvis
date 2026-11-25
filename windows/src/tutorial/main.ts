@@ -7,6 +7,8 @@
 
 import "./tutorial.css";
 import { Bridge, onEvent } from "../core/bridge";
+import { pillDefinition } from "../core/pills";
+import { roomOf } from "../hub/pages/connections";
 import { N_, resolveLanguage, setAddress, setLanguage, systemLanguages, t, titleFor } from "../i18n/i18n";
 
 type Step = {
@@ -283,6 +285,22 @@ const AIS = [
   { provider: "openai", name: "ChatGPT", mark: "C", free: true, what: N_("Free works, with smaller limits. Plus or Pro for more.") },
   { provider: "anthropic", name: "Claude", mark: "A", free: false, what: N_("Needs Pro or Max: a free account can't be used here.") },
 ] as const;
+
+/* What the island can keep an eye on (#106), and what each shows; the tour's picks. */
+const WATCH: [string, string][] = [
+  ["integration_github", N_("Pull requests and checks")],
+  ["integration_gitlab", N_("Merge requests and pipelines")],
+  ["integration_vercel", N_("Your deploys")],
+  ["integration_n8n", N_("Your workflows' runs")],
+  ["integration_stripe", N_("Today's payments")],
+  ["integration_resend", N_("Emails sent and opened")],
+  ["integration_spotify", N_("What's playing")],
+  ["integration_calcom", N_("Your next meeting")],
+  ["integration_notion", N_("Pages you follow")],
+  ["integration_mail", N_("New mail that matters")],
+  ["integration_whatsapp", N_("Messages that need you")],
+];
+let watchPicks: string[] = [];
 
 /** A row of choices, one on; `pick` hears each change. */
 function seg(el: HTMLElement, pick?: (v: string) => void) {
@@ -769,6 +787,47 @@ const STEPS: Step[] = [
           else connect.disabled = false;
         };
       });
+    },
+  },
+  {
+    id: "watch",
+    title: N_("What should I keep an eye on?"),
+    say: N_("Pick up to four for the island. Nothing is connected until you say so."),
+    next: N_("Skip for now"),
+    build(p) {
+      const tile = ([id, what]: (typeof WATCH)[number]) => {
+        const def = pillDefinition(id);
+        const name = def?.name ?? id;
+        return `<button class="wt" data-id="${id}" style="--c:${def?.color ?? "#8e8e93"}" aria-pressed="false"><span class="dot">${name[0]}</span><b>${name}</b><span class="need">${t(what)}</span></button>`;
+      };
+      const rooms: [string, string][] = [["code", t("Code")], ["money", t("Money")], ["life", t("Life")]];
+      p.innerHTML = `<div class="practice"><div class="sheet wide watch"><div class="count" aria-live="polite"></div>
+        ${rooms.map(([r, label]) => `<div class="room">${label}</div><div class="tiles">${WATCH.filter(([id]) => roomOf(id) === r).map(tile).join("")}</div>`).join("")}
+        <p class="need">${t("You'll add their keys in Settings › Connections. Until then, each one in the island says what it needs.")}</p>
+      </div></div>`;
+    },
+    play(p) {
+      const picked: string[] = [];
+      const count = $(".count", p);
+      const draw = () => {
+        count.innerHTML = t("{n} of {total} picked", { n: picked.length, total: 4 });
+        $$<HTMLButtonElement>(".wt", p).forEach((b) => b.classList.toggle("off", picked.length >= 4 && !picked.includes(b.dataset.id!)));
+        label(picked.length ? t("Continue") : t("Skip for now"));
+      };
+      $$<HTMLButtonElement>(".wt", p).forEach((b) => (b.onclick = () => {
+        const id = b.dataset.id!, k = picked.indexOf(id);
+        if (k >= 0) picked.splice(k, 1);
+        else if (picked.length < 4) picked.push(id);
+        else return;
+        b.classList.toggle("on", k < 0);
+        b.setAttribute("aria-pressed", String(k < 0));
+        draw();
+      }));
+      draw();
+      watchPicks = picked;
+    },
+    async leave() {
+      await Bridge.tourPills(watchPicks);
     },
   },
   {

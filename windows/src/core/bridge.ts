@@ -345,6 +345,8 @@ export const Bridge = {
   profileGet: () => call<Profile>("profile_get"),
   /** Your photo (256 px, a data: URL), or null: back to the default. */
   profilePhotoSet: (photo: string | null) => call<void>("profile_photo_set", { photo }),
+  /** The tour's picks for the island (#106): at most four connections, keys later. */
+  tourPills: (ids: string[]) => call<void>("tour_pills", { ids }),
   /** "terminal": its sign-in opened in a terminal; "install": its install page opened. */
   subscriptionSignIn: (provider: string) => call<string>("subscription_sign_in", { provider }),
   /** JARVIS: shows the first-launch tutorial again (Settings › General). */

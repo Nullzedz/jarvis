@@ -188,6 +188,8 @@ export const DEFAULT_SETTINGS: Settings = {
   showClock: false,
   closedIsland: "mochi",
   absenceInterval: 180,
+  // The page's stand-in until Rust's settings arrive; a fresh install's own list is empty
+  // (settings.rs, #106: the tour asks).
   activeIntegrations: [
     "integration_resend", "integration_n8n", "integration_vercel", "integration_github",
   ],

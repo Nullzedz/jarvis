@@ -325,3 +325,20 @@ kbd.tap, kbd.down { transform: translateY(1.5px); background: #e5e5ea; color: #0
 .keynote { font-size: 12.5px; color: #c7c7cc; padding: 10px 12px; border-radius: 12px; background: rgba(255,214,10,.07); }
 .keynote b { color: #ffe066; font-weight: 600; }
 #next:disabled { opacity: .35; pointer-events: none; }
+
+/* ── What he keeps an eye on (#106): tap tiles, up to four (prototypes/jarvis-tutorial-connections.html, A) ── */
+.sheet.watch { width: min(640px, calc(100% - 32px)); gap: 12px; }
+.watch .count { font-size: 12.5px; color: var(--t2); }
+.watch .count b { color: var(--t1); font-weight: 500; }
+.watch .room { font-size: 12px; color: var(--t2); margin: 2px 2px -4px; }
+.watch .need { font-size: 11.5px; color: var(--t2); }
+.watch .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.wt { text-align: left; padding: 12px; border-radius: 14px; background: var(--s1); display: flex; flex-direction: column; gap: 8px; position: relative; transition: background .2s, color .2s, transform .12s var(--ease), opacity .2s; }
+.wt:active { transform: scale(.97); }
+.wt .dot { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 600; font-size: 12px; color: #fff; background: var(--s3); transition: background .2s; }
+.wt b { font-weight: 500; font-size: 13.5px; }
+.wt.on { background: #f5f5f7; color: #000; }
+.wt.on .need { color: #3a3a3c; }
+.wt.on .dot { background: var(--c); }
+.wt.on::after { content: "✓"; position: absolute; right: 10px; top: 10px; width: 18px; height: 18px; border-radius: 50%; background: var(--green); color: #000; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.wt.off { opacity: .4; pointer-events: none; }

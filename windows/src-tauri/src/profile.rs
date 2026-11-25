@@ -228,6 +228,38 @@ pub fn passkey_present() -> bool {
     crate::secrets::get_internal(KEY).is_some()
 }
 
+// ── What he keeps an eye on (#106) ──
+
+/// What the tour offers for the island: the connections it can show.
+const PICKABLE: [&str; 11] = [
+    "integration_github", "integration_gitlab", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend",
+    "integration_spotify", "integration_calcom", "integration_notion", "integration_mail", "integration_whatsapp",
+];
+
+/// The tour's picks, at most four, in the order tapped: the island shows them (their keys come later).
+fn picks(ids: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for id in ids {
+        if PICKABLE.contains(&id.as_str()) && !out.contains(id) && out.len() < 4 {
+            out.push(id.clone());
+        }
+    }
+    out
+}
+
+#[tauri::command]
+pub fn tour_pills(app: AppHandle, shared: State<Shared>, ids: Vec<String>) -> Result<(), String> {
+    let settings = {
+        let mut s = shared.settings.lock().unwrap();
+        s.active_integrations = picks(&ids);
+        s.clone()
+    };
+    crate::settings::save(&settings).map_err(|e| e.to_string())?;
+    crate::log::line(format!("profile: the island shows {} connection(s)", settings.active_integrations.len()));
+    let _ = app.emit("settings-changed", settings);
+    Ok(())
+}
+
 // ── Your AI ──
 
 /// The tour's « Sign in » for Gemini ("google"), ChatGPT ("openai") or Claude ("anthropic"):
@@ -283,6 +315,14 @@ mod tests {
         assert_ne!(make("482913").unwrap(), stored, "a new salt each time");
         assert!(!matches("garbage", "482913"));
         assert!(valid("000000") && !valid("12345") && !valid("12345a") && !valid("1234567"));
+    }
+
+    #[test]
+    fn the_tour_picks_at_most_four_known_connections() {
+        let ids: Vec<String> = ["integration_github", "integration_bogus", "integration_github", "integration_spotify", "integration_stripe", "integration_notion", "integration_mail"]
+            .iter().map(|s| s.to_string()).collect();
+        assert_eq!(picks(&ids), ["integration_github", "integration_spotify", "integration_stripe", "integration_notion"]);
+        assert!(picks(&[]).is_empty());
     }
 
     #[test]

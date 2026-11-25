@@ -158,12 +158,8 @@ impl Default for Settings {
             open_on_hover: false,
             alerts_from_all_pills: false,
             absence_interval: 180.0,
-            active_integrations: vec![
-                "integration_resend".into(),
-                "integration_n8n".into(),
-                "integration_vercel".into(),
-                "integration_github".into(),
-            ],
+            // JARVIS (#106): nothing until you pick it (the tour asks, Settings › Connections too).
+            active_integrations: Vec::new(),
             main_pill: "integration_claude".into(),
             screen: "primary".into(),
             autostart: false,

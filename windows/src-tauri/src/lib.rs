@@ -960,6 +960,7 @@ pub fn run() {
             profile::profile_save,
             profile::profile_get,
             profile::profile_photo_set,
+            profile::tour_pills,
             profile::passkey_set,
             profile::passkey_check,
             profile::passkey_present,
