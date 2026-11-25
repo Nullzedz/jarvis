@@ -115,8 +115,20 @@ function geminiVoice(ctx: HubContext, current: string): HTMLElement {
   return h("div", { style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap" }, pick, play, why);
 }
 
-/** JARVIS: Piper, the offline backup — Download (with progress), then ▶ and Remove. */
-function piperVoice(): HTMLElement {
+/** A voice model's controls, for Piper and Peter: the calls and status event it uses. */
+interface ModelCalls {
+  get: () => Promise<{ status: VoiceModelState; size: number } | null | undefined>;
+  download: () => Promise<unknown>;
+  remove: () => Promise<unknown>;
+  preview: () => Promise<ArrayBuffer>;
+  event: string;
+}
+
+const PIPER: ModelCalls = { get: () => Bridge.piperModel(), download: () => Bridge.piperModelDownload(), remove: () => Bridge.piperModelRemove(), preview: () => Bridge.piperPreview(), event: "piper-model-status" };
+const POCKET: ModelCalls = { get: () => Bridge.pocketModel(), download: () => Bridge.pocketModelDownload(), remove: () => Bridge.pocketModelRemove(), preview: () => Bridge.pocketPreview(), event: "pocket-model-status" };
+
+/** JARVIS: a voice on this computer (Piper, the offline backup; Peter, the live voice) — Download (with progress), then ▶ and Remove. */
+function modelVoice(m: ModelCalls): HTMLElement {
   const box = h("div", { style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end" });
   let size = 0;
   let status: VoiceModelState | null = null;
@@ -129,7 +141,7 @@ function piperVoice(): HTMLElement {
       const play = button("▶", () => {
         playing?.pause();
         play.disabled = true;
-        Bridge.piperPreview()
+        m.preview()
           .then((bytes) => {
             const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
             playing = new Audio(url);
@@ -145,7 +157,7 @@ function piperVoice(): HTMLElement {
       box.append(
         h("span", { class: "hub-note", style: "color:var(--hub-green)", text: `✓ ${t("On this computer, offline.")}` }),
         play,
-        button(t("Remove"), () => void Bridge.piperModelRemove(), "", true),
+        button(t("Remove"), () => void m.remove(), "", true),
       );
     } else if (status.state === "downloading") {
       const pct = Math.round(status.fraction * 100);
@@ -155,17 +167,17 @@ function piperVoice(): HTMLElement {
         h("span", { style: "display:block;width:120px;height:5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden" }, fill),
       );
     } else {
-      box.append(button(t("Download the voice ({size})", { size: mb(size) }), () => void Bridge.piperModelDownload(), "primary", true));
+      box.append(button(t("Download the voice ({size})", { size: mb(size) }), () => void m.download(), "primary", true));
       if (status.state === "failed") box.append(h("span", { class: "hub-note", style: "color:var(--hub-red)", text: status.error }));
     }
   };
-  void Bridge.piperModel().then((m) => {
-    if (!m) return;
-    size = m.size;
-    status = m.status;
+  void m.get().then((got) => {
+    if (!got) return;
+    size = got.size;
+    status = got.status;
     draw();
   });
-  void onEvent<VoiceModelState>("piper-model-status", (s) => {
+  void onEvent<VoiceModelState>(m.event, (s) => {
     status = s;
     if (box.isConnected) draw();
   });
@@ -354,7 +366,7 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   page.append(yours);
 
   page.append(label(t("Answers")));
-  const outputs: [VoiceOutput, string][] = [["gemini", "Gemini"], ["jarvis", "JARVIS"], ["system", t("System voice")], ["elevenlabs", "ElevenLabs"], ["off", t("Text only")]];
+  const outputs: [VoiceOutput, string][] = [["gemini", "Gemini"], ["jarvis", "JARVIS"], ["pocket", "Peter"], ["system", t("System voice")], ["elevenlabs", "ElevenLabs"], ["off", t("Text only")]];
   const answers = card(
     row(t("Coucou answers out loud"), null, segmented(outputs, prefs.voiceOutput, (v) => void ctx.setPrefs((p) => (p.voiceOutput = v)).then(() => ctx.navigate("voice")))),
   );
@@ -372,6 +384,10 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   }
   if (prefs.voiceOutput === "jarvis") {
     answers.append(divider(), row(t("JARVIS's voice"), t("British, on this computer: nothing leaves it."), jarvisVoice(ctx, prefs.voiceName || "george")));
+  }
+  if (prefs.voiceOutput === "pocket") {
+    // JARVIS: the live voice (issue #100): starts speaking within a fraction of a second, on any PC.
+    answers.append(divider(), row(t("Peter's voice"), t("Live: starts speaking almost at once. On this computer, offline."), modelVoice(POCKET)));
   }
   if (prefs.voiceOutput === "elevenlabs") {
     answers.append(
@@ -392,7 +408,7 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
           (v) => void ctx.setPrefs((p) => (p.geminiFallback = v)).then(() => ctx.navigate("voice")))),
     );
     if ((prefs.geminiFallback ?? "piper") === "piper") {
-      const piperRow = row(t("Piper voice"), t("Alan, British · free and unlimited, on this computer"), piperVoice());
+      const piperRow = row(t("Piper voice"), t("Alan, British · free and unlimited, on this computer"), modelVoice(PIPER));
       fallback.append(divider(), piperRow);
     }
     page.append(fallback);

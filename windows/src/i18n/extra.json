@@ -12795,6 +12795,36 @@
       "ru": "Усыпить или разбудить JARVIS",
       "tr": "JARVIS’i uyut veya uyandır",
       "zh-Hans": "让 JARVIS 睡觉或唤醒他"
+    },
+    "Peter's voice": {
+      "ar": "صوت Peter",
+      "bn": "Peter-এর কণ্ঠ",
+      "de": "Peters Stimme",
+      "es": "Voz de Peter",
+      "fr": "Voix de Peter",
+      "hi": "Peter की आवाज़",
+      "id": "Suara Peter",
+      "ja": "Peter の声",
+      "ko": "Peter의 목소리",
+      "pt-BR": "Voz do Peter",
+      "ru": "Голос Peter",
+      "tr": "Peter'ın sesi",
+      "zh-Hans": "Peter 的声音"
+    },
+    "Live: starts speaking almost at once. On this computer, offline.": {
+      "ar": "مباشر: يبدأ الكلام فورًا تقريبًا. على هذا الكمبيوتر، دون اتصال.",
+      "bn": "লাইভ: প্রায় সঙ্গে সঙ্গে কথা বলা শুরু করে। এই কম্পিউটারেই, অফলাইনে।",
+      "de": "Live: beginnt fast sofort zu sprechen. Auf diesem Computer, offline.",
+      "es": "En vivo: empieza a hablar casi al instante. En este ordenador, sin conexión.",
+      "fr": "En direct : commence à parler presque aussitôt. Sur cet ordinateur, hors ligne.",
+      "hi": "लाइव: लगभग तुरंत बोलना शुरू करता है। इसी कंप्यूटर पर, ऑफ़लाइन।",
+      "id": "Langsung: mulai bicara hampir seketika. Di komputer ini, offline.",
+      "ja": "ライブ：ほぼすぐに話し始めます。このコンピューター上でオフライン。",
+      "ko": "실시간: 거의 바로 말하기 시작합니다. 이 컴퓨터에서 오프라인으로.",
+      "pt-BR": "Ao vivo: começa a falar quase na hora. Neste computador, offline.",
+      "ru": "В реальном времени: начинает говорить почти сразу. На этом компьютере, без интернета.",
+      "tr": "Canlı: neredeyse anında konuşmaya başlar. Bu bilgisayarda, çevrimdışı.",
+      "zh-Hans": "实时：几乎立刻开始说话。在这台电脑上离线运行。"
     }
   }
 }

@@ -112,7 +112,7 @@ pub struct Prefs {
     pub voice: bool,
     /// The other apps' sound is muted while Coucou listens to you (Windows).
     pub mute_others: bool,
-    /// How Coucou answers out loud: "gemini" (JARVIS: Google's voice, the user's key), "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
+    /// How Coucou answers out loud: "gemini" (JARVIS: Google's voice, the user's key), "jarvis" (Kokoro, on this computer), "pocket" (JARVIS: Peter, Pocket TTS, the live voice), "system", "elevenlabs" or "off".
     pub voice_output: String,
     /// The ElevenLabs voice: "female" or "male".
     pub voice_gender: String,

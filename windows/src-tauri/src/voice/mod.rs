@@ -20,6 +20,7 @@ pub mod explain;
 pub mod ink;
 pub mod gemini;
 pub mod piper;
+pub mod pocket;
 pub mod meter;
 pub mod print;
 pub mod shortcut;
@@ -97,6 +98,8 @@ pub fn sync(app: &AppHandle) {
             crate::tts::preload();
             // JARVIS: the offline backup, ready before Gemini first needs it.
             piper::preload();
+            // JARVIS: Peter, the live voice (issue #100).
+            pocket::preload();
             crate::log::line("voice: push-to-talk ready");
         }
         (false, true) => {
@@ -770,6 +773,14 @@ fn render(text: String, output: &str, voice: &str, gender: &str) -> Rendered {
     match output {
         "off" => Rendered { text, audio: None, mime: "audio/mpeg", ms: words * 320, silent: true },
         "jarvis" if crate::tts::is_ready() => match crate::tts::speak(&text, voice, 1.0) {
+            Some(wav) => {
+                let ms = wav_ms(&wav).unwrap_or(estimate);
+                Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
+            }
+            None => Rendered { text, audio: None, mime: "audio/mpeg", ms: estimate, silent: false },
+        },
+        // JARVIS: Peter, the live voice (Pocket TTS, issue #100), on this computer.
+        "pocket" if pocket::is_ready() => match pocket::speak(&text) {
             Some(wav) => {
                 let ms = wav_ms(&wav).unwrap_or(estimate);
                 Rendered { text, audio: Some(base64(&wav)), mime: "audio/wav", ms, silent: false }
