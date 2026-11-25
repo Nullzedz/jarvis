@@ -39,7 +39,7 @@ Your assistant at the top of your Windows screen.
 
 <br>
 
-<p align="center"><img src="docs/media/readme/dictate.gif" width="420" alt="Speak, and he types.">&nbsp;&nbsp;<img src="docs/media/readme/talk.gif" width="420" alt="Talk to him."></p>
+<p align="center"><img src="docs/media/readme/dictate.gif" width="48%" alt="Speak, and he types.">&nbsp;&nbsp;<img src="docs/media/readme/talk.gif" width="48%" alt="Talk to him."></p>
 
 <br>
 
@@ -60,7 +60,7 @@ Your assistant at the top of your Windows screen.
 
 <br>
 
-<p align="center"><img src="docs/media/readme/circle.gif" width="420" alt="Circle it to show him.">&nbsp;&nbsp;<img src="docs/media/readme/where.gif" width="420" alt="Ask where it is."></p>
+<p align="center"><img src="docs/media/readme/circle.gif" width="48%" alt="Circle it to show him.">&nbsp;&nbsp;<img src="docs/media/readme/where.gif" width="48%" alt="Ask where it is."></p>
 
 <br>
 
@@ -81,7 +81,7 @@ Your assistant at the top of your Windows screen.
 
 <br>
 
-<p align="center"><img src="docs/media/readme/island.gif" width="420" alt="The island.">&nbsp;&nbsp;<img src="docs/media/readme/agents.gif" width="420" alt="Your agents, kept in check."></p>
+<p align="center"><img src="docs/media/readme/island.gif" width="48%" alt="The island.">&nbsp;&nbsp;<img src="docs/media/readme/agents.gif" width="48%" alt="Your agents, kept in check."></p>
 
 <br>
 
