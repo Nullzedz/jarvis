@@ -241,6 +241,48 @@ pub fn speak(text: &str) -> Option<Vec<u8>> {
     generate(guard.as_ref()?, text)
 }
 
+// ── Starting sooner ───────────────────────────────────────────────────────────
+
+/// The first piece of an answer longer than this is cut at its first pause.
+const CUT_FROM: usize = 50;
+/// Where that pause may be (characters): not a stub, not most of the sentence.
+const PAUSE_FROM: usize = 12;
+const PAUSE_UNTIL: usize = 90;
+
+/// The answer's first piece, cut so Peter starts sooner (issue #100).
+///
+/// The model renders a whole piece before any of it can play (sherpa-onnx
+/// hands Pocket's audio over only at the end), so a long first sentence kept
+/// him silent for about 1.5 s. Its opening clause, up to the first comma,
+/// semicolon or dash, is said on its own; the rest is rendered while that plays.
+/// Pieces after the first need no cut: they render faster than he speaks.
+pub fn first_cut(piece: &str) -> Vec<String> {
+    let piece = piece.trim();
+    if piece.chars().count() <= CUT_FROM {
+        return vec![piece.to_string()];
+    }
+    let cut = piece.char_indices().enumerate().find_map(|(n, (i, c))| {
+        let pause = matches!(c, ',' | ';' | '—' | '–') && piece[i + c.len_utf8()..].starts_with(' ');
+        (pause && (PAUSE_FROM..=PAUSE_UNTIL).contains(&n)).then(|| i + c.len_utf8())
+    });
+    // No early pause: before the first « and », « but », « so »… where one breathes anyway.
+    let cut = cut.filter(|&at| piece[..at].chars().count() <= JOIN_UNTIL).or_else(|| {
+        piece.char_indices().enumerate().find_map(|(n, (i, _))| {
+            let joins = JOINS.iter().any(|j| piece[i..].starts_with(j));
+            (joins && (PAUSE_FROM..=JOIN_UNTIL).contains(&n)).then_some(i)
+        })
+    }).or(cut);
+    match cut {
+        Some(at) if !piece[at..].trim().is_empty() => vec![piece[..at].trim().to_string(), piece[at..].trim().to_string()],
+        _ => vec![piece.to_string()],
+    }
+}
+
+/// Words a sentence can be cut before, when no comma comes early enough.
+const JOINS: &[&str] = &[" and ", " but ", " so ", " because ", " which ", " while ", " then "];
+/// A pause later than this is passed over for an earlier join word, if there is one.
+const JOIN_UNTIL: usize = 50;
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -287,6 +329,109 @@ mod tests {
         assert!(VOICE_URL.ends_with(VOICE_FILE));
         assert_eq!(ARCHIVE_SHA256.len(), 64);
         assert_eq!(VOICE_SHA256.len(), 64);
+    }
+
+    #[test]
+    fn a_long_first_sentence_starts_with_its_opening_clause() {
+        assert_eq!(
+            first_cut("I've drafted the reply to Martin, and I took the liberty of moving your four o'clock to Thursday."),
+            vec!["I've drafted the reply to Martin,", "and I took the liberty of moving your four o'clock to Thursday."]
+        );
+    }
+
+    #[test]
+    fn a_short_sentence_or_one_without_a_pause_stays_whole() {
+        assert_eq!(first_cut("Certainly, sir. It's ten past four."), vec!["Certainly, sir. It's ten past four."]);
+        let none = "The meeting with the design team has been moved to Thursday afternoon at four o'clock.";
+        assert_eq!(first_cut(none), vec![none]);
+    }
+
+    #[test]
+    fn a_late_comma_gives_way_to_an_earlier_and() {
+        assert_eq!(
+            first_cut("I've drafted the reply to Martin and left it in your outbox, and I took the liberty of moving your four o'clock to Thursday."),
+            vec!["I've drafted the reply to Martin", "and left it in your outbox, and I took the liberty of moving your four o'clock to Thursday."]
+        );
+    }
+
+    #[test]
+    fn a_stub_or_late_pause_is_not_a_cut() {
+        // "Sir," is too short to say alone; a comma near the end saves nothing.
+        let s = "Sir, the reply to Martin is drafted, waiting in your outbox for you to read";
+        assert_eq!(first_cut(s), vec!["Sir, the reply to Martin is drafted,", "waiting in your outbox for you to read"]);
+        let s = "Sir, the reply to Martin is drafted at last together with the notes from the meeting in your outbox";
+        assert_eq!(first_cut(s), vec![s]);
+        let late = "The reply to Martin is drafted for you in your outbox for you to read when you have a moment, sir.";
+        assert_eq!(first_cut(late), vec![late]);
+    }
+
+    #[test]
+    fn decimals_and_numbers_are_not_pauses() {
+        let s = "Your balance is 1,250 pounds and the transfer of 3,400 pounds will arrive on Friday morning.";
+        assert_eq!(first_cut(s), vec!["Your balance is 1,250 pounds", "and the transfer of 3,400 pounds will arrive on Friday morning."]);
+    }
+
+    /// First audio for a long first sentence, whole and cut; the cut one joined
+    /// back for listening. JARVIS_POCKET_DIR=<…> [JARVIS_SAMPLES=<dir>]
+    /// cargo test --release --lib pocket::tests::first_audio -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn first_audio() {
+        let d = PathBuf::from(std::env::var("JARVIS_POCKET_DIR").unwrap());
+        let out = std::env::var("JARVIS_SAMPLES").ok().map(PathBuf::from);
+        let e = load(&d, THREADS).expect("model loads");
+        let _ = generate(&e, "Warm up.");
+        let lines = [
+            "I've drafted the reply to Martin and left it in your outbox, and I took the liberty of moving your four o'clock to Thursday.",
+            "Good evening, sir; the house is locked, the heating is set to twenty degrees and nothing needs your attention tonight.",
+        ];
+        for (i, line) in lines.iter().enumerate() {
+            let t = Instant::now();
+            let _ = generate(&e, line).unwrap();
+            let whole = t.elapsed().as_millis();
+            let parts = first_cut(line);
+            let t = Instant::now();
+            let first = generate(&e, &parts[0]).unwrap();
+            let cut = t.elapsed().as_millis();
+            println!("line {i}: whole {whole} ms, cut {cut} ms to first audio ({} parts)", parts.len());
+            if let Some(o) = &out {
+                let mut samples: Vec<u8> = first[44..].to_vec();
+                for p in &parts[1..] {
+                    samples.extend_from_slice(&generate(&e, p).unwrap()[44..]);
+                }
+                let mut wav = first[..44].to_vec();
+                wav[4..8].copy_from_slice(&(36 + samples.len() as u32).to_le_bytes());
+                wav[40..44].copy_from_slice(&(samples.len() as u32).to_le_bytes());
+                wav.extend(samples);
+                std::fs::write(o.join(format!("peter-cut-{i}.wav")), wav).unwrap();
+            }
+        }
+    }
+
+    /// How the model hands its audio over while it works: when each piece arrives.
+    /// JARVIS_POCKET_DIR=<…> cargo test --release --lib pocket::tests::chunks -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn chunks() {
+        let d = PathBuf::from(std::env::var("JARVIS_POCKET_DIR").unwrap());
+        let e = load(&d, THREADS).expect("model loads");
+        let _ = generate(&e, "Warm up.");
+        let gen = GenerationConfig { reference_audio: Some(e.voice.clone()), reference_sample_rate: e.rate, ..Default::default() };
+        let started = Instant::now();
+        let mut n = 0usize;
+        let audio = e
+            .tts
+            .generate_with_config(
+                "I've drafted the reply to Martin and left it in your outbox, and I took the liberty of moving your four o'clock to Thursday.",
+                &gen,
+                Some(move |s: &[f32], p: f32| {
+                    n += 1;
+                    println!("piece {n}: {} samples at {} ms (progress {p:.2})", s.len(), started.elapsed().as_millis());
+                    true
+                }),
+            )
+            .expect("speaks");
+        println!("all: {} samples in {} ms", audio.samples().len(), started.elapsed().as_millis());
     }
 
     /// With the model unpacked and the voice beside it: how fast Peter speaks,

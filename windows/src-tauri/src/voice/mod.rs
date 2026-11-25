@@ -713,15 +713,27 @@ impl Speech {
                 }
                 return;
             }
+            let mut first = true;
             for piece in rx {
-                let (one_tx, one) = mpsc::channel();
-                if ready_tx.send(one).is_err() {
-                    break;
+                // JARVIS: Peter starts on the first clause of a long first sentence (pocket.rs).
+                let parts = if first && output == "pocket" { pocket::first_cut(&piece) } else { vec![piece] };
+                first = false;
+                for piece in parts {
+                    let (one_tx, one) = mpsc::channel();
+                    if ready_tx.send(one).is_err() {
+                        return;
+                    }
+                    // Peter's model is one at a time: rendered here, in order, so
+                    // a later piece never takes it before the one to say first.
+                    if output == "pocket" {
+                        let _ = one_tx.send(render(piece, &output, &voice_name, &render_gender));
+                        continue;
+                    }
+                    let (output, voice_name, gender) = (output.clone(), voice_name.clone(), render_gender.clone());
+                    std::thread::spawn(move || {
+                        let _ = one_tx.send(render(piece, &output, &voice_name, &gender));
+                    });
                 }
-                let (output, voice_name, gender) = (output.clone(), voice_name.clone(), render_gender.clone());
-                std::thread::spawn(move || {
-                    let _ = one_tx.send(render(piece, &output, &voice_name, &gender));
-                });
             }
         });
         let (app, heard) = (app.clone(), heard.to_string());
