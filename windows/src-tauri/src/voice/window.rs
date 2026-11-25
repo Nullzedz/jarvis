@@ -93,6 +93,15 @@ pub fn is_point(w: &Value) -> bool {
     w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
 }
 
+/// A question a guide may answer (#96): « where is… », and also « how do I export… », « show me
+/// how to… », « take me to… », « open the… settings ». Wider than `asks_where` (which turns his
+/// drawn answers into a ring): one that isn't about the app costs a quick « no route » and goes on.
+pub fn wants_guide(question: &str) -> bool {
+    let q = question.to_lowercase();
+    asks_where(question)
+        || ["how do i", "how can i", "how to", "how do you", "show me", "take me", "navigate", "open the", "turn on", "turn off", "change the", "where's", "wheres"].iter().any(|k| q.contains(k))
+}
+
 /// « Where is…? », « how do I get to…? »: a place on the screen is asked for.
 pub fn asks_where(question: &str) -> bool {
     let q = question.to_lowercase();

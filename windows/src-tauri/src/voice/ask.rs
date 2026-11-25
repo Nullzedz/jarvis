@@ -247,7 +247,9 @@ pub fn ask_send(app: AppHandle, question: String) {
     std::thread::spawn(move || {
         let seen = seen.and_then(super::sight::Pending::wait);
         // #96: « where is…? » from his brain's note (free), or looked up once, by the app's button names.
-        if super::window::asks_where(&question) {
+        let guided = super::window::wants_guide(&question);
+        crate::log::line(format!("ask: {}", if guided { "a guide may answer" } else { "not a guide question" }));
+        if guided {
             if let Some(said) = super::guide::where_is(&app, &question, seen.as_ref()) {
                 let _ = app.emit_to(LABEL, "ask-done", said.clone());
                 crate::last_answer::set(&app, &question, &said);
