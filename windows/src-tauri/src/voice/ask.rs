@@ -199,6 +199,8 @@ fn close(app: &AppHandle) {
 
 /// Opens the box beside the mouse; `what` it sees: "screen", "circled" or "" (nothing).
 fn open(app: &AppHandle, what: &'static str) {
+    // #96: the app you were in, whose buttons « where is…? » reads.
+    super::uia::note_front();
     let Some(win) = app.get_webview_window(LABEL) else { return };
     let scale = win.scale_factor().unwrap_or(1.0);
     let _ = win.set_size(PhysicalSize::new((WIDTH * scale) as u32, (HEIGHT * scale) as u32));
@@ -243,6 +245,14 @@ pub fn ask_send(app: AppHandle, question: String) {
     let seen = SEEN.lock().unwrap().take().or_else(super::sight::whole_screen);
     let add = ADD.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
+        // #96: « where is…? » by the app's button names: one small call, then free; no picture.
+        if super::window::asks_where(&question) {
+            if let Some(said) = super::guide::where_is(&app, &question) {
+                let _ = app.emit_to(LABEL, "ask-done", said.clone());
+                crate::last_answer::set(&app, &question, &said);
+                return;
+            }
+        }
         let mut brain = brain().lock().unwrap();
         let mut said = String::new();
         let seen = seen.and_then(super::sight::Pending::wait);

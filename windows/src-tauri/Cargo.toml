@@ -102,6 +102,8 @@ windows = { version = "0.61", features = [
   # JARVIS: a picture of the screen (voice/sight.rs).
   "Win32_Graphics_Gdi",
   "Win32_UI_HiDpi",
+  # JARVIS #96: the names and places of an app's buttons (voice/uia.rs).
+  "Win32_UI_Accessibility",
 ] }
 # The clipboard for Flow dictation, kept out of the clipboard history, and the island's
 # clipboard history, images included (image-data). MIT/Apache-2.0.

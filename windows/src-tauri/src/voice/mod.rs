@@ -27,6 +27,7 @@ pub mod shortcut;
 pub mod sight;
 pub mod stream;
 pub mod talk;
+pub mod uia;
 pub mod wake;
 pub mod warm;
 pub mod window;

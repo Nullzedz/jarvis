@@ -239,6 +239,21 @@ fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
 }
 
 /// A box on the screen (physical px) in the layer's page px, as its last placement set it.
+/// "Where is…?" by name (#96): he circles `rect` (physical px, from Windows' list of the app's
+/// buttons, no picture), with the guide's steps when it takes several clicks.
+pub fn circle(app: &AppHandle, rect: (f64, f64, f64, f64), steps: &[String], guide: Option<u64>) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let cursor = crate::platform::cursor_physical().unwrap_or((0.0, 0.0));
+    let Some(((mx, my, mw, mh), scale)) = super::sight::monitor_at(rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0) else { return };
+    *PLACE.lock().unwrap() = ((mx as f64, my as f64), scale);
+    let _ = win.set_size(PhysicalSize::new(mw as u32, mh as u32));
+    let _ = win.set_position(PhysicalPosition::new(mx, my));
+    OPEN.store(true, Ordering::Relaxed);
+    let page = [(cursor.0 - mx as f64) / scale, (cursor.1 - my as f64) / scale];
+    crate::log::line(format!("explain: circled by name{}", if guide.is_some() { format!(", step 1 of {}", steps.len()) } else { String::new() }));
+    let _ = win.emit("explain-point", json!({ "add": false, "target": to_page(rect), "cursor": page, "steps": steps, "guide": guide }));
+}
+
 pub fn to_page((x, y, w, h): (f64, f64, f64, f64)) -> [f64; 4] {
     let ((ox, oy), scale) = *PLACE.lock().unwrap();
     [(x - ox) / scale, (y - oy) / scale, w / scale, h / scale]

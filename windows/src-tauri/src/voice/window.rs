@@ -93,12 +93,17 @@ pub fn is_point(w: &Value) -> bool {
     w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
 }
 
+/// « Where is…? », « how do I get to…? »: a place on the screen is asked for.
+pub fn asks_where(question: &str) -> bool {
+    let q = question.to_lowercase();
+    ["where", "find", "get to", "go to", "how do i open", "how do i get", "locate", "which button"].iter().any(|k| q.contains(k))
+}
+
 /// "Where is…? / how do I get to…?" answered with an explanation block that has a target
 /// (#94: « Click the profile icon, then Settings, then Billing » came as a card of steps): made
 /// the circle-and-guide it should have been, its clicks read from the idea.
 pub fn as_point(question: &str, w: Value) -> Value {
-    let q = question.to_lowercase();
-    let asks_where = ["where", "find", "get to", "go to", "how do i open", "how do i get", "locate", "which button"].iter().any(|k| q.contains(k));
+    let asks_where = asks_where(question);
     let kind = w["kind"].as_str().unwrap_or("");
     if !asks_where || is_point(&w) || kind == "island" || !w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2) {
         return w;
