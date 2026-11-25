@@ -156,7 +156,7 @@ private struct RecapSharePanelView: View {
                 Button("Save…") {
                     guard let img = nsImage else { return }
                     let panel = NSSavePanel()
-                    panel.nameFieldStringValue = "coucou-weekly-recap.png"
+                    panel.nameFieldStringValue = "jarvis-weekly-recap.png"
                     panel.allowedContentTypes = [.png]
                     panel.begin { result in
                         guard result == .OK, let url = panel.url else { return }
@@ -196,11 +196,11 @@ private struct RecapSharePanelView: View {
 // MARK: - Share image (1080×1920)
 
 struct RecapShareImageView: View {
-    /// Where people can find Coucou, printed under the shared image.
+    /// Where people can find JARVIS, printed under the shared image.
     #if APPSTORE
-    static let footer = "Coucou · louis-cfm.github.io/coucou"
+    static let footer = "JARVIS · nullzedz.github.io/jarvis"
     #else
-    static let footer = "Coucou · github.com/Louis-CFM/coucou"
+    static let footer = "JARVIS · github.com/Nullzedz/jarvis"
     #endif
 
     let summary: WeeklySummary
@@ -231,7 +231,7 @@ struct RecapShareImageView: View {
                 .frame(width: 200, height: 200)
                 .padding(.bottom, 20)
 
-                Text("Coucou")
+                Text("JARVIS")
                     .font(.system(size: 52, weight: .black, design: .rounded))
                     .foregroundColor(Color(hex: "#F1F2F4"))
                 Text(String(localized: "recap.title"))

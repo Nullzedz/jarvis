@@ -100,7 +100,7 @@ struct SessionDetailView: View {
             if let shareImage {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: Image(uiImage: shareImage),
-                              preview: SharePreview(turn?.project ?? "Coucou", image: Image(uiImage: shareImage))) {
+                              preview: SharePreview(turn?.project ?? "JARVIS", image: Image(uiImage: shareImage))) {
                         Image(systemName: "square.and.arrow.up")
                     }
                 }
@@ -160,7 +160,7 @@ struct SessionDetailView: View {
                 .frame(width: 84, height: 84)
                 .background(Color.mochiTile(hex: session.color), in: RoundedRectangle(cornerRadius: 22))
             VStack(alignment: .leading, spacing: 4) {
-                // "VS Code · coucou", or just "VS Code" when there's no project name.
+                // "VS Code · jarvis", or just "VS Code" when there's no project name.
                 Text(session.title == session.pillName ? session.pillName : "\(session.pillName) · \(session.title)")
                     .font(.headline)
                 Text(session.statusText)

@@ -31,7 +31,7 @@ pub fn in_front() -> bool {
 }
 
 /// A shortcut pressed (`down`) or let go while the tour is up: the tour acts on it instead.
-/// Each is logged ("tutorial: key …"), so a key that never arrives shows in coucou.log. The same
+/// Each is logged ("tutorial: key …"), so a key that never arrives shows in jarvis.log. The same
 /// press seen twice (by the key watch and by the tour window) is sent once.
 pub fn forward(action: &str, down: bool) {
     static LAST: std::sync::Mutex<Vec<(String, bool)>> = std::sync::Mutex::new(Vec::new());

@@ -52,9 +52,9 @@ use crate::speech::{self, audio};
 pub struct VoiceView {
     /// "listening", "thinking", "speaking".
     pub phase: String,
-    /// What you said (after « OK Coucou »).
+    /// What you said (after « Hey JARVIS »).
     pub heard: String,
-    /// Coucou's answer.
+    /// JARVIS's answer.
     pub answer: String,
     /// JARVIS: how long each newly added word of `answer` takes to say (ms), so
     /// the pill lights the words up as he says them; 0 shows them at once.
@@ -74,7 +74,7 @@ fn pending() -> &'static Mutex<HashMap<u64, mpsc::Sender<String>>> {
 }
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Whether « OK Coucou » can run: the voice model, and a Claude key or (JARVIS)
+/// Whether « Hey JARVIS » can run: the voice model, and a Claude key or (JARVIS)
 /// the user's own Claude Code to answer with.
 pub fn requirements_met() -> bool {
     speech::is_ready() && (crate::secrets::present(crate::claude::KEY) || crate::claude_code::available())
@@ -94,7 +94,7 @@ pub fn sync(app: &AppHandle) {
             let stop = Arc::new(AtomicBool::new(false));
             let app2 = app.clone();
             let stop2 = stop.clone();
-            std::thread::Builder::new().name("coucou-voice".into()).spawn(move || run(app2, stop2)).ok();
+            std::thread::Builder::new().name("jarvis-voice".into()).spawn(move || run(app2, stop2)).ok();
             *running = Some(Running { stop });
             speech::preload();
             // JARVIS: his voice loaded before the first answer.
@@ -111,13 +111,13 @@ pub fn sync(app: &AppHandle) {
             if !dictation && !crate::notes::is_recording(app) {
                 speech::unload();
             }
-            crate::log::line("voice: « OK Coucou » off");
+            crate::log::line("voice: « Hey JARVIS » off");
         }
         _ => {}
     }
 }
 
-/// « OK Coucou » is listening (the voice model stays loaded).
+/// « Hey JARVIS » is listening (the voice model stays loaded).
 pub fn is_listening() -> bool {
     RUNNING.lock().unwrap().is_some()
 }
@@ -702,7 +702,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         show(app, Some(VoiceView {
             phase: "speaking".into(),
             heard: question.to_string(),
-            answer: if done { "✓".into() } else { crate::i18n::t("Coucou couldn't answer: check your Claude key in Notch → Chat.") },
+            answer: if done { "✓".into() } else { crate::i18n::t("JARVIS couldn't answer: check your Claude key in Notch → Chat.") },
             pace_ms: 0,
         }));
         *hide_at = Some(Instant::now() + Duration::from_secs(5));
@@ -1203,13 +1203,13 @@ mod tests {
     }
 }
 
-/// With the models downloaded: `COUCOU_TEST_WAKE_WAV=… cargo test -- --ignored wake_in`.
+/// With the models downloaded: `JARVIS_TEST_WAKE_WAV=… cargo test -- --ignored wake_in`.
 #[cfg(test)]
 mod with_models {
     #[test]
     #[ignore]
     fn hears_the_wake_phrase_in_a_recording() {
-        let path = std::env::var("COUCOU_TEST_WAKE_WAV").expect("COUCOU_TEST_WAKE_WAV");
+        let path = std::env::var("JARVIS_TEST_WAKE_WAV").expect("JARVIS_TEST_WAKE_WAV");
         let bytes = std::fs::read(&path).unwrap();
         let rate = u32::from_le_bytes([bytes[24], bytes[25], bytes[26], bytes[27]]);
         let pcm: Vec<f32> = bytes[44..].chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();

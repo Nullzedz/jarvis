@@ -5,7 +5,7 @@
 //
 // Kept apart from the user's sessions like claude_code.rs: no settings file (so
 // no hooks), no MCP server, no slash command, nothing saved to resume, in
-// Coucou's own empty folder. Its only tool is web search.
+// JARVIS's own empty folder. Its only tool is web search.
 //
 // The conversation lives in the process: after FORGET_AFTER without a question
 // it is replaced by a fresh one (started straight away, so it is warm again

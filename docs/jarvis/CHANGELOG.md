@@ -1,10 +1,10 @@
 # JARVIS changelog
 
-What JARVIS has changed since it was forked from [coucou](https://github.com/Louis-CFM/coucou)
-(fork point `0d7fe58`, coucou for Windows 0.5.9). Everything here is in `windows/`, the
+What JARVIS has changed since it was forked from [jarvis](https://github.com/Nullzedz/jarvis)
+(fork point `0d7fe58`, jarvis for Windows 0.5.9). Everything here is in `windows/`, the
 Windows app. Newest first.
 
-Tracking issue: [#1 — Give JARVIS its own UI, while keeping coucou's animation quality](https://github.com/Nullzedz/jarvis/issues/1).
+Tracking issue: [#1 — Give JARVIS its own UI, while keeping jarvis's animation quality](https://github.com/Nullzedz/jarvis/issues/1).
 
 ## Push-to-talk, Gemini voice, type-to-ask and shortcuts ([#6](https://github.com/Nullzedz/jarvis/issues/6), [#5](https://github.com/Nullzedz/jarvis/issues/5))
 
@@ -79,7 +79,7 @@ Refreshes every five minutes while open.
 
 ## Animation study — `e0b47e7`
 
-[`animation-study.md`](animation-study.md): coucou's easing curves, springs, keyframe timings and
+[`animation-study.md`](animation-study.md): jarvis's easing curves, springs, keyframe timings and
 idle behaviour, kept as the rules for JARVIS's own motion.
 
 ## Rebrand — `295360f`
@@ -87,7 +87,7 @@ idle behaviour, kept as the rules for JARVIS's own motion.
 - **JARVIS** everywhere it shows (window titles, installer, translations), with "Hey JARVIS"
   as the wake word.
 - The **Visor** replaces Mochi; a new app icon and 29 new sounds, all made in code, so none of
-  coucou's artwork ships.
+  jarvis's artwork ships.
 - A formal, butler-like persona in chat and voice.
-- Internal identifiers (bundle id, `%LOCALAPPDATA%\Coucou`, `coucou-hook.exe`) are unchanged
+- Internal identifiers (bundle id, `%LOCALAPPDATA%\JARVIS`, `jarvis-hook.exe`) are unchanged
   on purpose, so the Claude Code connection keeps working.

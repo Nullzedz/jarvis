@@ -508,7 +508,7 @@ final class AppState: ObservableObject {
 
     // Voice command result (shown in VoiceResultView for ~2 s, then cleared by IWC)
     @Published var voiceResult: VoiceActionResult? = nil
-    /// True from "OK Coucou" until Coucou has finished answering (island stays compact).
+    /// True from "Hey JARVIS" until JARVIS has finished answering (island stays compact).
     /// Drives Mochi's single attentive pose for the whole exchange.
     @Published var voiceActive = false
     /// Listening / thinking / speaking — drives per-frame Mochi animations.

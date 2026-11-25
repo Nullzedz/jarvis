@@ -12,7 +12,7 @@ type Toggle = (on: boolean, onChange: (v: boolean) => void) => HTMLElement;
 
 /**
  * The relay block ("Away from home Wi-Fi") is hidden until a relay is ready to use: the code and its tests stay.
- * Testers who start Coucou with COUCOU_RELAY_SETTINGS=1 see it (docs/RELAY_DEPLOY.md), and so does anyone whose relay
+ * Testers who start JARVIS with JARVIS_RELAY_SETTINGS=1 see it (docs/RELAY_DEPLOY.md), and so does anyone whose relay
  * is already on. Nothing else changes.
  */
 function relaySlot(makeToggle: Toggle, refreshPairing: () => void): HTMLElement {
@@ -115,7 +115,7 @@ export function phoneSection(on: boolean, makeToggle: Toggle, settings: Settings
     "section",
     {},
     h("h2", {}, h("span", { text: t("Android phone") })),
-    h("div", { class: "hint", text: t("Send your agents' sessions to Coucou for Android and answer permission requests from the phone. Off by default; it only listens on your local network.") }),
+    h("div", { class: "hint", text: t("Send your agents' sessions to JARVIS for Android and answer permission requests from the phone. Off by default; it only listens on your local network.") }),
     h("div", { class: "hint", text: t("Allow on the phone asks for the fingerprint or the screen lock. Deny does not.") }),
     h("div", { class: "row" }, h("label", { text: t("Phone link") }), switchEl),
     note,
@@ -552,7 +552,7 @@ function pairingRows(pairing: PhoneLinkPairing, again: () => void): HTMLElement[
   repair.addEventListener("click", again);
 
   return [
-    h("div", { class: "hint", text: t("In Coucou for Android, scan this code with the camera or paste the link.") }),
+    h("div", { class: "hint", text: t("In JARVIS for Android, scan this code with the camera or paste the link.") }),
     qr,
     h("div", { class: "row" }, link, copy),
     copied,

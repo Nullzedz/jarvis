@@ -1,4 +1,4 @@
-// Settings search in the Coucou window: matches every setting of Flow,
+// Settings search in the JARVIS window: matches every setting of Flow,
 // Notch and Mail in the app's language, whatever the accents and case.
 // Port of SettingsSearch.swift and SettingsSearchMatch.swift.
 
@@ -126,7 +126,7 @@ export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
   { id: "c.all", page: "integrations", title: "Connections", terms: ["Stripe", "GitHub", "GitLab", "Gitea", "Vercel", "n8n", "Notion", "Resend", "Cal.com", "WhatsApp", "Spotify", "Token"] },
   // Mail
   { id: "m.month", page: "mail", title: "Mail", terms: ["Waiting on you", "Files today", "When mail arrives"] },
-  { id: "m.sort", page: "mailOverview", title: "Sort new messages automatically", terms: ["Journal", "Sent by Coucou", "VIP", "Banned words", "Rules"] },
+  { id: "m.sort", page: "mailOverview", title: "Sort new messages automatically", terms: ["Journal", "Sent by JARVIS", "VIP", "Banned words", "Rules"] },
   // Notes
   { id: "n.notetaker", page: "notes", title: "Notetaker", terms: ["Record", "Transcript"] },
   { id: "n.dictation", page: "dictation", title: "Dictation", terms: ["Dictionary", "Snippets", "Styles", "History", "Replacements", "Clean up with Claude"] },

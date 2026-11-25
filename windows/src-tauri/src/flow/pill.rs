@@ -49,7 +49,7 @@ pub struct PillState {
     pub enabled: bool,
     /// The user chose to hide the resting pill: it shows only while something happens.
     pub hide_idle: bool,
-    /// « OK Coucou » is talking with you.
+    /// « Hey JARVIS » is talking with you.
     pub voice: Option<crate::voice::VoiceView>,
 }
 

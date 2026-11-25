@@ -3,7 +3,7 @@
 // Claude Code reports the plan's limits in its stream-json output on every
 // reply (`rate_limit_event`: the 5-hour and 7-day windows, used as a fraction,
 // reset as epoch seconds). Two ways in, both through Claude Code itself, with
-// its own sign-in — Coucou reads no credential and calls no API of its own:
+// its own sign-in — JARVIS reads no credential and calls no API of its own:
 // - passively, from the Claude Code JARVIS already keeps warm (voice/warm.rs):
 //   every reply carries fresh numbers, sent to the island as `claude-plan`;
 // - on request (`read`), when the plan card shows numbers over 10 minutes old:

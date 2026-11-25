@@ -126,7 +126,7 @@ export interface Settings {
   showPlanInNotch: boolean;
   /** Show the Claude plan percentage in the compact island next to the agent dots. */
   showPlanInCompactIsland: boolean;
-  /** Coucou's status line relay is installed in Claude Code's settings. */
+  /** JARVIS's status line relay is installed in Claude Code's settings. */
   planRelayInstalled: boolean;
   /** Show the Codex plan pill in the island's header. */
   showCodexPlanInNotch: boolean;
@@ -154,12 +154,12 @@ export interface Settings {
    */
   pillColors: Record<string, string>;
   /**
-   * Interface language: "" follows the system (when Coucou has its language,
+   * Interface language: "" follows the system (when JARVIS has its language,
    * else English), or one of src/i18n's ten codes ("fr", "pt-BR", "zh-Hans"…).
    */
   language: string;
   /**
-   * The phone link for Coucou for Android is on. Rust owns it (only the switch in
+   * The phone link for JARVIS for Android is on. Rust owns it (only the switch in
    * Settings → Android phone turns it on): whatever the page sends back is ignored.
    */
   phoneLink?: boolean;

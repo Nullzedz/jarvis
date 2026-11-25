@@ -8,7 +8,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var islandController: IslandWindowController?
     private var demoMenuItem: NSMenuItem?
     #if !APPSTORE
-    /// "Update Coucou to 0.6.0…", shown only when a new version is out.
+    /// "Update JARVIS to 0.6.0…", shown only when a new version is out.
     private var updateMenuItem: NSMenuItem?
     private var updateMenuSeparator: NSMenuItem?
     /// The menu bar Mochi turns blue while a new version waits (MacUpdater.hintActive).
@@ -20,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NoteTaker.shared.shutdown()
         // A dictation still listening never leaves the Mac muted.
         SystemMute.shared.releaseNow()
-        // The GOWA gateway Coucou started never outlives it.
+        // The GOWA gateway JARVIS started never outlives it.
         WhatsAppGOWAProcess.shared.stopNow()
         #endif
         DemoEngine.shared.stop()
@@ -31,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ignore SIGPIPE — prevents crash when nb-hook closes socket before we write response
         signal(SIGPIPE, SIG_IGN)
         #if !APPSTORE
-        // Before anything writes its settings: did Coucou just update itself? (What's new, once.)
+        // Before anything writes its settings: did JARVIS just update itself? (What's new, once.)
         WhatsNewCenter.shared.noteLaunch()
         #endif
         // Warm up Keychain cache on main thread BEFORE any poller or view touches it
@@ -39,14 +39,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if APPSTORE
         NSApp.setActivationPolicy(.accessory)
         #else
-        // In the Dock like a regular app (Coucou → Settings → Flow), or only in the menu bar.
+        // In the Dock like a regular app (JARVIS → Settings → Flow), or only in the menu bar.
         NSApp.setActivationPolicy(FlowHubController.showInDock ? .regular : .accessory)
         #endif
         setupMenuBarItem()
         setupIsland()
         MachineVitals.shared.start()
         #if !APPSTORE
-        // Opened by hand (Finder, Dock, Spotlight): the Coucou window shows. Not at login.
+        // Opened by hand (Finder, Dock, Spotlight): the JARVIS window shows. Not at login.
         if FlowHubController.openAtLaunch && !FlowHubController.launchedAtLogin() {
             Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(600))
@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         CloudProbe.shared.startIfEnabled()
         #endif
         #if !APPSTORE
-        // Coucou for Android (off unless the user turned it on in Settings)
+        // JARVIS for Android (off unless the user turned it on in Settings)
         AndroidLinkService.shared.startIfEnabled()
         #endif
     }
@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if APPSTORE
         openIsland()
         #else
-        // A click on the Dock icon: the Coucou window.
+        // A click on the Dock icon: the JARVIS window.
         FlowHubController.shared.show()
         #endif
         return true
@@ -94,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         add(NoteTaker.shared.isRecording ? String(localized: "notes.stop") : String(localized: "hub.record-call"),
             #selector(toggleCallRecording))
         menu.addItem(.separator())
-        add(String(localized: "Open Coucou"), #selector(openIsland))
+        add(String(localized: "Open JARVIS"), #selector(openIsland))
         add(NSLocalizedString("Settings…", comment: ""), #selector(openSettings))
         return menu
     }
@@ -119,9 +119,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func setupMenuBarItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Coucou")
+        button.image = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "JARVIS")
         button.image?.size = NSSize(width: 24, height: 18)
-        button.image?.accessibilityDescription = "Coucou"
+        button.image?.accessibilityDescription = "JARVIS"
         button.image?.isTemplate = true
 
         let menu = NSMenu()
@@ -142,7 +142,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         demoMenuItem = demoItem
         menu.addItem(demoItem)
         menu.addItem(.separator())
-        menu.addItem(withTitle: NSLocalizedString("Open Coucou", comment: ""), action: #selector(openIsland), keyEquivalent: "")
+        menu.addItem(withTitle: NSLocalizedString("Open JARVIS", comment: ""), action: #selector(openIsland), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: NSLocalizedString("Weekly recap", comment: ""), action: #selector(openWeeklyRecap), keyEquivalent: "")
         #if !APPSTORE
@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     #if !APPSTORE
-    /// Blue Mochi in the menu bar while a new Coucou waits, like the one in the notch; the usual
+    /// Blue Mochi in the menu bar while a new JARVIS waits, like the one in the notch; the usual
     /// template icon (black or white with the menu bar) otherwise.
     private func setMenuBarUpdateHint(_ on: Bool) {
         guard let button = statusItem?.button else { return }
@@ -174,10 +174,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
               let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * 2), pixelsHigh: Int(size.height * 2),
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                          colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else {
-            let icon = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "Coucou")
+            let icon = NSImage(named: "MenuBarIcon") ?? NSImage(systemSymbolName: "circle.fill", accessibilityDescription: "JARVIS")
             icon?.size = size
             icon?.isTemplate = true
-            icon?.accessibilityDescription = "Coucou"
+            icon?.accessibilityDescription = "JARVIS"
             button.image = icon
             return
         }
@@ -192,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let blue = NSImage(size: size)
         blue.addRepresentation(rep)
         blue.isTemplate = false
-        blue.accessibilityDescription = "Coucou"
+        blue.accessibilityDescription = "JARVIS"
         button.image = blue
     }
     #endif
@@ -237,7 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // The island floats above every window; fold it away so it can't cover Settings.
         if AppState.shared.mode == .expanded { islandController?.collapse() }
         #if !APPSTORE
-        // Everything in one place: Settings are the notch's pages of the Coucou window.
+        // Everything in one place: Settings are the notch's pages of the JARVIS window.
         let section = UserDefaults.standard.string(forKey: "settingsSection") ?? "general"
         FlowHubController.shared.show(HubPage.forSettings(section))
         #else
@@ -286,7 +286,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             filesChanged: 31, linesAdded: 1217, linesRemoved: 312,
             commandsRun: 54, questionsAnswered: 11,
             permissionsAllowed: 4, permissionsDenied: 1,
-            topAgent: "Claude Code", topProject: "coucou",
+            topAgent: "Claude Code", topProject: "jarvis",
             busiestDay: "Friday", longestSessionMinutes: 300
         )
         let view = RecapShareImageView(summary: summary, hideProjects: false)
@@ -296,7 +296,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let cg = renderer.cgImage else { return }
         let img = NSImage(cgImage: cg, size: NSSize(width: 1080, height: 1920))
         let url = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Desktop/coucou-recap-debug.png")
+            .appendingPathComponent("Desktop/jarvis-recap-debug.png")
         if let tiff = img.tiffRepresentation,
            let rep = NSBitmapImageRep(data: tiff),
            let png = rep.representation(using: .png, properties: [:]) {
@@ -375,7 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ClaudeDesktopChatWatcher.shared.start()
         #endif
         CryptoController.shared.start()
-        CoucoudoroController.shared.start()
+        JarvisdoroController.shared.start()
         PortfolioController.shared.start()
     }
 }

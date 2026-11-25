@@ -1,11 +1,11 @@
-# Animation study: what makes coucou feel good
+# Animation study: what makes jarvis feel good
 
 Notes for the JARVIS UI redesign ([issue #1](https://github.com/Nullzedz/jarvis/issues/1)).
 We change the **look**; we keep the **motion**. Everything below is in `windows/src/`.
 
 ## The short version
 
-Coucou's motion feels "proper" because of five habits:
+JARVIS's motion feels "proper" because of five habits:
 
 1. **Fast in, soft out.** Most moves are a quick 50–150 ms push with `Ease.out`, then a slower 200–400 ms settle with `Ease.back` (a small overshoot). Nothing moves linearly except holds.
 2. **Squash and stretch, always paired.** When height shrinks, width grows (`sy` 0.78 ↔ `sx` 1.16), so the volume looks constant. Every click, landing and greeting uses it.
@@ -69,7 +69,7 @@ The wave inside it (`engine.greet()`): starts 0.45 s in, hands rise over 280 ms,
 
 ## 5. The island (`island/fsm.ts`, `island/island.ts`)
 
-States: **hidden** (closed bar) → **petit** (compact peek on hover) → **home** (fully open on click), plus **coucou** (the launch greeting).
+States: **hidden** (closed bar) → **petit** (compact peek on hover) → **home** (fully open on click), plus **jarvis** (the launch greeting).
 
 Timings:
 - Folds back 15 s after the pointer leaves (setting); a countdown bar shows it

@@ -363,7 +363,7 @@ mod calibrate {
     }
 
     /// Same voice (two different lines) vs different voices, on Kokoro's renders:
-    /// JARVIS_WAVS=<dir with jarvis-voice-*.wav and jarvis-line2-*.wav> cargo test -p coucou --lib calibrate -- --ignored --nocapture
+    /// JARVIS_WAVS=<dir with jarvis-voice-*.wav and jarvis-line2-*.wav> cargo test -p jarvis --lib calibrate -- --ignored --nocapture
     #[test]
     #[ignore]
     fn same_voice_scores_high_other_voices_low() {

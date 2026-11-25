@@ -4,14 +4,14 @@
 //
 // - The pill: the latest messages of every inbox, a search and quick filters, and actions
 //   on a message (each one the user's click).
-// - The Mail section of the Coucou window: automatic sorting (off by default), rules, banned
-//   words, VIPs, a journal with Undo, and what Coucou sent.
+// - The Mail section of the JARVIS window: automatic sorting (off by default), rules, banned
+//   words, VIPs, a journal with Undo, and what JARVIS sent.
 // - The chat's Mail switch: the AI gets the latest messages and may answer with a plan
 //   (plan.rs) that runs only after the user clicks Run on its card.
 //
 // Outlook is read every 60 s only while the pill is on or the sorting is, and only when
-// OUTLOOK.EXE runs: Coucou never starts Outlook, and a closed Outlook costs nothing.
-// Coucou never deletes a message.
+// OUTLOOK.EXE runs: JARVIS never starts Outlook, and a closed Outlook costs nothing.
+// JARVIS never deletes a message.
 
 pub mod outlook;
 pub mod pdf;
@@ -624,7 +624,7 @@ fn set_phase(app: &AppHandle, id: &str, phase: Phase) {
 }
 
 fn work_dir() -> std::path::PathBuf {
-    std::env::temp_dir().join("coucou-mail-plans")
+    std::env::temp_dir().join("jarvis-mail-plans")
 }
 
 /// The card of a chat answer holding a plan: prepared once, then its state.

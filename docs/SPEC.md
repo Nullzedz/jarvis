@@ -41,7 +41,7 @@ Grille compact : pastilles Ø 9,5 autour du point (largeur − 27, hN/2), écart
 ## 3. Règles de comportement (validées par Louis)
 
 1. **Rien ne tourne** → `hidden`. Totalement invisible.
-2. **Souris sur le notch** alors que `hidden` → `peek` immédiatement, le bonhomme sort en faisant coucou (mains + son `peek` + son `greet`). Si la souris reste 650 ms → `expanded` (vue `overview`, ou `empty` s'il n'y a aucune tâche). Si elle part pendant le peek → retour `hidden` après 600 ms.
+2. **Souris sur le notch** alors que `hidden` → `peek` immédiatement, le bonhomme sort en faisant jarvis (mains + son `peek` + son `greet`). Si la souris reste 650 ms → `expanded` (vue `overview`, ou `empty` s'il n'y a aucune tâche). Si elle part pendant le peek → retour `hidden` après 600 ms.
 3. **Des tâches tournent et Louis est actif** → `compact` : très fin, le bonhomme visible, il suit la souris des yeux partout sur l'écran.
 4. **Survol en compact** → `expanded` après 200 ms. Clic sur le bonhomme en compact → `expanded` tout de suite.
 5. **Fermeture auto** : une fois ouverte, l'island se replie après **60 s sans activité** (mouvement de souris sur l'island, clic, frappe). Quitter l'island ne la ferme pas. Pendant les 10 dernières secondes, un trait de 2 pt en bas au centre (160 pt → 0, blanc 35 %) montre le compte à rebours. `Échap` ferme.
@@ -121,7 +121,7 @@ Règles :
 - `removeTask` sur `mainPillId` ou une pastille déclarée + active → reset à `.idle` + `pillBadge = nil` + nom du catalogue (pas de suppression). Sinon → suppression normale.
 - `sortTasksByCatalog` : pastilles du catalogue dans l'ordre du catalogue ; pastilles hors catalogue juste après `integration_claude`.
 - Pastilles `githubOnly` : exclues des builds App Store (`#if APPSTORE`).
-- Hooks (Gemini CLI, Antigravity, Codex, Copilot CLI, Muse Code) et plugins (OpenCode, Amp, Hermes) : `isConfigured` = méthodes correspondantes de `HookServer` sous `#if !APPSTORE`. La section Codex Hooks dans Settings installe les hooks dans `~/.codex/hooks.json` avec le même flux backup + preview que Gemini CLI. Après l'installation, la carte affiche : « run /hooks in Codex or open Hooks in the app's settings to trust them ». Approbations Codex, Copilot CLI, Muse Code : carte avec Allow et Deny seulement (pas Always) ; updatedPermissions jamais envoyé pour Codex/Copilot/Muse ; notes « Handled in Codex. » / « Handled in Copilot CLI. » / « Handled in Muse Code. ». Approbations Antigravity *(build GitHub, réglage « Approve commands from the notch », désactivé par défaut)* : Antigravity n'a pas d'événement de demande de permission ; son hook `PreToolUse` attend la réponse du relais. Un `run_command` qu'aucune règle `command(...)` d'Antigravity ne couvre (allow ou deny, lues dans `~/.gemini/antigravity-cli/settings.json`, `~/.gemini/config/config.json` et le projet de `~/.gemini/config/projects/` qui contient le dossier de la session) attend un clic : carte avec Deny, Allow et Reply in terminal (pas Always). Allow → `{"decision":"allow"}`, Deny → `deny`, Reply in terminal, 110 s sans réponse ou Coucou fermé → `{"decision":"ask"}` (le prompt d'Antigravity). Le hook `PreToolUse` est installé avec un timeout de 120 s ; notes « Handled in Antigravity. » / « Still waiting in Antigravity. ». OpenCode : plugin JS dans `~/.config/opencode/plugins/coucou.js`, événements mappés via EVENT_MAP, lecture depuis `event.properties`. Amp : plugin TypeScript dans `~/.config/amp/plugins/coucou.ts`, `tool.call` retourne toujours `{ action: 'allow' }`. Hermes : plugin Python dans `~/.hermes/plugins/coucou/__init__.py`, approuver depuis le notch nécessite `register_approval_transport` (non disponible en 0.15.x) ; en attendant, `pre_approval_request` affiche « ⏳ Approval pending in Hermes » dans le fil.
+- Hooks (Gemini CLI, Antigravity, Codex, Copilot CLI, Muse Code) et plugins (OpenCode, Amp, Hermes) : `isConfigured` = méthodes correspondantes de `HookServer` sous `#if !APPSTORE`. La section Codex Hooks dans Settings installe les hooks dans `~/.codex/hooks.json` avec le même flux backup + preview que Gemini CLI. Après l'installation, la carte affiche : « run /hooks in Codex or open Hooks in the app's settings to trust them ». Approbations Codex, Copilot CLI, Muse Code : carte avec Allow et Deny seulement (pas Always) ; updatedPermissions jamais envoyé pour Codex/Copilot/Muse ; notes « Handled in Codex. » / « Handled in Copilot CLI. » / « Handled in Muse Code. ». Approbations Antigravity *(build GitHub, réglage « Approve commands from the notch », désactivé par défaut)* : Antigravity n'a pas d'événement de demande de permission ; son hook `PreToolUse` attend la réponse du relais. Un `run_command` qu'aucune règle `command(...)` d'Antigravity ne couvre (allow ou deny, lues dans `~/.gemini/antigravity-cli/settings.json`, `~/.gemini/config/config.json` et le projet de `~/.gemini/config/projects/` qui contient le dossier de la session) attend un clic : carte avec Deny, Allow et Reply in terminal (pas Always). Allow → `{"decision":"allow"}`, Deny → `deny`, Reply in terminal, 110 s sans réponse ou JARVIS fermé → `{"decision":"ask"}` (le prompt d'Antigravity). Le hook `PreToolUse` est installé avec un timeout de 120 s ; notes « Handled in Antigravity. » / « Still waiting in Antigravity. ». OpenCode : plugin JS dans `~/.config/opencode/plugins/jarvis.js`, événements mappés via EVENT_MAP, lecture depuis `event.properties`. Amp : plugin TypeScript dans `~/.config/amp/plugins/jarvis.ts`, `tool.call` retourne toujours `{ action: 'allow' }`. Hermes : plugin Python dans `~/.hermes/plugins/jarvis/__init__.py`, approuver depuis le notch nécessite `register_approval_transport` (non disponible en 0.15.x) ; en attendant, `pre_approval_request` affiche « ⏳ Approval pending in Hermes » dans le fil.
 - Pastilles IA (cloud) : `isConfigured` = clé API dans le Keychain. Pastilles IA locales (Ollama, LM Studio) : `isConfigured` = URL serveur non vide (définie via le bouton **Connect** dans Réglages → Chat). Bouton « Chat with… » → change le fournisseur et ouvre la vue `.prompt`.
 
 ### Carte GitHub (`GitHubPulseCardView`)
@@ -212,7 +212,7 @@ Fichiers `assets/sounds/*.wav` (48 kHz stéréo), rendus depuis le moteur du pro
 
 | Événement | Son |
 |---|---|
-| peek / coucou | `peek` + `greet` |
+| peek / jarvis | `peek` + `greet` |
 | ouverture / fermeture | `open` / `close` |
 | survol du bonhomme / petit clic UI | `hover` / `blip` |
 | claque / agacé / sonné | `slap` / `annoyed` / `dizzy` |
@@ -264,7 +264,7 @@ Grille de pastilles 30 pt, coins 7 pt, fond blanc 6 %, bord blanc 8 % (sélectio
 
 **Fermeture** : Échap, clic maison, ou clic droit sur Mochi à nouveau.
 
-**Référence visuelle** : `design/outfits/` (`mochi-outfits.js`, `sheet.html`, `mochi-outfits-reference.png`). Outil de développement : `scripts/render-outfits.sh` (hors CI) — génère `/tmp/coucou-outfits.png`, `/tmp/coucou-roll.png`, `/tmp/coucou-transition.png`.
+**Référence visuelle** : `design/outfits/` (`mochi-outfits.js`, `sheet.html`, `mochi-outfits-reference.png`). Outil de développement : `scripts/render-outfits.sh` (hors CI) — génère `/tmp/jarvis-outfits.png`, `/tmp/jarvis-roll.png`, `/tmp/jarvis-transition.png`.
 
 **Calendrier des saisons** (mode Auto) :
 - 1 oct – 1 nov : Witch hat
@@ -301,7 +301,7 @@ Chaque jalon se termine par build + capture + comparaison aux références + com
 - Hidden = 0 % CPU ; compact < 3 % ; mémoire < 100 Mo.
 - La démo (⌃⌥⌘D) se filme d'une traite sans intervention.
 
-## 12 bis. Coucou dans un coin de l'écran
+## 12 bis. JARVIS dans un coin de l'écran
 
 Version GitHub : l'île peut vivre au notch (par défaut) ou dans un des quatre coins de son écran (`AppState.islandPlacement`, clé `islandPlacement` : `notch`, `topLeft`, `topRight`, `bottomLeft`, `bottomRight`).
 
@@ -397,7 +397,7 @@ Ces raccourcis fonctionnent en arrière-plan sans permission Accessibilité.
 
 - Si Carbon ne peut pas enregistrer un raccourci (conflit système), l'action est marquée `.conflict` dans `HotKeyCenter` et un indicateur apparaît dans Réglages → Raccourcis.
 - `toggleIsland` conserve les clés UserDefaults historiques (`hotkeyCode`, `hotkeyFlags`, `hotkeyEnabled`) pour ne pas casser les préférences existantes.
-- Les actions marquées `isNonAppStore` (`attachFrontWindow`, `talkToCoucou`, `captureScreen`, `quickScreenshot`) sont omises du build App Store.
+- Les actions marquées `isNonAppStore` (`attachFrontWindow`, `talkToJarvis`, `captureScreen`, `quickScreenshot`) sont omises du build App Store.
 
 ### 14.2 Raccourcis locaux (actifs quand l'île a le focus)
 
@@ -432,7 +432,7 @@ Réglages → Raccourcis (`ShortcutsSettingsView`) :
 
 `MachineVitals` lit l'état du Mac toutes les 3 s, **seulement quand Mochi est à l'écran** (île visible ou Mochi sur le bureau). Île cachée : aucune lecture. Réglages → Général → « Mochi et ton Mac » (activé par défaut).
 
-| Ce que lit Coucou | Seuil | Mochi |
+| Ce que lit JARVIS | Seuil | Mochi |
 |---|---|---|
 | Processeur (`host_statistics`, tous les cœurs) | ≥ 80 % deux lectures de suite | transpire (gouttes), souffle vite |
 | État thermique (`ProcessInfo.thermalState`) | fair / serious / critical | rougit, vagues de chaleur au-dessus de la tête dès serious |
@@ -442,7 +442,7 @@ Réglages → Raccourcis (`ShortcutsSettingsView`) :
 - Les humeurs ne s'affichent que dans les états calmes (idle, working, thinking, searching, finished) ; fatigue et sommeil seulement en idle et finished. Une demande de permission les efface.
 - Brancher le chargeur pendant que Mochi est fatigué : il se réveille (émote happy, son `pop`).
 - Pointeur sur Mochi (ou sur l'île compacte) : une ligne sous l'île dit pourquoi, par ex. « CPU 94 % · node, Google Chrome » (les deux apps qui prennent le plus de processeur, lues seulement quand il transpire).
-- Dessin : `MochiMood.swift` (CoucouKit), l'iPhone ne règle jamais l'humeur.
+- Dessin : `MochiMood.swift` (JarvisKit), l'iPhone ne règle jamais l'humeur.
 
 ## 16. Capture d'écran pour Claude (build GitHub)
 
@@ -455,12 +455,12 @@ Réglages → Raccourcis (`ShortcutsSettingsView`) :
 
 ## 17. Flow : mode prompt et traduction (build GitHub)
 
-Coucou → Flow → Réglages → « Prompt et traduction ». Les deux passent par Claude, comme le nettoyage : par le Claude Code de l'utilisateur (son abonnement Claude) quand l'interrupteur Claude est allumé dans Réglages → Chat → Tes abonnements IA et que Claude Code est installé, sinon avec sa clé. Seuls les mots partent chez Anthropic, jamais la voix.
+JARVIS → Flow → Réglages → « Prompt et traduction ». Les deux passent par Claude, comme le nettoyage : par le Claude Code de l'utilisateur (son abonnement Claude) quand l'interrupteur Claude est allumé dans Réglages → Chat → Tes abonnements IA et que Claude Code est installé, sinon avec sa clé. Seuls les mots partent chez Anthropic, jamais la voix.
 
 - **Mode prompt** (`flowPromptMode`) : ce qui est dit devient un prompt structuré pour un agent (Claude Code, Cursor, ChatGPT…) : objectif, contexte, étapes numérotées, contraintes, « fini quand », seulement les parties qui ont du contenu. Une demande courte reste une ou deux phrases. Rien n'est inventé : chaque exigence, nom, nombre et fichier dit est gardé.
 - **Traduire en** (`flowTranslateTo`, vide = comme je parle) : on parle dans n'importe quelle langue, c'est collé dans la langue choisie. ~70 langues et variantes régionales (`FlowLanguages`), chacune avec ce qui la distingue : anglais US / UK / australien / canadien / irlandais / indien…, français de France / Québec / Suisse (septante, nonante) / Belgique, allemand d'Allemagne / Suisse (jamais ß) / Autriche, espagnol d'Espagne / Mexique / Argentine (voseo) / Colombie / Amérique latine, portugais du Brésil / du Portugal, italien, néerlandais / flamand, chinois simplifié / traditionnel (Taïwan, Hong Kong), turc, arabe, japonais, coréen…
 - Un seul appel fait nettoyage + prompt + traduction (`FlowCleanup.transform`, Claude Haiku, 8 s avec la clé, 12 s en mode prompt). Les marques ⟦n⟧ des snippets sont gardées. Réponse vide, trop longue ou trop courte (comptée en caractères), ou pas de réponse à temps : les mots sont collés tels qu'entendus.
-- **Par l'abonnement** (`FlowCleanup.tool`, nettoyage compris) : `claude -p` avec les garde-fous du chat (aucun réglage, hook ni MCP, rien d'enregistré, dossier vide de Coucou), sans aucun outil ni web, Claude Haiku 4.5 sans réflexion (`MAX_THINKING_TOKENS=0`). Claude Code a 6 s de plus que la clé, le temps de démarrer : 10 s pour le nettoyage (comme sur Windows et Linux), 14 s pour une traduction, 18 s en mode prompt. Passé ce délai, l'outil reçoit SIGTERM, puis SIGKILL une seconde après.
+- **Par l'abonnement** (`FlowCleanup.tool`, nettoyage compris) : `claude -p` avec les garde-fous du chat (aucun réglage, hook ni MCP, rien d'enregistré, dossier vide de JARVIS), sans aucun outil ni web, Claude Haiku 4.5 sans réflexion (`MAX_THINKING_TOKENS=0`). Claude Code a 6 s de plus que la clé, le temps de démarrer : 10 s pour le nettoyage (comme sur Windows et Linux), 14 s pour une traduction, 18 s en mode prompt. Passé ce délai, l'outil reçoit SIGTERM, puis SIGKILL une seconde après.
 - **Claude Code déconnecté** (ou toute erreur rapide) : la clé prend le relais s'il y en a une, avec le temps qui reste ; sinon les mots sont collés tels qu'entendus. Déconnecté, la pastille le dit avec la commande pour se reconnecter et un bouton Terminal ; quand la clé a pris le relais, une seule fois par lancement.
 - Les autres outils d'abonnement (Codex, Gemini, Antigravity, Cursor, Copilot) ne répondent pas à Flow : `scripts/measure-flow-subscription.py` mesure leurs temps sur le Mac.
 

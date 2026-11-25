@@ -86,7 +86,7 @@ export function buildWhatsNew(): ViewHost {
     stack.append(h("div", { class: "title one-line", text: t("Your JARVIS so far") }));
     if (WhatsNew.stats.length > 0) stack.append(chips);
     stack.append(
-      h("div", { class: "sub whatsnew-thanks", text: t("Coucou is free and open source. If it saves you time, you can buy Mochi a coffee.") }),
+      h("div", { class: "sub whatsnew-thanks", text: t("JARVIS is free and open source. If it saves you time, you can buy Mochi a coffee.") }),
       h("div", { class: "actions" },
         btn(`☕ ${t("Buy Mochi a coffee")}`, "primary", () => WhatsNew.openCoffee(COFFEE_URL)),
         btn(t("OK"), "secondary", () => WhatsNew.done()),

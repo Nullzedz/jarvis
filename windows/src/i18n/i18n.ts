@@ -126,10 +126,10 @@ export function applyDocumentLanguage() {
   if (root.dataset) root.dataset.dir = isRtl() ? "rtl" : "ltr";
 }
 
-/** JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS. */
+/** JARVIS rebrand: the catalogs keep jarvis's English keys; what shows says JARVIS. */
 export function brand(text: string): string {
-  const out = text.replace(/OK Coucou/g, "Hey JARVIS").replace(/Coucou|Mochi/g, "JARVIS");
-  // coucou's English keys quote with French « »: English shows “ ”.
+  const out = text.replace(/Hey JARVIS/g, "Hey JARVIS").replace(/JARVIS|Mochi/g, "JARVIS");
+  // jarvis's English keys quote with French « »: English shows “ ”.
   return current === "en" ? out.replace(/«\s?/g, "“").replace(/\s?»/g, "”") : out;
 }
 

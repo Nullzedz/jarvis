@@ -1,4 +1,4 @@
-// The Coucou window: a sidebar with Flow (dictation, the Notetaker, the
+// The JARVIS window: a sidebar with Flow (dictation, the Notetaker, the
 // statistics, the dictionary, the snippets, the styles and their settings)
 // and Notch (every setting of the island), and the page on the right, under
 // its coloured band. Port of FlowHub.swift.
