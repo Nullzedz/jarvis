@@ -40,6 +40,9 @@ struct Guide {
     /// Planned from the names alone and short of the thing: it may go on past its end. A route
     /// from his note or the web ends where it ends (#96: in Word it went on to « Save as type »).
     open: bool,
+    /// Started part-way (what was asked for, or a later step, already on screen): no note is
+    /// written from it, the whole route isn't known.
+    partial: bool,
 }
 
 static GUIDE: Mutex<Option<Guide>> = Mutex::new(None);
@@ -50,7 +53,7 @@ static BUSY: AtomicBool = AtomicBool::new(false);
 /// Starts a guide (a new one replaces any other); the clicks are watched from here on.
 pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f64, f64, f64)) -> u64 {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps, at: 0, rect: Some(rect), named: None, words: Vec::new(), source: String::new(), open: true, partial: false });
     watch(app);
     id
 }
@@ -246,7 +249,7 @@ fn question_key(q: &str) -> String {
     q.split(|c: char| !c.is_alphanumeric()).filter(|w| !w.is_empty() && !SKIP.contains(w)).collect::<Vec<_>>().join(" ")
 }
 
-const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. Give the shortest way: the last step is the thing they asked for itself (to find Export, the route ends at Export, not at what you do inside it); never add steps that go on to do a task with it. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is []. If the question isn't about finding or doing something in this app (a fact, an explanation, something about the content on screen), reply {\"say\": \"\", \"steps\": [], \"source\": \"\"} at once, without searching.";
+const LOOKUP_SYSTEM: &str = "You help someone find a place in a Windows app. Search the web once for the official steps (the app's own help pages first), then match them to the things they can click in the app right now, listed with where each sits in its window. Reply with JSON only, no other words: {\"say\": \"one short sentence, at most 12 words, naming the clicks\", \"steps\": [{\"do\": \"the step as the help page puts it, short\", \"name\": \"the label to click\"}], \"source\": \"the help page's address\"}. The first step's name is copied exactly from the list, without the place in brackets: match the help's words to it (an account, profile or « your name » step is the button named after the person or their plan, like \"Sam Pro\" or \"Account\", usually at the bottom-left of a sidebar or the top-right: never a title-bar \"Menu\", which only holds File, Edit, View and Help). The later names are the labels the help page gives. Each step is something clicked (a button, a menu item, a tab, a sidebar entry): a heading that only groups items, like a section title in a settings sidebar, is never a step. Give the shortest way: the last step is the thing they asked for itself (to find Export, the route ends at Export, not at what you do inside it); never add steps that go on to do a task with it. If nothing in the list fits the first step, its name is \"\" (it will be found on the screen). If the help doesn't fit this app, steps is []. If the question isn't about finding or doing something in this app (a fact, an explanation, something about the content on screen), reply {\"say\": \"\", \"steps\": [], \"source\": \"\"} at once, without searching.";
 
 /// What the web says (#96): the official steps for `question` in this app, matched to the names
 /// on the screen. Once per question: his note keeps it after.
@@ -311,6 +314,18 @@ fn read_lookup(reply: &str) -> Option<(String, Note)> {
     Some((v["say"].as_str().unwrap_or("").trim().to_string(), note))
 }
 
+/// The furthest step of `steps` from `from` on that's already on screen (#96: in Discord the
+/// settings opened on Accessibility, but he waited for « App Settings »): by its button name,
+/// else, for the step he's on and the last, anything called exactly that.
+fn furthest(list: &[super::uia::Named], pid: u32, steps: &[String], from: usize) -> Option<(usize, super::uia::Named)> {
+    if let Some(i) = (from..steps.len()).rev().find(|i| super::uia::find(list, &steps[*i]).is_some()) {
+        return super::uia::find(list, &steps[i]).cloned().map(|n| (i, n));
+    }
+    let mut ends = vec![steps.len().saturating_sub(1), from];
+    ends.dedup();
+    ends.into_iter().filter(|i| *i < steps.len()).find_map(|i| super::uia::named(pid, &steps[i]).map(|n| (i, n)))
+}
+
 /// What the app (and whatever is in front now, if another app opened) shows that you can click.
 fn read_buttons(pid: u32) -> Vec<super::uia::Named> {
     let mut list = super::uia::clickable(pid);
@@ -337,7 +352,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
     let app_name = super::uia::app_name(pid);
     let qkey = question_key(question);
     // His note first (free); else the web once; else the names alone; else the picture way.
-    let note = super::howto::read(&app_name, &qkey).filter(|n| super::uia::find(&list, &n.route[0]).is_some());
+    let note = super::howto::read(&app_name, &qkey).filter(|n| furthest(&list, pid, &n.route, 0).is_some());
     let (said, mut note, open) = match note {
         Some(n) => {
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
@@ -345,7 +360,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         }
         None => match look_up(question, &app_name, &list) {
             // The first step had no name to go by: found on the picture from its words.
-            Some((said, mut n)) if super::uia::find(&list, &n.route[0]).is_none() => {
+            Some((said, mut n)) if furthest(&list, pid, &n.route, 0).is_none() => {
                 let words = n.words.first().cloned().unwrap_or_else(|| n.route[0].clone());
                 let spot = seen.and_then(|shot| locate(app, question, &words, shot)).filter(|s| !s.name.is_empty())?;
                 n.route[0] = spot.name;
@@ -369,8 +384,13 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         note.words.truncate(i + 1);
     }
     let open = open && goal.is_none();
+    let (start, first) = furthest(&list, pid, &note.route, 0)?;
+    if start > 0 {
+        crate::log::line(format!("guide: step {} already on screen, starting there", start + 1));
+        note.route.drain(..start);
+        note.words.drain(..start.min(note.words.len()));
+    }
     let route = note.route.clone();
-    let first = super::uia::find(&list, route.first()?)?.clone();
     let said = if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said };
     if route.len() < 2 && goal.is_some() {
         cancel();
@@ -378,7 +398,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         return Some(said);
     }
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open });
+    *GUIDE.lock().unwrap() = Some(Guide { id, question: question.to_string(), steps: route.clone(), at: 0, rect: Some(first.rect), named: Some((pid, app_name)), words: note.words, source: note.source, open, partial: start > 0 });
     watch(app);
     crate::log::line(format!("guide: by name, step 1 of {}", route.len()));
     let shown: Vec<String> = route.iter().map(|s| step_text(s)).collect();
@@ -402,7 +422,7 @@ fn by_name(app: &AppHandle) {
             guide.steps.truncate(guide.at.min(guide.steps.len()));
             let mut words = guide.words.clone();
             words.truncate(guide.steps.len());
-            super::howto::write(&name, &guide.question, &question_key(&guide.question), &Note { route: guide.steps.clone(), words, source: guide.source.clone() });
+            if !guide.partial { super::howto::write(&name, &guide.question, &question_key(&guide.question), &Note { route: guide.steps.clone(), words, source: guide.source.clone() }); }
             *g = None;
             drop(g);
             crate::log::line("guide: there");
@@ -424,12 +444,22 @@ fn by_name(app: &AppHandle) {
             return;
         }
         list = read_buttons(pid);
-        found = steps.get(at).and_then(|n| super::uia::find(&list, n)).cloned();
+        found = furthest(&list, pid, &steps, at);
         if found.is_some() {
             break;
         }
     }
     let (mut steps, mut at) = (steps, at);
+    let mut found = match found {
+        Some((i, n)) => {
+            if i > at {
+                crate::log::line(format!("guide: step {} already on screen, skipping ahead", i + 1));
+            }
+            at = i;
+            Some(n)
+        }
+        None => None,
+    };
     if found.is_some() {
         crate::log::line(format!("guide: step {} found by name", at + 1));
     } else if let Some(i) = (0..steps.len()).rev().filter(|_| !open_end).find(|i| super::uia::find(&list, &steps[*i]).is_some()) {

@@ -85,8 +85,9 @@ fn key(s: &str) -> String {
 }
 
 /// The thing called `name`: the same name first, then one that contains it (« Billing » finds
-/// « Billing & plans »), then one it contains; the shortest wins, so « Settings » isn't
-/// « Settings sync status ».
+/// « Billing & plans »), then one it contains if that's most of it (« Open Help menu » finds
+/// « Help »… but « App Settings » never finds « Apps »: #96, Discord); the closest wins, so
+/// « Settings » isn't « Settings sync status ».
 pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
     let want = key(name);
     if want.is_empty() {
@@ -97,7 +98,7 @@ pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
     }
     let mut near: Vec<&Named> = list.iter().filter(|n| {
         let k = key(&n.name);
-        !k.is_empty() && (k.contains(&want) || (k.len() >= 3 && want.contains(&k)))
+        !k.is_empty() && (k.contains(&want) || (k.len() >= 4 && k.len() * 2 >= want.len() && want.contains(&k) && !want.starts_with(&k)))
     }).collect();
     near.sort_by_key(|n| (key(&n.name).len() as i64 - want.len() as i64).abs());
     near.first().copied()
@@ -263,6 +264,43 @@ fn read(_pid: u32) -> Vec<Named> {
     Vec::new()
 }
 
+/// Anything on screen in the app `pid` called exactly `name` (any case), button or not (#96: in
+/// Discord's settings, « Accessibility » wasn't among the buttons): the last word before a picture.
+#[cfg(windows)]
+pub fn named(pid: u32, name: &str) -> Option<Named> {
+    use windows::core::BSTR;
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::*;
+    if name.trim().is_empty() {
+        return None;
+    }
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let root = uia.GetRootElement().ok()?;
+        let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32)).ok()?;
+        let tops = root.FindAll(TreeScope_Children, &of_app).ok()?;
+        let called = uia.CreatePropertyConditionEx(UIA_NamePropertyId, &VARIANT::from(BSTR::from(name.trim())), PropertyConditionFlags_IgnoreCase).ok()?;
+        let shown = uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(false)).ok()?;
+        let both = uia.CreateAndCondition(&called, &shown).ok()?;
+        for t in 0..tops.Length().ok()? {
+            let Ok(e) = tops.GetElement(t).and_then(|top| top.FindFirst(TreeScope_Descendants, &both)) else { continue };
+            let r = e.CurrentBoundingRectangle().ok()?;
+            let (w, h) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
+            if w >= 4.0 && h >= 4.0 {
+                return Some(Named { name: name.trim().to_string(), rect: (r.left as f64, r.top as f64, w, h) });
+            }
+        }
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub fn named(_pid: u32, _name: &str) -> Option<Named> {
+    None
+}
+
 /// The clickable thing at a point on the screen (physical px), and its name: what the AI saw
 /// on a picture, named as the app names it.
 #[cfg(windows)]
@@ -308,7 +346,10 @@ mod tests {
         let list = [n("Settings sync status"), n("Settings"), n("Billing & plans"), n("Help")];
         assert_eq!(find(&list, "settings").unwrap().name, "Settings");
         assert_eq!(find(&list, "Billing").unwrap().name, "Billing & plans");
-        assert_eq!(find(&list, "Open Help menu").unwrap().name, "Help");
+        assert!(find(&list, "Open Help menu").is_none());
+        let discord = [n("Apps"), n("User Settings"), n("Notification Settings")];
+        assert!(find(&discord, "App Settings").is_none());
+        assert_eq!(find(&[n("Help menu")], "Open Help menu").unwrap().name, "Help menu");
         assert!(find(&list, "Export").is_none());
         assert!(find(&list, "").is_none());
     }
