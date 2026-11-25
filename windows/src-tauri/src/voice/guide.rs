@@ -90,46 +90,82 @@ fn watch(app: &AppHandle) {
     });
 }
 
-/// The step was clicked: the next one is found on a fresh picture, or « you're there ».
+/// At most this many clicks: past it, the guide ends rather than wander.
+const MOST: usize = 8;
+
+/// What he made of the fresh picture: the next click, or you're there.
+#[derive(Debug, PartialEq)]
+enum Next {
+    There,
+    Click(Option<String>, Option<(f64, f64, f64, f64)>),
+}
+
+/// His reply about the next step: « there », or a point block with the box and, maybe, the step.
+fn read_next(written: &str, size: (u32, u32)) -> Next {
+    let (said, w) = super::window::split(written);
+    match w {
+        Some(w) => Next::Click(
+            w["step"].as_str().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            super::window::target(&w, size),
+        ),
+        None if said.to_lowercase().contains("there") => Next::There,
+        None => Next::Click(None, None),
+    }
+}
+
+/// The step was clicked: he looks again and finds the next click, or sees you're there. The
+/// steps planned at first are only a guess (#94: « Look for settings » then « done », though the
+/// menu needed one more click): what is on the screen now decides.
 fn advance(app: &AppHandle) {
-    let (id, question, step, at, total) = {
+    let (id, question, done, plan, at) = {
         let mut g = GUIDE.lock().unwrap();
         let Some(guide) = g.as_mut() else { return };
         guide.at += 1;
-        if guide.at >= guide.steps.len() {
-            let id = guide.id;
+        guide.rect = None;
+        (guide.id, guide.question.clone(), guide.steps[..guide.at].to_vec(), guide.steps.clone(), guide.at)
+    };
+    let guess = plan.get(at).cloned().unwrap_or_default();
+    let total = plan.len().max(at + 1);
+    crate::log::line(format!("guide: step {} clicked, looking", at));
+    // The label moves on at once, his eye sweeping while he looks.
+    let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": total, "step": guess, "looking": true }));
+    // What the click opened, settled.
+    std::thread::sleep(Duration::from_millis(600));
+    let Some(shot) = super::sight::whole_screen().and_then(super::sight::Pending::wait) else { return };
+    let ask = format!(
+        "You are guiding the user, one click at a time, to: \"{question}\". They have clicked, in order: {}. The plan was: {}. Look at this picture of their screen as it is NOW. If what they asked for is now open or in plain sight, reply with just the word: there. Otherwise reply with nothing but this block, for the ONE next thing to click (it may differ from the plan: trust the picture): <window>{{\"kind\": \"point\", \"target\": [x, y, w, h], \"step\": \"Choose Settings\"}}</window> (the box round it, in the picture's pixels; the step in at most 5 words). Don't search the web.",
+        done.join(" › "),
+        plan.join(" › ")
+    );
+    let mut written = String::new();
+    let _ = super::ask::brain().lock().unwrap().respond(app, &ask, Some(&shot), &mut |d| written.push_str(d));
+    let next = read_next(&written, shot.size);
+    let mut g = GUIDE.lock().unwrap();
+    // Still this guide (not ended or replaced meanwhile)?
+    let Some(guide) = g.as_mut().filter(|g| g.id == id && g.at == at) else { return };
+    let (step, found) = match next {
+        Next::Click(step, found) if at < MOST => (step.unwrap_or(guess), found),
+        _ => {
             *g = None;
             crate::log::line("guide: there");
             let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "done": true }));
             return;
         }
-        guide.rect = None;
-        (guide.id, guide.question.clone(), guide.steps[guide.at].clone(), guide.at, guide.steps.len())
     };
-    crate::log::line(format!("guide: step {} of {total}", at + 1));
-    // The label moves on at once, his eye sweeping while he looks.
-    let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": total, "step": step, "looking": true }));
-    // What the click opened, settled.
-    std::thread::sleep(Duration::from_millis(450));
-    let Some(shot) = super::sight::whole_screen().and_then(super::sight::Pending::wait) else { return };
-    let ask = format!(
-        "You are guiding the user, one click at a time, to: \"{question}\". They have just done step {at} of {total}. On this picture of their screen, find what to click for step {} of {total}: \"{step}\". Reply with nothing but this block: <window>{{\"kind\": \"point\", \"target\": [x, y, w, h]}}</window> (the box round it, in the picture's pixels). If it isn't on the screen, reply \"not found\".",
-        at + 1
-    );
-    let mut written = String::new();
-    let _ = super::ask::brain().lock().unwrap().respond(app, &ask, Some(&shot), &mut |d| written.push_str(d));
-    let found = super::window::split(&written).1.and_then(|w| super::window::target(&w, shot.size)).map(|(x, y, w, h)| {
+    let found = found.map(|(x, y, w, h)| {
         let (x0, y0) = shot.to_screen(x, y);
         let (x1, y1) = shot.to_screen(x + w, y + h);
         (x0, y0, x1 - x0, y1 - y0)
     });
-    // Still this guide (not ended or replaced meanwhile)?
-    let mut g = GUIDE.lock().unwrap();
-    let Some(guide) = g.as_mut().filter(|g| g.id == id && g.at == at) else { return };
+    // The plan follows what he saw: this step named as he found it, one more if it ran out.
+    guide.steps.truncate(at);
+    guide.steps.push(step.clone());
+    guide.steps.extend(plan.into_iter().skip(at + 1));
+    let total = guide.steps.len();
     guide.rect = found;
     drop(g);
     let target = found.map(super::explain::to_page);
-    crate::log::line(format!("guide: step {} {}", at + 1, if target.is_some() { "found" } else { "not found: any click goes on" }));
+    crate::log::line(format!("guide: step {} of {total} {}", at + 1, if target.is_some() { "found" } else { "not found: any click goes on" }));
     let _ = app.emit_to(super::explain::LABEL, "explain-guide", json!({ "id": id, "at": at, "total": total, "step": step, "target": target }));
 }
 
@@ -143,5 +179,14 @@ mod tests {
         assert!(inside(r, (120.0, 110.0)));
         assert!(inside(r, (90.0, 95.0)));
         assert!(!inside(r, (200.0, 110.0)));
+    }
+
+    #[test]
+    fn he_reads_there_or_the_next_click() {
+        assert_eq!(read_next("there", (100, 100)), Next::There);
+        assert_eq!(read_next("There, sir.", (100, 100)), Next::There);
+        let n = read_next(r#"<window>{"kind": "point", "target": [10, 10, 20, 10], "step": "Choose Settings"}</window>"#, (100, 100));
+        assert!(matches!(n, Next::Click(Some(ref s), Some(_)) if s == "Choose Settings"));
+        assert_eq!(read_next("not found", (100, 100)), Next::Click(None, None));
     }
 }

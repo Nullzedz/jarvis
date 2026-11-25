@@ -656,6 +656,8 @@ function guideStep(s: GuideStep) {
     return;
   }
   const idx = s.at ?? 0, step = s.step ?? "";
+  // He may find the way takes more (or fewer) clicks than first planned.
+  if (s.total) g.total = s.total;
   if (s.looking) {
     // The click counted: the old ring goes, his eye sweeps while he looks for the next.
     if (g.ring) { fadeMark(g.ring); loose = loose.filter((m) => m !== g.ring); g.ring = null; }
