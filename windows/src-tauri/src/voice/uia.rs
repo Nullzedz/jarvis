@@ -18,12 +18,14 @@ static FRONT: AtomicU32 = AtomicU32::new(0);
 /// Notes the app in front, unless it's JARVIS himself.
 pub fn note_front() {
     if let Some(pid) = user_app() {
-        FRONT.store(pid, Ordering::Relaxed);
-        // Chromium and Electron apps fill in their list only once something asks for it:
-        // asked now, it's ready by the time the question is typed.
-        std::thread::spawn(move || {
-            let _ = read(pid);
-        });
+        {
+            FRONT.store(pid, Ordering::Relaxed);
+            // Chromium and Electron apps fill in their list only once something asks for it:
+            // asked now, it's ready by the time the question is typed.
+            std::thread::spawn(move || {
+                let _ = read(pid);
+            });
+        }
     }
 }
 
@@ -175,6 +177,21 @@ pub fn described(list: &[Named], most: usize) -> Vec<String> {
     out
 }
 
+/// The names as sent to the AI: each once, short, at most `most`.
+pub fn names(list: &[Named], most: usize) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for n in list {
+        let s: String = n.name.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(48).collect();
+        if !s.is_empty() && !out.iter().any(|o| o == &s) {
+            out.push(s);
+        }
+        if out.len() >= most {
+            break;
+        }
+    }
+    out
+}
+
 fn front_pid_now() -> Option<u32> {
     front_now().map(|(_, pid)| pid)
 }
@@ -242,58 +259,44 @@ pub fn hidden(pid: u32) -> Vec<Named> {
     read_with(pid, true)
 }
 
-/// UI Automation, and the app's top-level windows.
-#[cfg(windows)]
-unsafe fn app_windows(pid: u32) -> windows::core::Result<(windows::Win32::UI::Accessibility::IUIAutomation, windows::Win32::UI::Accessibility::IUIAutomationElementArray)> {
-    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
-    use windows::Win32::System::Variant::VARIANT;
-    use windows::Win32::UI::Accessibility::*;
-    let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
-    let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
-    let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
-    let tops = uia.GetRootElement()?.FindAll(TreeScope_Children, &of_app)?;
-    Ok((uia, tops))
-}
-
-/// The kinds of things you click.
-#[cfg(windows)]
-const CLICKABLE: [windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID; 11] = {
-    use windows::Win32::UI::Accessibility::*;
-    [
-        UIA_ButtonControlTypeId,
-        UIA_MenuItemControlTypeId,
-        UIA_TabItemControlTypeId,
-        UIA_ListItemControlTypeId,
-        UIA_HyperlinkControlTypeId,
-        UIA_CheckBoxControlTypeId,
-        UIA_RadioButtonControlTypeId,
-        UIA_TreeItemControlTypeId,
-        UIA_ComboBoxControlTypeId,
-        UIA_SplitButtonControlTypeId,
-        UIA_DataItemControlTypeId,
-    ]
-};
-
 #[cfg(windows)]
 fn read_with(pid: u32, offscreen: bool) -> Vec<Named> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
     use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
 
     let read = || -> windows::core::Result<Vec<Named>> {
         unsafe {
-            let (uia, tops) = app_windows(pid)?;
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+            let root = uia.GetRootElement()?;
+            let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
+            let tops = root.FindAll(TreeScope_Children, &of_app)?;
             let cache = uia.CreateCacheRequest()?;
             for p in [UIA_NamePropertyId, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_IsEnabledPropertyId] {
                 cache.AddProperty(p)?;
             }
             let shown = uia.CreateAndCondition(&uia.ControlViewCondition()?, &uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(offscreen))?)?;
+            let kinds = [
+                UIA_ButtonControlTypeId,
+                UIA_MenuItemControlTypeId,
+                UIA_TabItemControlTypeId,
+                UIA_ListItemControlTypeId,
+                UIA_HyperlinkControlTypeId,
+                UIA_CheckBoxControlTypeId,
+                UIA_RadioButtonControlTypeId,
+                UIA_TreeItemControlTypeId,
+                UIA_ComboBoxControlTypeId,
+                UIA_SplitButtonControlTypeId,
+                UIA_DataItemControlTypeId,
+            ];
             let mut out = Vec::new();
             for t in 0..tops.Length()? {
                 let top = tops.GetElement(t)?;
                 let Ok(found) = top.FindAllBuildCache(TreeScope_Descendants, &shown, &cache) else { continue };
                 for i in 0..found.Length()? {
                     let e = found.GetElement(i)?;
-                    if !CLICKABLE.contains(&e.CachedControlType()?) || !e.CachedIsEnabled()?.as_bool() {
+                    if !kinds.contains(&e.CachedControlType()?) || !e.CachedIsEnabled()?.as_bool() {
                         continue;
                     }
                     let name = e.CachedName()?.to_string();
@@ -327,13 +330,18 @@ fn read_with(_pid: u32, _offscreen: bool) -> Vec<Named> {
 #[cfg(windows)]
 pub fn named(pid: u32, name: &str) -> Option<Named> {
     use windows::core::BSTR;
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
     use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
     if name.trim().is_empty() {
         return None;
     }
     unsafe {
-        let (uia, tops) = app_windows(pid).ok()?;
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let root = uia.GetRootElement().ok()?;
+        let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32)).ok()?;
+        let tops = root.FindAll(TreeScope_Children, &of_app).ok()?;
         let called = uia.CreatePropertyConditionEx(UIA_NamePropertyId, &VARIANT::from(BSTR::from(name.trim())), PropertyConditionFlags_IgnoreCase).ok()?;
         let shown = uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(false)).ok()?;
         let both = uia.CreateAndCondition(&called, &shown).ok()?;
@@ -359,11 +367,16 @@ pub fn named(_pid: u32, _name: &str) -> Option<Named> {
 #[cfg(windows)]
 pub fn scroll_to(pid: u32, name: &str) -> bool {
     use windows::core::{Interface, BSTR};
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
     use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
     let go = || -> windows::core::Result<bool> {
         unsafe {
-            let (uia, tops) = app_windows(pid)?;
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+            let root = uia.GetRootElement()?;
+            let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
+            let tops = root.FindAll(TreeScope_Children, &of_app)?;
             let called = uia.CreatePropertyConditionEx(UIA_NamePropertyId, &VARIANT::from(BSTR::from(name)), PropertyConditionFlags_IgnoreCase)?;
             let walker = uia.ControlViewWalker()?;
             for t in 0..tops.Length()? {
@@ -389,6 +402,53 @@ pub fn scroll_to(pid: u32, name: &str) -> bool {
 #[cfg(not(windows))]
 pub fn scroll_to(_pid: u32, _name: &str) -> bool {
     false
+}
+
+/// The app's search box, if one is on screen: a text field whose name says search or find.
+#[cfg(windows)]
+pub fn search_box(pid: u32) -> Option<Named> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
+    use windows::Win32::UI::Accessibility::*;
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+        let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER).ok()?;
+        let root = uia.GetRootElement().ok()?;
+        let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32)).ok()?;
+        let tops = root.FindAll(TreeScope_Children, &of_app).ok()?;
+        // A text field, or a box you type in that drops a list (Discord's « Search … » is one).
+        let edit = uia
+            .CreateOrCondition(
+                &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_EditControlTypeId.0)).ok()?,
+                &uia.CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(UIA_ComboBoxControlTypeId.0)).ok()?,
+            )
+            .ok()?;
+        let shown = uia.CreatePropertyCondition(UIA_IsOffscreenPropertyId, &VARIANT::from(false)).ok()?;
+        let both = uia.CreateAndCondition(&edit, &shown).ok()?;
+        for t in 0..tops.Length().ok()? {
+            let Ok(found) = tops.GetElement(t).and_then(|top| top.FindAll(TreeScope_Descendants, &both)) else { continue };
+            for i in 0..found.Length().unwrap_or(0) {
+                let Ok(e) = found.GetElement(i) else { continue };
+                let name = e.CurrentName().map(|n| n.to_string()).unwrap_or_default();
+                let help = e.CurrentHelpText().map(|n| n.to_string()).unwrap_or_default();
+                let says = format!("{name} {help}").to_lowercase();
+                if !(says.contains("search") || says.contains("find")) {
+                    continue;
+                }
+                let Ok(r) = e.CurrentBoundingRectangle() else { continue };
+                let (w, h) = ((r.right - r.left) as f64, (r.bottom - r.top) as f64);
+                if w >= 20.0 && h >= 8.0 {
+                    return Some(Named { name, rect: (r.left as f64, r.top as f64, w, h) });
+                }
+            }
+        }
+        None
+    }
+}
+
+#[cfg(not(windows))]
+pub fn search_box(_pid: u32) -> Option<Named> {
+    None
 }
 
 /// One thing in the app's layout (#96): what it is, and where it sits in the app's tree (the
@@ -474,6 +534,8 @@ pub fn focused(pid: u32, before: &[String]) -> Focus {
 /// thing comes with where it sits (UFO²'s way of reading a Windows app).
 #[cfg(windows)]
 pub fn snapshot(pid: u32) -> Vec<Spot> {
+    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_MULTITHREADED};
+    use windows::Win32::System::Variant::VARIANT;
     use windows::Win32::UI::Accessibility::*;
 
     struct Walk {
@@ -492,7 +554,11 @@ pub fn snapshot(pid: u32) -> Vec<Spot> {
             let offscreen = e.CachedIsOffscreen().map(|b| b.as_bool()).unwrap_or(false);
             let name = e.CachedName().map(|n| n.to_string()).unwrap_or_default();
             if !offscreen && !name.trim().is_empty() {
-                let clickable = CLICKABLE.contains(&kind);
+                let clickable = [
+                    UIA_ButtonControlTypeId, UIA_MenuItemControlTypeId, UIA_TabItemControlTypeId, UIA_ListItemControlTypeId, UIA_HyperlinkControlTypeId,
+                    UIA_CheckBoxControlTypeId, UIA_RadioButtonControlTypeId, UIA_TreeItemControlTypeId, UIA_ComboBoxControlTypeId, UIA_SplitButtonControlTypeId, UIA_DataItemControlTypeId,
+                ]
+                .contains(&kind);
                 let typed = kind == UIA_EditControlTypeId || kind == UIA_ComboBoxControlTypeId;
                 let help = e.CachedHelpText().map(|n| n.to_string()).unwrap_or_default();
                 let says = format!("{name} {help}").to_lowercase();
@@ -519,7 +585,11 @@ pub fn snapshot(pid: u32) -> Vec<Spot> {
     let started = std::time::Instant::now();
     let read = || -> windows::core::Result<Vec<Spot>> {
         unsafe {
-            let (uia, tops) = app_windows(pid)?;
+            let _ = CoInitializeEx(None, COINIT_MULTITHREADED);
+            let uia: IUIAutomation = CoCreateInstance(&CUIAutomation, None, CLSCTX_INPROC_SERVER)?;
+            let root = uia.GetRootElement()?;
+            let of_app = uia.CreatePropertyCondition(UIA_ProcessIdPropertyId, &VARIANT::from(pid as i32))?;
+            let tops = root.FindAll(TreeScope_Children, &of_app)?;
             let cache = uia.CreateCacheRequest()?;
             for p in [UIA_NamePropertyId, UIA_BoundingRectanglePropertyId, UIA_ControlTypePropertyId, UIA_IsOffscreenPropertyId, UIA_IsDialogPropertyId, UIA_HelpTextPropertyId] {
                 cache.AddProperty(p)?;
@@ -603,6 +673,14 @@ mod tests {
     }
 
     #[test]
+    fn names_go_once_and_short() {
+        let list = [n("Save"), n("Save"), n("  New   chat "), n(&"x".repeat(80))];
+        let got = names(&list, 10);
+        assert_eq!(got, vec!["Save".to_string(), "New chat".to_string(), "x".repeat(48)]);
+        assert_eq!(names(&list, 1).len(), 1);
+    }
+
+    #[test]
     fn the_panel_is_the_open_dialog_or_what_the_click_opened() {
         let s = |name: &str, path: &[u16], dialog: Option<&[u16]>, search: bool| Spot { named: n(name), path: path.to_vec(), dialog: dialog.map(|d| d.to_vec()), search };
         // A dialog open: it's the panel.
@@ -642,6 +720,6 @@ mod live {
         let hidden = super::hidden(pid);
         let f = super::focused(pid, &[]);
         println!("FOCUS {} first {:?} SEARCH {:?}", f.list.len(), super::described(&f.list, 12), f.search.map(|s| s.name));
-        println!("HIDDEN {} e.g. {:?}", hidden.len(), super::described(&hidden, 8));
+        println!("HIDDEN {} e.g. {:?} SEARCH {:?}", hidden.len(), super::names(&hidden, 8), super::search_box(pid));
     }
 }
