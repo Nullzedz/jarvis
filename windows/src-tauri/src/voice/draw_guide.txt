@@ -26,7 +26,7 @@ Or one of the ready-made windows (see Reply), when it fits better than a picture
 1. Canvas: viewBox '0 0 W H' with W between 360 and 600, H as tall as needed (at most 520). Keep a 16 px margin: nothing within 16 px of an edge.
 2. Grid: place everything on rows and columns. Boxes in one column share x and width; boxes in one row share y and height. Equal gaps.
 3. Gaps: at least 24 px between boxes, at least 48 px where a line with a label runs between them.
-4. Text width: estimate each text as (number of characters × font size × 0.6) px. Every box must be at least that wide plus 24 px. If a label is too long, shorten the words; never let text run past its box.
+4. Text width: estimate each text as (number of characters × font size × 0.6) px; Chinese, Japanese and Korean characters count as 1.0, not 0.6. Every box must be at least that wide plus 24 px. If a label is too long, shorten the words; never let text run past its box.
 5. Box height: 16 px padding top and bottom plus 18 px per line of text (title 20 px).
 6. Text never overlaps text, a line or a box edge. Text inside a box starts 12 px from its left edge, or is centred.
 7. Line labels (many, 1, 0..1, "sends") sit in the empty gap next to the line: 6 px above a horizontal line, beside a vertical one, never on a box. Cardinality at each end: next to the box it belongs to, just outside it.

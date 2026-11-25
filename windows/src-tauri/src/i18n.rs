@@ -153,10 +153,10 @@ thread_local! {
     static TEST_LANG: std::cell::Cell<&'static str> = const { std::cell::Cell::new("en") };
 }
 
-/// JARVIS rebrand: the catalogs keep coucou's English keys; what shows says JARVIS.
+/// What shows says JARVIS where a catalog still says Mochi (the character the code came with).
 pub fn brand(text: &str) -> String {
-    let out = text.replace("OK Coucou", "Hey JARVIS").replace("Coucou", "JARVIS").replace("Mochi", "JARVIS");
-    // coucou's English keys quote with French « »: English shows “ ”.
+    let out = crate::profile::addressed(&text.replace("Mochi", "JARVIS"));
+    // The English keys quote with French « »: English shows “ ”.
     if current() == "en" {
         out.replace("« ", "“").replace('«', "“").replace(" »", "”").replace('»', "”")
     } else {
@@ -285,7 +285,7 @@ mod tests {
         // From the Mac's catalog.
         assert_eq!(t("Allow"), "Autoriser");
         // From extra.json.
-        assert_eq!(t("Open Coucou"), "Ouvrir JARVIS");
+        assert_eq!(t("Open JARVIS"), "Ouvrir JARVIS");
         assert_eq!(t("A string nobody translated"), "A string nobody translated");
         assert_eq!(tf("Open {name}", &[("name", "Vercel")]), "Ouvrir Vercel");
         set_for_test("en");

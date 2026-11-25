@@ -1,4 +1,4 @@
-// Settings search in the Coucou window: matches every setting of Flow,
+// Settings search in the JARVIS window: matches every setting of Flow,
 // Notch and Mail in the app's language, whatever the accents and case.
 // Port of SettingsSearch.swift and SettingsSearchMatch.swift.
 
@@ -103,7 +103,7 @@ export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
   { id: "s.closed", page: "prefs", where: "Island", group: "group-island", title: "Closed island shows", terms: [] },
   { id: "s.autoclose", page: "prefs", where: "Island", group: "group-island", title: "Auto-close", terms: ["Close after"] },
   { id: "s.screen", page: "prefs", where: "Island", group: "group-island", title: "Island lives on", terms: ["Screen", "Display", "Monitor"] },
-  { id: "s.voicekeys", page: "prefs", where: "Shortcuts", group: "group-shortcuts", title: "Shortcuts", terms: ["Talk", "Ask", "Show more", "Dictate"] },
+  { id: "s.voicekeys", page: "prefs", where: "Shortcuts", group: "group-shortcuts", title: "Shortcuts", terms: ["Talk", "Ask", "Dictate"] },
   // Settings › Shortcuts, Sound
   { id: "s.shortcuts", page: "prefs", where: "Shortcuts", group: "group-shortcuts", title: "Shortcuts", terms: ["Open or close the island", "Open the chat", "Put JARVIS to sleep or wake him", "Next pill", "Previous pill", "Open the terminal", "Keyboard"] },
   { id: "s.sound", page: "prefs", where: "Sound", group: "group-sound", title: "Sound", terms: ["Open sounds folder", "Reload sounds"] },
@@ -126,7 +126,7 @@ export const SETTINGS_ENTRIES: SettingsSearchEntry[] = [
   { id: "c.all", page: "integrations", title: "Connections", terms: ["Stripe", "GitHub", "GitLab", "Gitea", "Vercel", "n8n", "Notion", "Resend", "Cal.com", "WhatsApp", "Spotify", "Token"] },
   // Mail
   { id: "m.month", page: "mail", title: "Mail", terms: ["Waiting on you", "Files today", "When mail arrives"] },
-  { id: "m.sort", page: "mailOverview", title: "Sort new messages automatically", terms: ["Journal", "Sent by Coucou", "VIP", "Banned words", "Rules"] },
+  { id: "m.sort", page: "mailOverview", title: "Sort new messages automatically", terms: ["Journal", "Sent by JARVIS", "VIP", "Banned words", "Rules"] },
   // Notes
   { id: "n.notetaker", page: "notes", title: "Notetaker", terms: ["Record", "Transcript"] },
   { id: "n.dictation", page: "dictation", title: "Dictation", terms: ["Dictionary", "Snippets", "Styles", "History", "Replacements", "Clean up with Claude"] },

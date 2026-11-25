@@ -1,6 +1,10 @@
-// Coucou for Windows — app wiring and the commands the island calls.
+// JARVIS for Windows — app wiring and the commands the island calls.
 
+mod legacy;
+mod profile;
 mod agent_hooks;
+mod tutorial;
+mod pocket;
 mod agents;
 mod agy_approvals;
 mod agy_rules;
@@ -117,6 +121,10 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         // Where Mochi sits on the desktop is desktop.rs's to say, not a webview's.
         let mut settings = settings.clone();
         settings.desktop_mochi = current.desktop_mochi.clone();
+        // Your profile is the tour's to set (profile_save), not a webview's (#102).
+        settings.profile_name = current.profile_name.clone();
+        settings.address = current.address.clone();
+        settings.profile_about = current.profile_about.clone();
         // Same for the phone link: only its own commands turn it on or off.
         settings.phone_link = current.phone_link;
         settings.phone_chat = current.phone_chat;
@@ -141,7 +149,7 @@ fn save_settings(app: AppHandle, shared: State<Shared>, settings: Settings) {
         let manager = app.autolaunch();
         let result = if settings.autostart { manager.enable() } else { manager.disable() };
         if let Err(err) = result {
-            eprintln!("[coucou] autostart: {err}");
+            eprintln!("[jarvis] autostart: {err}");
         }
     }
     if screen_changed {
@@ -421,7 +429,7 @@ fn hooks_status() -> HookStatus {
     hooks::status()
 }
 
-/// Pill ID → whether that agent's hooks reach Coucou. Read-only.
+/// Pill ID → whether that agent's hooks reach JARVIS. Read-only.
 #[tauri::command]
 fn agent_hooks_status() -> std::collections::HashMap<String, bool> {
     agent_hooks::status()
@@ -767,11 +775,11 @@ fn settings_page_url(app: &AppHandle) -> WebviewUrl {
     WebviewUrl::App("settings.html".into())
 }
 
-/// The Coucou window (Flow dictation, the Notetaker and every setting of the
+/// The JARVIS window (Flow dictation, the Notetaker and every setting of the
 /// island), labelled "settings" since it grew out of the settings window.
 pub const HUB_LABEL: &str = "settings";
 
-/// The Coucou window is created hidden at launch and only ever shown and
+/// The JARVIS window is created hidden at launch and only ever shown and
 /// hidden afterwards. A WebView2 window created later — on the main thread or
 /// not — silently comes up blank in this app, so the window that works is the
 /// one that exists before the island's webview does.
@@ -810,11 +818,11 @@ fn create_settings_window(app: &AppHandle) {
             });
             webview_memory::set_low(&win, true); // created hidden
         }
-        Err(err) => log::line(format!("Coucou window failed: {err}")),
+        Err(err) => log::line(format!("JARVIS window failed: {err}")),
     }
 }
 
-/// Whether the Coucou window is on screen (shown and not minimised). Its page
+/// Whether the JARVIS window is on screen (shown and not minimised). Its page
 /// animates its canvases only then (hub/hero.ts): WebKitGTK can keep
 /// `document.visibilityState` at "visible" for a hidden window, and its
 /// animation loop then kept a core busy with the window closed (#792).
@@ -853,7 +861,7 @@ fn set_hub_shown(win: &tauri::WebviewWindow, shown: bool) {
     }
 }
 
-/// Whether the Coucou window is on screen, for what only it shows.
+/// Whether the JARVIS window is on screen, for what only it shows.
 pub(crate) fn hub_is_shown() -> bool {
     HUB_SHOWN.load(Ordering::Relaxed)
 }
@@ -868,14 +876,14 @@ pub fn show_settings_window(app: &AppHandle) {
     show_hub(app, Some("general"));
 }
 
-/// Shows the Coucou window, on `page` when given ("dictation", "notes",
+/// Shows the JARVIS window, on `page` when given ("dictation", "notes",
 /// "settings", "general", "shortcuts"…).
 pub fn show_hub(app: &AppHandle, page: Option<&str>) {
     let Some(win) = app.get_webview_window(HUB_LABEL) else {
         // Creating it at startup can fail on some machines (WebView2
         // 0x80070578, #775): try again now, on the main thread, where
         // window creation can't deadlock a command.
-        log::line("Coucou window missing, creating it again");
+        log::line("JARVIS window missing, creating it again");
         let handle = app.clone();
         let _ = app.run_on_main_thread(move || {
             create_settings_window(&handle);
@@ -898,10 +906,10 @@ pub fn show_hub(app: &AppHandle, page: Option<&str>) {
     set_hub_shown(&win, true);
 }
 
-/// The argument the login item starts Coucou with.
+/// The argument the login item starts JARVIS with.
 const AUTOSTART_ARG: &str = "--autostart";
 
-/// Coucou started with the computer, not opened by the user: the window stays hidden.
+/// JARVIS started with the computer, not opened by the user: the window stays hidden.
 pub fn launched_at_login() -> bool {
     std::env::args().any(|a| a == AUTOSTART_ARG)
 }
@@ -913,17 +921,22 @@ fn open_settings_window(app: AppHandle, page: Option<String>) {
 
 pub fn run() {
     platform::prepare_environment();
+    // JARVIS 1.0.0 (#98): an install from before keeps its settings, keys and hooks.
+    legacy::move_from_old_name();
+    // JARVIS: no settings file yet: a fresh install, which gets the tutorial (#90).
+    let fresh = !settings::exists();
     let loaded = settings::load();
+    profile::note(&loaded);
     i18n::set_picked(&loaded.language);
     let gate = Arc::new(PollGate::new());
 
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| {
-            // `coucou --shortcut <action>`: what a desktop's own keyboard
+            // `jarvis --shortcut <action>`: what a desktop's own keyboard
             // settings run where we can't listen for keys ourselves (Wayland).
             match shortcuts::from_args(&argv) {
                 Some(action) => shortcuts::dispatch(app, action),
-                // Opening Coucou again (its shortcut, the Start menu) shows its window.
+                // Opening JARVIS again (its shortcut, the Start menu) shows its window.
                 None => show_hub(app, None),
             }
         }))
@@ -944,6 +957,14 @@ pub fn run() {
         .manage(recap::load())
         .invoke_handler(tauri::generate_handler![
             hub_window,
+            profile::profile_save,
+            profile::profile_get,
+            profile::profile_photo_set,
+            profile::tour_pills,
+            profile::passkey_set,
+            profile::passkey_check,
+            profile::passkey_present,
+            profile::subscription_sign_in,
             clipboard_history::clipboard_history,
             last_answer::last_answer,
             last_answer::conversation,
@@ -980,6 +1001,11 @@ pub fn run() {
             voice::draw::draw_models,
             voice::explain::explain_focus,
             voice::explain::explain_ask,
+            voice::guide::guide_helped,
+            tutorial::tutorial_open,
+            tutorial::tutorial_close,
+            tutorial::tutorial_key,
+            pocket::pocket_snapshot,
             voice::ask::ask_resize,
             voice::piper::piper_model_download,
             voice::piper::piper_model_remove,
@@ -1195,6 +1221,7 @@ pub fn run() {
             voice::ask::setup(&handle);
             voice::ink::setup(&handle);
             voice::explain::setup(&handle);
+            tutorial::setup(&handle, fresh);
             notes::setup(&handle);
             // JARVIS: the island's clipboard history (in memory only).
             clipboard_history::setup(&handle);
@@ -1225,7 +1252,7 @@ pub fn run() {
             gate.set_active(true);
             island::spawn_cursor_poll(handle.clone(), gate.clone());
 
-            log::line(format!("--- Coucou {} started ---", env!("CARGO_PKG_VERSION")));
+            log::line(format!("--- JARVIS {} started ---", env!("CARGO_PKG_VERSION")));
             hooks::ensure_hook_exe(&handle);
             pipe::start(handle.clone());
             phone_link::start_if_enabled(&handle);
@@ -1238,7 +1265,7 @@ pub fn run() {
             // New versions: nothing goes to GitHub until the user agrees (update.rs).
             update::start(handle.clone());
             if loaded.autostart {
-                // Login items written before 0.5 start Coucou without --autostart:
+                // Login items written before 0.5 start JARVIS without --autostart:
                 // writing it again adds it, so the window stays hidden at login.
                 let _ = handle.autolaunch().enable();
             }
@@ -1249,13 +1276,13 @@ pub fn run() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error while building Coucou")
+        .expect("error while building JARVIS")
         .run(|app, event| {
             // Withdraw the phone link's announcement on the local network before the process ends.
             if let tauri::RunEvent::Exit = event {
                 phone_link::stop_on_exit(app);
                 notes::shutdown(app);
-                // GOWA started by Coucou stops with it; the conversations were only in memory.
+                // GOWA started by JARVIS stops with it; the conversations were only in memory.
                 whatsapp::shutdown();
             }
         });
@@ -1284,7 +1311,7 @@ mod tests {
 
     #[test]
     fn only_an_existing_file_by_its_full_path_reaches_the_editor() {
-        let dir = std::env::temp_dir().join(format!("coucou-diff-file-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jarvis-diff-file-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("edited.ts");
         std::fs::write(&file, "x").unwrap();

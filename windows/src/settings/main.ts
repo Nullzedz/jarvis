@@ -1,4 +1,4 @@
-// The Coucou window (settings.html): Flow dictation, the Notetaker and, under
+// The JARVIS window (settings.html): Flow dictation, the Notetaker and, under
 // Notch, every setting of the island — the place where anything that writes to
 // disk is confirmed. The window's frame and the Flow pages live in ../hub; the
 // island's settings are drawn here, one Notch page at a time.
@@ -217,7 +217,7 @@ function claudeSection(status: HookStatus): HTMLElement {
     if (!status.hookReady) {
       body.append(h("div", {
         class: "notice warn",
-        text: t("coucou-hook.exe is not in place yet. Restart Coucou; if it still fails, build it with `cargo build -p coucou-hook`."),
+        text: t("jarvis-hook.exe is not in place yet. Restart JARVIS; if it still fails, build it with `cargo build -p jarvis-hook`."),
       }));
     }
 
@@ -342,7 +342,7 @@ function planSection(status: HookStatus): HTMLElement {
               onclick: () => void reviewChange(body, STATUS_LINE_CHANGE, true, redraw, () => void rebuild()),
             }),
       ),
-      // Codex: nothing to install, Coucou asks the Codex CLI when the pill shows.
+      // Codex: nothing to install, JARVIS asks the Codex CLI when the pill shows.
       h("div", { class: "hint", text: PLAN_SETTINGS_TEXT.codex }),
       h("div", { class: "row" },
         h("label", { text: PLAN_SETTINGS_TEXT.showCodex }),
@@ -1187,7 +1187,7 @@ function generalSection(): HTMLElement {
 
 /**
  * Settings → General → Language, as on the Mac: "System" follows the
- * system's language when Coucou has it (else English), or one of the ten.
+ * system's language when JARVIS has it (else English), or one of the ten.
  * Both windows and the tray switch in place, without a restart.
  */
 function languageRow(): HTMLElement {

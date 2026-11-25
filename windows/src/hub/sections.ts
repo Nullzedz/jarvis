@@ -22,7 +22,8 @@ export const SECTIONS: Section[] = [
   { id: "notes", name: () => t("Notes"), color: "#ff9f0a", pages: ["notes", "dictation"] },
   { id: "mail", name: () => "Mail", color: "#0a84ff", pages: ["mail", "mailOverview"], windowsOnly: true },
   { id: "connections", name: () => t("Connections"), color: "#64d2ff", pages: ["integrations"] },
-  { id: "settings", name: () => t("Settings"), color: "#3a3a3c", pages: ["prefs"] },
+  // You, where Settings was (#104): your profile first, then the settings.
+  { id: "settings", name: () => t("Settings"), color: "#3a3a3c", pages: ["profile", "prefs"] },
 ];
 
 export function sectionOf(page: PageId): Section {

@@ -3,7 +3,7 @@ import AppKit
 import SwiftUI
 
 /// Starts a Claude Code session from the notch: a prompt (typed or dictated), a project, and
-/// Coucou opens the terminal there with `claude "<prompt>"`. The session then shows in the notch
+/// JARVIS opens the terminal there with `claude "<prompt>"`. The session then shows in the notch
 /// like any other, through the hooks. GitHub build: the App Store build can't start programs.
 @MainActor
 final class SessionLauncher: ObservableObject {
@@ -24,7 +24,7 @@ final class SessionLauncher: ObservableObject {
         folder = d.string(forKey: Self.folderKey) ?? projects.first
     }
 
-    /// Each Claude Code session teaches Coucou a project, and the terminal it runs in.
+    /// Each Claude Code session teaches JARVIS a project, and the terminal it runs in.
     func remember(folder path: String, terminal bundleId: String) {
         guard !path.isEmpty else { return }
         let list = LaunchScript.remember(path, in: projects, home: NSHomeDirectory())
@@ -67,7 +67,7 @@ final class SessionLauncher: ObservableObject {
     @discardableResult
     func launch(prompt: String) -> Bool {
         guard let folder, FileManager.default.fileExists(atPath: folder) else { return false }
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("CoucouLaunch", isDirectory: true)
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("JarvisLaunch", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let script = dir.appendingPathComponent("Claude Code \(UUID().uuidString.prefix(8)).command")
         do {

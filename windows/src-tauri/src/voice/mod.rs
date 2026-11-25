@@ -17,6 +17,8 @@ pub mod brain;
 pub mod circle;
 pub mod draw;
 pub mod explain;
+pub mod guide;
+pub mod howto;
 pub mod ink;
 pub mod gemini;
 pub mod piper;
@@ -26,6 +28,7 @@ pub mod shortcut;
 pub mod sight;
 pub mod stream;
 pub mod talk;
+pub mod uia;
 pub mod wake;
 pub mod warm;
 pub mod window;
@@ -49,9 +52,9 @@ use crate::speech::{self, audio};
 pub struct VoiceView {
     /// "listening", "thinking", "speaking".
     pub phase: String,
-    /// What you said (after « OK Coucou »).
+    /// What you said (after « Hey JARVIS »).
     pub heard: String,
-    /// Coucou's answer.
+    /// JARVIS's answer.
     pub answer: String,
     /// JARVIS: how long each newly added word of `answer` takes to say (ms), so
     /// the pill lights the words up as he says them; 0 shows them at once.
@@ -71,7 +74,7 @@ fn pending() -> &'static Mutex<HashMap<u64, mpsc::Sender<String>>> {
 }
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
-/// Whether « OK Coucou » can run: the voice model, and a Claude key or (JARVIS)
+/// Whether « Hey JARVIS » can run: the voice model, and a Claude key or (JARVIS)
 /// the user's own Claude Code to answer with.
 pub fn requirements_met() -> bool {
     speech::is_ready() && (crate::secrets::present(crate::claude::KEY) || crate::claude_code::available())
@@ -83,14 +86,15 @@ pub fn sync(app: &AppHandle) {
     // And the JARVIS page's microphone, while that page is open, even with background listening off.
     let wanted = crate::flow::get(app).is_some_and(|f| f.store.lock().unwrap().prefs.voice)
         || print::training_active()
-        || IN_APP.load(Ordering::Relaxed);
+        || IN_APP.load(Ordering::Relaxed)
+        || ON_DEMAND.load(Ordering::Relaxed);
     let mut running = RUNNING.lock().unwrap();
     match (wanted && requirements_met(), running.is_some()) {
         (true, false) => {
             let stop = Arc::new(AtomicBool::new(false));
             let app2 = app.clone();
             let stop2 = stop.clone();
-            std::thread::Builder::new().name("coucou-voice".into()).spawn(move || run(app2, stop2)).ok();
+            std::thread::Builder::new().name("jarvis-voice".into()).spawn(move || run(app2, stop2)).ok();
             *running = Some(Running { stop });
             speech::preload();
             // JARVIS: his voice loaded before the first answer.
@@ -107,13 +111,13 @@ pub fn sync(app: &AppHandle) {
             if !dictation && !crate::notes::is_recording(app) {
                 speech::unload();
             }
-            crate::log::line("voice: « OK Coucou » off");
+            crate::log::line("voice: « Hey JARVIS » off");
         }
         _ => {}
     }
 }
 
-/// « OK Coucou » is listening (the voice model stays loaded).
+/// « Hey JARVIS » is listening (the voice model stays loaded).
 pub fn is_listening() -> bool {
     RUNNING.lock().unwrap().is_some()
 }
@@ -146,6 +150,68 @@ static PAGE_TAKE: AtomicBool = AtomicBool::new(false);
 /// The JARVIS page is open and you pressed its microphone: his voice runs while it stays open,
 /// even with background listening (« Hey JARVIS ») off.
 static IN_APP: AtomicBool = AtomicBool::new(false);
+/// JARVIS: Ctrl + Win was pressed with « Hey JARVIS » off: the talk loop runs for this conversation
+/// only, and the microphone closes again once it's over (on_demand).
+static ON_DEMAND: AtomicBool = AtomicBool::new(false);
+/// When a take was last open (ms since start-up): the on-demand loop stops a while after.
+static LAST_TAKE_MS: AtomicU64 = AtomicU64::new(0);
+/// The talk loop's last beat (ms since start-up): no beat for a while means it's busy answering
+/// or speaking, which counts as the conversation going on.
+static LAST_BEAT_MS: AtomicU64 = AtomicU64::new(0);
+/// How long after the last question the on-demand microphone closes.
+const ON_DEMAND_IDLE_MS: u64 = 60_000;
+fn since_start_ms() -> u64 {
+    static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as u64
+}
+
+/// JARVIS: holding the talk keys works on its own, with « Hey JARVIS » (the always-open microphone)
+/// off: they're watched here, and a press starts the talk loop just for that conversation; a minute
+/// after the last question (answers and speech count as talking) the microphone closes.
+pub fn on_demand(app: &AppHandle) {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    let app = app.clone();
+    ONCE.call_once(move || {
+        std::thread::Builder::new()
+            .name("jarvis-talk-keys".into())
+            .spawn(move || loop {
+                std::thread::sleep(Duration::from_millis(30));
+                let always = crate::flow::get(&app).is_some_and(|f| f.store.lock().unwrap().prefs.voice);
+                if always {
+                    ON_DEMAND.store(false, Ordering::Relaxed);
+                    continue;
+                }
+                if !is_listening() {
+                    let (chord, other) = talk::keys();
+                    if chord && !other && requirements_met() && !pill::dictating(&app) {
+                        crate::log::line("voice: talk keys pressed: listening for this conversation");
+                        // A held Win, let go, would open the Start menu.
+                        if shortcut::needs_mask(shortcut::Which::Talk) {
+                            shortcut::mask();
+                        }
+                        // The press counts even if the keys are let go before the loop is up (a tap: hands-free).
+                        MIC_TAP.store(true, Ordering::Relaxed);
+                        LAST_TAKE_MS.store(since_start_ms(), Ordering::Relaxed);
+                        ON_DEMAND.store(true, Ordering::Relaxed);
+                        sync(&app);
+                    }
+                } else if ON_DEMAND.load(Ordering::Relaxed) {
+                    let now = since_start_ms();
+                    // Thinking or speaking (the loop is held up): still talking.
+                    if now.saturating_sub(LAST_BEAT_MS.load(Ordering::Relaxed)) > 300 {
+                        LAST_TAKE_MS.store(now, Ordering::Relaxed);
+                    }
+                    if now.saturating_sub(LAST_TAKE_MS.load(Ordering::Relaxed)) <= ON_DEMAND_IDLE_MS {
+                        continue;
+                    }
+                    ON_DEMAND.store(false, Ordering::Relaxed);
+                    sync(&app);
+                    crate::log::line("voice: conversation over: microphone closed");
+                }
+            })
+            .ok();
+    });
+}
 
 /// "ok", or "model" when the voice model isn't downloaded yet (nothing can hear you).
 #[tauri::command]
@@ -274,6 +340,10 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
     prewarm();
     while !stop.load(Ordering::Relaxed) {
         let recording = take.is_some();
+        LAST_BEAT_MS.store(since_start_ms(), Ordering::Relaxed);
+        if recording {
+            LAST_TAKE_MS.store(since_start_ms(), Ordering::Relaxed);
+        }
         if recording && hush.is_none() {
             hush = crate::flow::hush::hush(quiet());
         } else if !recording {
@@ -300,6 +370,11 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
             if take.take().is_some() {
                 show(&app, None);
             }
+            // A circle being drawn ends too, so its trail fades (#88: it froze on screen).
+            if let Some(t) = trail.take() {
+                let _ = t.end();
+            }
+            drawn = None;
             talk.end();
             vad.reset();
             preroll.clear();
@@ -319,7 +394,8 @@ fn run(app: AppHandle, stop: Arc<AtomicBool>) {
                 if !tapped && shortcut::needs_mask(shortcut::Which::Talk) {
                     shortcut::mask();
                 }
-                trail = Some(ink::Trail::start(&app));
+                // Talking draws nothing on screen: circling is Ctrl + Shift + Z's and Shift + Win's
+                // (#90: the dashed trail followed the mouse while you talked).
                 drawn = None;
                 next_take += 1;
                 take = Some(Take {
@@ -626,7 +702,7 @@ fn answer(app: &AppHandle, brain: &mut brain::Brain, question: &str, seen: Optio
         show(app, Some(VoiceView {
             phase: "speaking".into(),
             heard: question.to_string(),
-            answer: if done { "✓".into() } else { crate::i18n::t("Coucou couldn't answer: check your Claude key in Notch → Chat.") },
+            answer: if done { "✓".into() } else { crate::i18n::t("JARVIS couldn't answer: check your Claude key in Notch → Chat.") },
             pace_ms: 0,
         }));
         *hide_at = Some(Instant::now() + Duration::from_secs(5));
@@ -1127,13 +1203,13 @@ mod tests {
     }
 }
 
-/// With the models downloaded: `COUCOU_TEST_WAKE_WAV=… cargo test -- --ignored wake_in`.
+/// With the models downloaded: `JARVIS_TEST_WAKE_WAV=… cargo test -- --ignored wake_in`.
 #[cfg(test)]
 mod with_models {
     #[test]
     #[ignore]
     fn hears_the_wake_phrase_in_a_recording() {
-        let path = std::env::var("COUCOU_TEST_WAKE_WAV").expect("COUCOU_TEST_WAKE_WAV");
+        let path = std::env::var("JARVIS_TEST_WAKE_WAV").expect("JARVIS_TEST_WAKE_WAV");
         let bytes = std::fs::read(&path).unwrap();
         let rate = u32::from_le_bytes([bytes[24], bytes[25], bytes[26], bytes[27]]);
         let pcm: Vec<f32> = bytes[44..].chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]]) as f32 / 32768.0).collect();

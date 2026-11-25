@@ -1,10 +1,10 @@
 // The island: DOM shell, sizing animation, Mochi placement, mouse handling.
 // Mirrors IslandRootView.swift + IslandWindowController.swift.
 
+import { startPocketSync } from "./voicepocket";
 import { Tracked, Glide, NOTCH_MS, Ease, clamp, closeCurve, notchCurve } from "../core/anim";
 
 /** How long the closed pill takes to shrink round him as he falls asleep (#82): slower, gentler. */
-const SLEEP_MS = 900;
 import { Bridge, IS_TAURI, onDragDrop, onEvent, type DragDropPayload, type NowPlaying } from "../core/bridge";
 import { Focus, focusLeftMs } from "../core/focus";
 import { bitGapMs, fallsAsleep, idlePhase, pickBit, yawnGapMs, type IdleBit, type IdlePhase } from "../core/idle";
@@ -14,7 +14,7 @@ import {
 import {
   EXPANDED_CORNER, NOTCH_W, PANEL_H, PANEL_W, STAGE_W,
   ROUNDED_CORNER, VIEW_LAYOUTS, botGlowColor, botGlowOpacity, botPosition, chatPromptHeight,
-  islandSize,
+  islandSize, tabbedView, TAB_INSET,
   QUESTION_PICKER_H,
   type BotEmoteName, type BotStateName, type IslandMode, type IslandViewName,
 } from "../core/layout";
@@ -22,7 +22,7 @@ import { Sound } from "../core/sound";
 import { State } from "../core/state";
 import { SPOTIFY_ID, Spotify, islandDances } from "../core/spotify";
 import { BotEngine, hexToRGB } from "../mochi/engine";
-// JARVIS: the Reactor startup replaces coucou's greeting (same contract).
+// JARVIS: the Reactor startup replaces jarvis's greeting (same contract).
 import { ReactorGreeting as Greeting, REACTOR_POSE } from "../mochi/reactor";
 import { createMiniBot, pruneMiniBots, syncMiniBotStates, tickMiniBots } from "../mochi/minibots";
 import { SeasonCache, parseOutfit } from "../mochi/wardrobe";
@@ -126,6 +126,10 @@ export class Island {
   private botSize = new Glide(10);
   /** When the notch's current move ends (performance.now() time). */
   private geomEnd = 0;
+  /** When it started: he rides it from the same moment, not from his next frame (#86). */
+  private geomStart = 0;
+  /** The asleep pill's slow frame, waiting: waking cuts it short so he moves with the pill. */
+  private sleepFrame = 0;
   /** The curve the notch is moving on now: he rides it with the same one, so he stays centred. */
   private geomEase: (t: number) => number = notchCurve;
 
@@ -451,13 +455,13 @@ export class Island {
     this.fsm.openOnHover = State.settings.openOnHover;
     this.fsm.onTransition = (from, to) => {
       // The greeting is over, however it ended: back to his desktop spot.
-      if (from === "coucou" && to !== "coucou") this.desktop.launch();
+      if (from === "jarvis" && to !== "jarvis") this.desktop.launch();
       switch (to) {
         case "hidden":
           this.setMode("hidden");
           break;
         case "petit":
-          if (from === "coucou") {
+          if (from === "jarvis") {
             this.greeting.interrupt();
             // JARVIS: the island's own visor takes over exactly where the startup
             // left it (big, centred) and rides the fold down to the compact spot.
@@ -467,7 +471,7 @@ export class Island {
           }
           else if (from === "hidden" && !this.silentReveal) Sound.play("peek");
           this.setMode("compact");
-          if (from === "coucou") State.view = State.defaultView();
+          if (from === "jarvis") State.view = State.defaultView();
           if (!this.wasInIsland) this.fsm.mouseLeft();
           break;
         case "home":
@@ -477,7 +481,7 @@ export class Island {
           // say so on the next open, without polling while the island is shut.
           void refreshHookPills();
           break;
-        case "coucou":
+        case "jarvis":
           this.expand("greeting");
           this.greeting.start();
           break;
@@ -597,14 +601,14 @@ export class Island {
     this.expand(view);
   }
 
-  /** A new Coucou waits and Mochi has nothing else to say (he is blue). */
+  /** A new JARVIS waits and Mochi has nothing else to say (he is blue). */
   private updateHintOn(): boolean {
     return !State.paused && showsUpdateHint(Updates.waiting(), State.effectiveState, State.pendingApproval != null);
   }
 
   /**
    * What a click or a hover opens on: while Mochi is blue, the new version
-   * ("Coucou X is out", Update now); otherwise the usual view. A waiting
+   * ("JARVIS X is out", Update now); otherwise the usual view. A waiting
    * permission or question always comes first.
    */
   private openingView(): IslandViewName {
@@ -917,9 +921,10 @@ export class Island {
     // JARVIS: a tab that knows its own height gets a notch just that tall (the prototype's fit()):
     // the content's top padding and the tab bar, the content, the bottom padding; never past the window.
     const fit = State.mode === "expanded" ? this.views.get(State.view)?.fitHeight?.() : undefined;
-    // Focus mode has no tab bar: its 34 px aren't counted.
-    const bar = State.view === "focusing" ? 0 : 34;
-    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, 8 + bar + fit + 10)));
+    // Focus mode has no tab bar: its 34 px aren't counted. The tabs have the prototype's insets (#86).
+    const around = tabbedView(State.view) ? TAB_INSET.top + TAB_INSET.bar + TAB_INSET.gap + TAB_INSET.bottom
+      : 8 + (State.view === "focusing" ? 0 : 34) + 10;
+    if (fit != null && fit > 0) h = Math.round(Math.min(PANEL_H, Math.max(96, around + fit)));
     if (State.mode === "expanded" && State.view === "question" && State.pendingApproval?.questions) {
       h = QUESTION_PICKER_H;
     }
@@ -942,6 +947,7 @@ export class Island {
       go(this.radius, r);
       this.geomEase = ms === NOTCH_MS ? notchCurve : closeCurve;
       this.geomEnd = now + ms;
+      this.geomStart = now;
     }
     this.ensureRunning();
   }
@@ -1054,6 +1060,8 @@ export class Island {
   private startIdleLife() {
     window.setInterval(() => this.tickIdleLife(), 1000);
     void onEvent<boolean>("music-playing", (on) => { State.anyMusic = on; State.notify(); });
+    // JARVIS #92: his voice knows the reminders, notes and calendar, and opens them here.
+    startPocketSync((view) => this.setView(view));
     void onEvent<NowPlaying | null>("now-playing", (np) => { State.media = np; State.notify(); });
     void Bridge.nowPlaying().then((np) => { State.media = np ?? null; State.notify(); });
     State.subscribe(() => this.watchEvents());
@@ -1244,9 +1252,16 @@ export class Island {
     this.sleepZ.classList.toggle("on", on);
     this.engine.setState(this.engineState());
     if (State.mode === "hidden") {
-      // #82: falling asleep, the pill shrinks round him slowly (0.7 s) and the window follows only
-      // once it has, so nothing cuts the motion short; waking, the window grows first, then the pill.
-      const ms = on ? SLEEP_MS : NOTCH_MS;
+      // #82/#86: one quick motion both ways, the notch's (0.42 s). Falling asleep, the window follows
+      // only once the pill has shrunk, so nothing cuts the motion short; waking, the window grows first.
+      const ms = NOTCH_MS;
+      // Waking: his next frame comes now, not after the asleep pill's slow wait, so he is blue and
+      // centred from the pill's first frame (#86: he lagged it for about 150 ms, still grey).
+      if (!on && this.sleepFrame) {
+        window.clearTimeout(this.sleepFrame);
+        this.sleepFrame = 0;
+        this.running = false;
+      }
       this.animateGeometry(on, ms);
       if (this.collapsed) {
         if (on) window.setTimeout(() => { if (this.asleep && this.collapsed) this.sendCollapsedSize(); }, ms + 40);
@@ -1466,7 +1481,7 @@ export class Island {
     const wasIn = this.wasInIsland;
     this.wasInIsland = inIsland;
     if (inIsland && !wasIn) {
-      if (this.fsm.state === "coucou") this.greeting.hover();
+      if (this.fsm.state === "jarvis") this.greeting.hover();
       this.fsm.mouseEntered();
     }
     if (!inIsland && wasIn) {
@@ -1637,7 +1652,7 @@ export class Island {
     if (busy && !(sleeping && !settling && !botMoving)) {
       requestAnimationFrame(this.frame);
     } else if (sleeping) {
-      window.setTimeout(() => requestAnimationFrame(this.frame), 80);
+      this.sleepFrame = window.setTimeout(() => { this.sleepFrame = 0; requestAnimationFrame(this.frame); }, 80);
     } else {
       this.running = false;
       Sound.idle();
@@ -1668,7 +1683,8 @@ export class Island {
       const moving = this.geomEnd > now;
       const endAt = moving ? this.geomEnd : now + NOTCH_MS;
       const ease = moving ? this.geomEase : notchCurve;
-      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, now, ease); };
+      const from = moving ? Math.min(now, this.geomStart) : now;
+      const glide = (g: Glide, v: number) => { if (Math.abs(g.target - v) > 0.25) g.to(v, endAt, from, ease); };
       glide(this.botCx, p.cx);
       glide(this.botCy, p.cy);
       glide(this.botSize, size);
@@ -1772,7 +1788,7 @@ export class Island {
     if (!ctx) return;
 
     const focus = State.focusTask;
-    // A new Coucou waits: over an idle or sleeping Mochi, the blue and the arrow
+    // A new JARVIS waits: over an idle or sleeping Mochi, the blue and the arrow
     // badge (whats-new.ts). Anything Mochi has to say comes first.
     this.engine.setUpdateHint(this.updateHintOn() ? UPDATE_BLUE_RGB : null);
     // While a plan card is open Mochi wears the plan's colour, like its pill.
@@ -1905,6 +1921,7 @@ export class Island {
     // While the drop sequence owns the body its buttons are painted on the canvas
     // underneath, so only the header may keep taking clicks up here.
     this.contentEl.style.pointerEvents = live && !this.uploadActive ? "auto" : "none";
+    this.contentEl.classList.toggle("tabbed", expanded && tabbedView(State.view));
     this.header.el.style.pointerEvents = live ? "auto" : "none";
     this.greetingCanvas.style.display = greetingActive ? "block" : "none";
 

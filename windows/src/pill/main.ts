@@ -396,7 +396,7 @@ function animating(): boolean {
   return visible && look() !== "resting";
 }
 
-/** Where dot `i` goes: the voice, a slow wave while thinking, a lively one while Coucou speaks. */
+/** Where dot `i` goes: the voice, a slow wave while thinking, a lively one while JARVIS speaks. */
 function dotGoal(now: number, i: number): number {
   if (state.phase === "thinking") return 0.25 + 0.25 * Math.sin(now / 160 - i * 0.7);
   if (state.phase === "listening" || state.phase === "locked") return target[i];
@@ -460,7 +460,7 @@ function wake() {
   }
 }
 
-// ── « OK Coucou » speaks ──────────────────────────────────────────────────────
+// ── « Hey JARVIS » speaks ──────────────────────────────────────────────────────
 
 interface Say {
   id: number;

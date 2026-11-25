@@ -1,10 +1,10 @@
-// JARVIS: the startup — "Reactor". Replaces coucou's greeting (greeting.ts) with
+// JARVIS: the startup — "Reactor". Replaces jarvis's greeting (greeting.ts) with
 // the same contract (start / hover / interrupt / leave / draw / onComplete), so
 // the island and its state machine drive it unchanged.
 //
 // A ring of light draws itself and spins up; as it slows, its gaps close and it
 // bends, point by point, into the visor's rounded shape (the same ray/rounded-rect
-// morph coucou uses to turn Mochi into a box). The white shell fills in behind
+// morph jarvis uses to turn Mochi into a box). The white shell fills in behind
 // it, a spark at the centre stretches into the eye, the eye holds dead centre
 // for a beat and blinks. The visor stays there until the island folds: the
 // island then carries it into the compact island itself (island.ts), so it
@@ -17,7 +17,7 @@ import { rrPoint, VISOR_BOTTOM, VISOR_LIGHT, VISOR_TOP } from "./engine";
 export const REACTOR_W = 640;
 export const REACTOR_H = 150;
 
-/** Timeline, seconds. END matches coucou's greeting so the island's timers still fit. */
+/** Timeline, seconds. END matches jarvis's greeting so the island's timers still fit. */
 const T = {
   draw1: 0.75, // ring drawn
   spin1: 1.6, // ring stops spinning

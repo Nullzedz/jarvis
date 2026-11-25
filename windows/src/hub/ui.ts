@@ -1,4 +1,4 @@
-// Small pieces the Coucou window's pages are drawn with: icons, rows, cards,
+// Small pieces the JARVIS window's pages are drawn with: icons, rows, cards,
 // switches, segmented controls. Same look as the Mac's (FlowHub.swift).
 
 import { h } from "../views/dom";
@@ -37,6 +37,7 @@ export const HUB_ICONS: Record<string, string> = {
   filter: "M4 7h16M7 12h10M10 17h4",
   nosign: "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM6 6l12 12",
   star: "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z",
+  person: "M12 4.5a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5zM4.5 20a7.5 7.5 0 0 1 15 0",
   search: "M10.5 3a7.5 7.5 0 0 1 5.96 12.06l4.24 4.24-1.4 1.4-4.24-4.24A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z",
 };
 
@@ -170,7 +171,7 @@ export function keyLabel(key: FlowKeyId, platform: "windows" | "linux" = "window
     case "left_ctrl_super":
       return platform === "windows" ? "Ctrl + Win" : "Ctrl + Super";
     case "wayland":
-      // Held by the desktop (GlobalShortcuts portal): the keys Coucou suggests.
+      // Held by the desktop (GlobalShortcuts portal): the keys JARVIS suggests.
       return "Ctrl+Alt+V";
     default:
       return t("Right {0}", { 0: "Ctrl" });

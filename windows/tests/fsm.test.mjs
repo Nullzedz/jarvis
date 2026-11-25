@@ -21,15 +21,15 @@ const seconds = (n) => mock.timers.tick(n * 1000);
 test("starts hidden and opens on the greeting at launch", () => {
   assert.equal(fsm.state, "hidden");
   fsm.launch();
-  assert.equal(fsm.state, "coucou");
-  assert.deepEqual(transitions, ["hidden>coucou"]);
+  assert.equal(fsm.state, "jarvis");
+  assert.deepEqual(transitions, ["hidden>jarvis"]);
 });
 
 test("the greeting collapses to the compact island 0.6 s after it ends", () => {
   fsm.launch();
   fsm.greetComplete();
   seconds(0.5);
-  assert.equal(fsm.state, "coucou");
+  assert.equal(fsm.state, "jarvis");
   seconds(0.1);
   assert.equal(fsm.state, "petit");
 });
@@ -39,7 +39,7 @@ test("a hovered greeting stays for 10 s, whatever the animation does", () => {
   fsm.mouseEntered();
   fsm.greetComplete();
   seconds(9.9);
-  assert.equal(fsm.state, "coucou");
+  assert.equal(fsm.state, "jarvis");
   seconds(0.1);
   assert.equal(fsm.state, "petit");
 });
@@ -81,15 +81,27 @@ test("coming back before the 3 s are up keeps it open", () => {
   assert.equal(fsm.state, "home");
 });
 
-test("a click opens the compact island, and only the compact island", () => {
-  fsm.click();
-  assert.equal(fsm.state, "hidden");
+test("a click opens the compact island", () => {
   fsm.reveal();
   fsm.click();
   assert.equal(fsm.state, "home");
   fsm.click();
   assert.equal(fsm.state, "home");
   assert.deepEqual(transitions, ["hidden>petit", "petit>home"]);
+});
+
+test("#86: a click on the closed pill opens it as a click, even if the hover wake came first", () => {
+  fsm.click();
+  assert.equal(fsm.state, "home");
+  fsm.mouseLeft();
+  seconds(4);
+  assert.equal(fsm.state, "home", "a click-opened island doesn't fold after the hover's 3 s");
+  fsm.forceHidden();
+  fsm.mouseEntered();
+  fsm.click();
+  fsm.mouseLeft();
+  seconds(4);
+  assert.equal(fsm.state, "home");
 });
 
 test("the open island folds 15 s after the mouse leaves", () => {
@@ -233,7 +245,7 @@ test("the greeting keeps its own timing whatever the auto-close delay", () => {
   fsm.greetComplete();
   fsm.homeToPetitDelay = 0.01;
   seconds(0.05);
-  assert.equal(fsm.state, "coucou");
+  assert.equal(fsm.state, "jarvis");
   seconds(0.1);
   assert.equal(fsm.state, "petit");
 });

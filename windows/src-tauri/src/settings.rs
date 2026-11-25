@@ -35,7 +35,7 @@ pub struct Settings {
     pub show_plan_in_notch: bool,
     /// Show the Claude plan percentage in the compact island next to the agent dots.
     pub show_plan_in_compact_island: bool,
-    /// Coucou's status line relay is the one in Claude Code's settings.json.
+    /// JARVIS's status line relay is the one in Claude Code's settings.json.
     /// Like `hooks_installed`, the real state wins at launch over what was stored.
     pub plan_relay_installed: bool,
     /// Show the Codex plan pill (5 h / weekly limits from `codex app-server`).
@@ -73,6 +73,12 @@ pub struct Settings {
     /// ("fr", "pt-BR", "zh-Hans"…). Kept as it comes, like `mochi_outfit`: a
     /// code this build doesn't know reads as "".
     pub language: String,
+    /// JARVIS (#102): your name and how he addresses you ("sir", "maam" or "name";
+    /// "" is sir), from the end of the tour. profile.rs.
+    pub profile_name: String,
+    pub address: String,
+    /// JARVIS (#104): a few lines about you that he keeps in mind when he answers.
+    pub profile_about: String,
     /// Mochi on the desktop: whether he lives there, and his spot. Owned by
     /// the Rust side (desktop.rs) — what a webview sends back is ignored.
     pub desktop_mochi: DesktopMochiPref,
@@ -152,12 +158,8 @@ impl Default for Settings {
             open_on_hover: false,
             alerts_from_all_pills: false,
             absence_interval: 180.0,
-            active_integrations: vec![
-                "integration_resend".into(),
-                "integration_n8n".into(),
-                "integration_vercel".into(),
-                "integration_github".into(),
-            ],
+            // JARVIS (#106): nothing until you pick it (the tour asks, Settings › Connections too).
+            active_integrations: Vec::new(),
             main_pill: "integration_claude".into(),
             screen: "primary".into(),
             autostart: false,
@@ -177,6 +179,9 @@ impl Default for Settings {
             mochi_outfit: "auto".into(),
             pill_colors: BTreeMap::new(),
             language: String::new(),
+            profile_name: String::new(),
+            address: String::new(),
+            profile_about: String::new(),
             desktop_mochi: DesktopMochiPref::default(),
             phone_link: false,
             phone_chat: false,
@@ -204,6 +209,11 @@ pub fn hook_exe_path() -> PathBuf {
 
 fn settings_path() -> PathBuf {
     config_dir().join("settings.json")
+}
+
+/// A settings file is there (JARVIS #90: none yet means a fresh install).
+pub fn exists() -> bool {
+    settings_path().exists()
 }
 
 pub fn load() -> Settings {
@@ -237,7 +247,7 @@ fn save_lock() -> MutexGuard<'static, ()> {
     SAVE_LOCK.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// One line in coucou.log. Tests must never write to the real one.
+/// One line in jarvis.log. Tests must never write to the real one.
 fn note(message: String) {
     #[cfg(not(test))]
     crate::log::line(message);
@@ -282,7 +292,7 @@ fn salvage(fields: Map<String, Value>) -> Settings {
 
 /// The log line for a field `salvage` had to drop. The name comes straight from
 /// the file, so it is written escaped: a line break in it must not be able to
-/// start what looks like another line of coucou.log.
+/// start what looks like another line of jarvis.log.
 fn unusable_field(key: &str) -> String {
     format!("settings.json: {key:?} is not usable — its default is used instead")
 }
@@ -436,7 +446,7 @@ fn save_to(path: &Path, settings: &Settings) -> std::io::Result<()> {
 
     // Write beside the target and rename over it: a crash, a full disk or a
     // power cut leaves the previous settings.json intact rather than half a file.
-    let temp = path.with_extension(format!("json.coucou-{}", std::process::id()));
+    let temp = path.with_extension(format!("json.jarvis-{}", std::process::id()));
     let written = std::fs::File::create(&temp)
         .and_then(|mut file| write_whole(&mut file, &json))
         .and_then(|()| std::fs::rename(&temp, path));
@@ -480,6 +490,9 @@ mod tests {
   "mochiOutfit": "witchHat",
   "pillColors": { "integration_claude": "#2DD4BF" },
   "language": "pt-BR",
+  "profileName": "Sam",
+  "address": "maam",
+  "profileAbout": "I build JARVIS.",
   "desktopMochi": { "onDesktop": true, "spot": { "x": 1500.5, "y": -300.0, "space": "screen" } },
   "phoneLink": true,
   "phoneChat": true,
@@ -523,7 +536,7 @@ mod tests {
     /// A fresh directory of our own, and the settings.json it will hold.
     fn scratch(name: &str) -> (PathBuf, PathBuf) {
         let dir = std::env::temp_dir()
-            .join(format!("coucou-settings-{name}-{}", std::process::id()));
+            .join(format!("jarvis-settings-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("settings.json");
@@ -1003,6 +1016,9 @@ mod tests {
                 "mochiOutfit",
                 "pillColors",
                 "language",
+                "profileName",
+                "address",
+                "profileAbout",
                 "desktopMochi",
                 "phoneLink",
                 "phoneChat",
@@ -1047,7 +1063,7 @@ mod tests {
         // directory squatting on that name, the write cannot even start.
         let (dir, file) = scratch("blocked");
         std::fs::write(&file, CUSTOM).unwrap();
-        let temp = dir.join(format!("settings.json.coucou-{}", std::process::id()));
+        let temp = dir.join(format!("settings.json.jarvis-{}", std::process::id()));
         std::fs::create_dir(&temp).unwrap();
 
         assert!(save_to(&file, &Settings::default()).is_err());

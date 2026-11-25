@@ -38,7 +38,7 @@ const VK_LMENU: u32 = 0xA4;
 const VK_RMENU: u32 = 0xA5;
 const VK_LWIN: u32 = 0x5B;
 const VK_RWIN: u32 = 0x5C;
-/// Unassigned: pressed and released by Coucou so a held Alt or Win, once let
+/// Unassigned: pressed and released by JARVIS so a held Alt or Win, once let
 /// go, opens neither the app's menu bar nor the Start menu.
 const VK_MASK: u16 = 0xE8;
 
@@ -96,6 +96,11 @@ struct Watch {
 static SINK: Mutex<Option<Sender<(KeyEvent, Instant)>>> = Mutex::new(None);
 static WATCH: Mutex<Option<Watch>> = Mutex::new(None);
 
+/// The tutorial's window says a dictation key itself (flow::key_from_tutorial).
+pub fn send_key(event: KeyEvent) {
+    send(event);
+}
+
 fn send(event: KeyEvent) {
     if let Some(tx) = SINK.lock().unwrap().as_ref() {
         let _ = tx.send((event, Instant::now()));
@@ -105,6 +110,10 @@ fn send(event: KeyEvent) {
 unsafe extern "system" fn hook(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code >= 0 {
         let info = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
+        // JARVIS #90 (debugging): during the tutorial, every key the hook sees.
+        if crate::tutorial::is_open() {
+            crate::log::line(format!("tutorial: hook vk {:#04x} msg {:#x} flags {:#x}", info.vkCode, wparam.0, info.flags.0));
+        }
         // Our own Ctrl+V, and other programs' synthetic keys, are not the user's.
         if info.flags.0 & LLKHF_INJECTED.0 == 0 {
             let down = matches!(wparam.0 as u32, WM_KEYDOWN | WM_SYSKEYDOWN);
@@ -200,7 +209,7 @@ pub fn listen(codes: &[String], tx: Sender<(KeyEvent, Instant)>) -> Result<KeyLi
     *SINK.lock().unwrap() = Some(tx);
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<u32, String>>();
     let thread = std::thread::Builder::new()
-        .name("coucou-flow-keys".into())
+        .name("jarvis-flow-keys".into())
         .spawn(move || unsafe {
             let module = GetModuleHandleW(None).ok();
             let handle = match SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook), module.map(Into::into), 0) {
@@ -297,7 +306,7 @@ fn program_of(hwnd: HWND) -> Option<(String, String)> {
     }
 }
 
-/// The app in front: (id, name), None for Coucou itself or the desktop.
+/// The app in front: (id, name), None for JARVIS itself or the desktop.
 pub fn foreground_app() -> Option<(String, String)> {
     let hwnd = unsafe { GetForegroundWindow() };
     if hwnd.0.is_null() {

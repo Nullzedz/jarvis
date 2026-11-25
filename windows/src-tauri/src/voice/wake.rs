@@ -29,7 +29,7 @@ fn is_ok(word: &str) -> bool {
 
 /// How Parakeet may write "Jarvis", in one word (the close spellings an
 /// accent or a fast "Hey Jarvis" can produce).
-fn is_coucou(word: &str) -> bool {
+fn is_jarvis(word: &str) -> bool {
     matches!(
         word,
         "jarvis" | "jarviss" | "jarvus" | "jarvas" | "javis" | "jervis" | "jarves" | "jarvys" | "jarvise"
@@ -38,7 +38,7 @@ fn is_coucou(word: &str) -> bool {
 }
 
 /// …or in two.
-fn is_coucou_pair(a: &str, b: &str) -> bool {
+fn is_jarvis_pair(a: &str, b: &str) -> bool {
     matches!((a, b), ("jar", "vis") | ("jar", "viss") | ("jar", "this") | ("jarv", "is"))
 }
 
@@ -48,7 +48,7 @@ pub fn after_wake(text: &str) -> Option<String> {
     let words: Vec<&str> = text.split_whitespace().collect();
     let norm: Vec<String> = words.iter().map(|w| normalize(w)).collect();
     // JARVIS: "Jarvis, what time is it?" — his name first, on its own.
-    if norm.first().is_some_and(|w| is_coucou(w) && w != "travis") {
+    if norm.first().is_some_and(|w| is_jarvis(w) && w != "travis") {
         return Some(words[1..].join(" ").trim_start_matches([',', '.', '!', ' ']).trim().to_string());
     }
     // "o.k." and "o k" become two tokens: glue them.
@@ -61,22 +61,22 @@ pub fn after_wake(text: &str) -> Option<String> {
             ok_end = Some(if norm[i] == "o" { i + 2 } else { i + 1 });
         }
         if let Some(j) = ok_end {
-            // A word made of two ("ok coucou" written as one token is rare but happens).
+            // A word made of two ("hey jarvis" written as one token is rare but happens).
             if let Some(w) = norm.get(j) {
                 let parts: Vec<&str> = w.split(' ').collect();
-                if parts.len() == 1 && is_coucou(parts[0]) {
+                if parts.len() == 1 && is_jarvis(parts[0]) {
                     return Some(words[j + 1..].join(" ").trim_start_matches([',', '.', '!', ' ']).trim().to_string());
                 }
                 if let Some(next) = norm.get(j + 1) {
-                    if is_coucou_pair(w, next) {
+                    if is_jarvis_pair(w, next) {
                         return Some(words[j + 2..].join(" ").trim_start_matches([',', '.', '!', ' ']).trim().to_string());
                     }
                 }
             }
         }
-        // "okcoucou" in one piece.
+        // "okjarvis" in one piece.
         if let Some(rest) = norm[i].strip_prefix("okay").or_else(|| norm[i].strip_prefix("ok")) {
-            if is_coucou(rest.trim()) {
+            if is_jarvis(rest.trim()) {
                 return Some(words[i + 1..].join(" ").trim().to_string());
             }
         }
@@ -200,7 +200,7 @@ impl Vad {
         done
     }
 
-    /// Forgets what is being heard (Coucou speaks, or dictation starts).
+    /// Forgets what is being heard (JARVIS speaks, or dictation starts).
     pub fn reset(&mut self) {
         self.in_speech = false;
         self.speech_frames = 0;

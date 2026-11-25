@@ -6,9 +6,9 @@ use std::sync::{LazyLock, Mutex};
 
 use keyring::Entry;
 
-const SERVICE: &str = "fr.louisraille.coucou";
+const SERVICE: &str = "com.nullzedz.jarvis";
 
-/// Every key Coucou may store. Anything outside this list is refused.
+/// Every key JARVIS may store. Anything outside this list is refused.
 pub const KNOWN_KEYS: &[&str] = &[
     "anthropic-api-key",
     "openai-api-key",
@@ -27,7 +27,7 @@ pub const KNOWN_KEYS: &[&str] = &[
     "resend-api-key",
     "notion-api-key",
     "calcom-api-key",
-    // « OK Coucou »'s answers in an ElevenLabs voice.
+    // « Hey JARVIS »'s answers in an ElevenLabs voice.
     "elevenlabs-api-key",
     // JARVIS: his answers in a Gemini voice (voice/gemini.rs).
     "gemini-api-key",
@@ -48,6 +48,24 @@ static PRESENT: LazyLock<Mutex<HashMap<String, bool>>> = LazyLock::new(|| Mutex:
 
 fn remember(key: &str, present: bool) {
     PRESENT.lock().unwrap().insert(key.to_string(), present);
+}
+
+/// JARVIS 1.0.0 (#98): every key saved under the keychain service `old` (the name before)
+/// copied to JARVIS's, where JARVIS has none yet. How many were copied.
+pub fn adopt_old(old: &str) -> usize {
+    let mut copied = 0;
+    for key in KNOWN_KEYS.iter().chain(INTERNAL_KEYS) {
+        let Ok(old_entry) = Entry::new(old, key) else { continue };
+        let Ok(value) = old_entry.get_password() else { continue };
+        let Ok(new_entry) = Entry::new(SERVICE, key) else { continue };
+        if value.is_empty() || new_entry.get_password().is_ok_and(|v| !v.is_empty()) {
+            continue;
+        }
+        if new_entry.set_password(&value).is_ok() {
+            copied += 1;
+        }
+    }
+    copied
 }
 
 pub fn get(key: &str) -> Option<String> {
@@ -116,6 +134,8 @@ pub fn warm_up() {
 pub const INTERNAL_KEYS: &[&str] = &[
     // JARVIS: the Google Calendar secret iCal address (gcal.rs). Rust only: the island never reads it.
     "gcal-ics-url",
+    // JARVIS (#102): the passkey, as its salted hash only (profile.rs).
+    "passkey",
     "phone-link-cert",
     "phone-link-key",
     "phone-link-token",
@@ -190,7 +210,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn a_certificate_sized_secret_round_trips_through_credential_manager() {
-        let entry = keyring::Entry::new("fr.louisraille.coucou.test", "phone-link-size-check").unwrap();
+        let entry = keyring::Entry::new("com.nullzedz.jarvis.test", "phone-link-size-check").unwrap();
         let big: String = (0..1_200).map(|i| char::from(b"0123456789abcdef"[i % 16])).collect();
         entry.set_password(&big).expect("Credential Manager refused a certificate-sized secret");
         let back = entry.get_password().expect("could not read it back");

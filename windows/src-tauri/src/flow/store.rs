@@ -1,7 +1,7 @@
-// Everything the Coucou window shows and edits about dictation: the history,
+// Everything the JARVIS window shows and edits about dictation: the history,
 // the numbers, the dictionary, the snippets, the styles and the preferences.
-// Small JSON files in the app's folder (%LOCALAPPDATA%\Coucou\Flow or
-// ~/.local/share/coucou/Flow), on this computer only. Port of FlowStore.swift.
+// Small JSON files in the app's folder (%LOCALAPPDATA%\JARVIS\Flow or
+// ~/.local/share/jarvis/Flow), on this computer only. Port of FlowStore.swift.
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
@@ -88,7 +88,7 @@ pub enum SummaryEngine {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Prefs {
-    /// Hold a key to dictate anywhere. Off until the user turns it on.
+    /// Hold a key to dictate anywhere. On from the start (#117); off once the user turns it off.
     pub enabled: bool,
     pub key: FlowKey,
     /// The keys of a shortcut of the user's own, when `key` is `Custom`: their
@@ -106,13 +106,13 @@ pub struct Prefs {
     /// The style of the apps that have none of their own.
     pub default_style: Style,
     pub summary_engine: SummaryEngine,
-    /// Open the Coucou window when Coucou is opened (not when it starts with the computer).
+    /// Open the JARVIS window when JARVIS is opened (not when it starts with the computer).
     pub open_at_launch: bool,
-    /// « OK Coucou »: listen for it and answer with Claude (needs the Claude key).
+    /// « Hey JARVIS »: listen for it and answer with Claude (needs the Claude key).
     pub voice: bool,
-    /// The other apps' sound is muted while Coucou listens to you (Windows).
+    /// The other apps' sound is muted while JARVIS listens to you (Windows).
     pub mute_others: bool,
-    /// How Coucou answers out loud: "gemini" (JARVIS: Google's voice, the user's key), "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
+    /// How JARVIS answers out loud: "gemini" (JARVIS: Google's voice, the user's key), "jarvis" (Kokoro, on this computer), "system", "elevenlabs" or "off".
     pub voice_output: String,
     /// The ElevenLabs voice: "female" or "male".
     pub voice_gender: String,
@@ -141,7 +141,7 @@ pub struct Prefs {
 impl Default for Prefs {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             key: FlowKey::default(),
             key_combo: Vec::new(),
             edge: Edge::Bottom,
@@ -396,14 +396,14 @@ mod tests {
     use super::*;
 
     fn temp_store() -> (Store, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("coucou-flow-{}-{}", std::process::id(), new_id()));
+        let dir = std::env::temp_dir().join(format!("jarvis-flow-{}-{}", std::process::id(), new_id()));
         (Store::load_from(dir.clone()), dir)
     }
 
     #[test]
     fn dictionary_edits_are_durable_and_failed_writes_keep_the_live_and_saved_words() {
         let (mut store, path) = temp_store();
-        let words = Words { words: vec!["Coucou".into()], replacements: vec![
+        let words = Words { words: vec!["JARVIS".into()], replacements: vec![
             Replacement { id: "one".into(), from: "cloud code".into(), to: "Claude Code".into() },
         ] };
         store.set_words(words.clone()).unwrap();
@@ -413,7 +413,7 @@ mod tests {
         assert!(store.set_words(Words::default()).is_err());
         assert_eq!(store.words, words);
         assert_eq!(std::fs::read(path.join("words.json")).unwrap(), before);
-        assert_eq!(store.prepare("coucou cloud code").text, "Coucou Claude Code");
+        assert_eq!(store.prepare("jarvis cloud code").text, "JARVIS Claude Code");
         std::fs::remove_dir(path.join("words.json.tmp")).unwrap();
         store.set_words(Words::default()).unwrap();
         assert_eq!(Store::load_from(path.clone()).words, Words::default());

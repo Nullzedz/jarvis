@@ -125,7 +125,10 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
 
   const version = await Bridge.boot().then((b) => b?.version ?? "").catch(() => "");
   const groups: Group[] = [
-    { id: "general", name: t("General"), say: t("How JARVIS starts, its language and its updates."), body: gen },
+    // #90: the first-launch tour, again.
+    { id: "general", name: t("General"), say: t("How JARVIS starts, its language and its updates."), body: [...gen, h("div", { class: "srow" },
+      h("div", { class: "lbl" }, h("b", { text: t("The tour") }), h("span", { text: t("What JARVIS does, one step at a time, with a try at each.") })),
+      h("div", { class: "ctl" }, h("button", { class: "jv-link", text: `${t("Show the tour again")} ›`, onclick: () => void Bridge.tutorialOpen() })))] },
     // #80: everything you can customize about the notch, in one group and shown right here.
     { id: "island", name: t("Island"), say: t("Everything about the island at the top of your screen: its tabs, its pills and how it behaves."), body: [
       h("h4", { class: "jv-psub", text: t("Tabs in the island") }), ...partNodes("tabs")(),
@@ -133,9 +136,9 @@ export async function prefsPage(page: HTMLElement, ctx: HubContext) {
       h("h4", { class: "jv-psub", text: t("Behavior") }), ...island,
     ] },
     // Its own note already says how shortcuts work.
-    // Talk, Ask, Show more and Dictate have their keys on Voice: Shortcuts points there (#84: "ask" found nothing).
+    // Talk, Ask and Dictate have their keys on Voice: Shortcuts points there (#84: "ask" found nothing).
     { id: "shortcuts", name: t("Shortcuts"), say: "", body: [...rowsOf("shortcuts"), h("div", { class: "srow" },
-      h("div", { class: "lbl" }, h("b", { text: `${t("Talk")} · ${t("Ask")} · ${t("Show more")} · ${t("Dictate")}` }),
+      h("div", { class: "lbl" }, h("b", { text: `${t("Talk")} · ${t("Ask")} · ${t("Dictate")}` }),
         h("span", { text: t("Their keys are set under Voice.") })),
       h("div", { class: "ctl" }, h("button", { class: "jv-link", text: `${t("Voice")} ›`, onclick: () => content.querySelector('[data-anchor="group-voice"]')?.scrollIntoView({ block: "start" }) })))] },
     { id: "sound", name: t("Sound"), say: t("JARVIS's sounds and your own."), body: sound },

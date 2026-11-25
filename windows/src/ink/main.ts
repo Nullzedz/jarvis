@@ -23,19 +23,28 @@ head.setAttribute("r", "3");
 head.setAttribute("fill", "#fff");
 svg.append(line, head);
 
+/** The trail's points so far (only new ones come each time, #88). */
+let pts: [number, number][] = [];
+/** The last trail's fade: a new one cancels it (#88: it wiped a trail started within 260 ms). */
+let fading = 0;
+
 function clear() {
+  pts = [];
   line.setAttribute("d", "");
   line.setAttribute("fill", "none");
   head.setAttribute("r", "0");
 }
 
 void onEvent<null>("ink-start", () => {
+  window.clearTimeout(fading);
   clear();
   svg.style.opacity = "1";
 });
 
-void onEvent<{ points: [number, number][]; closed: boolean }>("ink-path", ({ points, closed }) => {
-  if (!points.length) return;
+void onEvent<{ points: [number, number][]; from?: number; closed: boolean }>("ink-path", ({ points: fresh, from = 0, closed }) => {
+  if (!fresh.length) return;
+  pts = from === 0 ? fresh : [...pts.slice(0, from), ...fresh];
+  const points = pts;
   line.setAttribute("d", `M${points.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L")}${closed ? "Z" : ""}`);
   line.setAttribute("fill", closed ? "rgba(79,163,255,0.10)" : "none");
   const [x, y] = points[points.length - 1];
@@ -46,5 +55,6 @@ void onEvent<{ points: [number, number][]; closed: boolean }>("ink-path", ({ poi
 
 void onEvent<null>("ink-end", () => {
   svg.style.opacity = "0";
-  setTimeout(clear, 260);
+  window.clearTimeout(fading);
+  fading = window.setTimeout(clear, 260);
 });

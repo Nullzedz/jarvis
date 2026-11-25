@@ -249,8 +249,8 @@ export function buildHeader(actions: ViewActions): ViewHost {
   // Mac's ✕). A card waiting for an answer keeps the island open: no ✕ then.
   const closeBtn = h("button", { class: "close", title: tl("Close"), onclick: () => actions.collapse() }, svg(ICONS.xmark, 17));
   // Plan usage pills (off by default): before the gear, Claude first, as on the Mac.
-  const claudePill = buildPlanPill(false);
-  const codexPill = buildPlanPill(true);
+  const claudePill = buildPlanPill(false, () => actions.setView("overview"));
+  const codexPill = buildPlanPill(true, () => actions.setView("overview"));
   const planPills = h("div", { class: "plan-pills" }, claudePill.el, codexPill.el);
   let codexShown = false;
 

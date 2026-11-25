@@ -118,6 +118,12 @@ pub fn is_open() -> bool {
 /// Draws `window` (window.rs) for `question`, with his short answer `said`.
 /// `add`: beside the ones already up ("show him more"); otherwise they're replaced.
 pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: Option<&Shot>, add: bool) {
+    // JARVIS #92: the island block: no card; the island opens on the tab, with his changes made.
+    if super::window::is_island(window) {
+        crate::log::line(format!("explain: island {}", window["tab"].as_str().unwrap_or("(changes)")));
+        let _ = app.emit_to(crate::island::WINDOW_LABEL, "voice-island", window);
+        return;
+    }
     let Some(win) = app.get_webview_window(LABEL) else { return };
     let cursor = crate::platform::cursor_physical().unwrap_or((0.0, 0.0));
     // The target on the screen (physical px), from his box on the picture.
@@ -128,6 +134,12 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
         Some((x0, y0, x1 - x0, y1 - y0))
     };
     let target = shot.and_then(|s| on_screen(super::window::target(window, s.size), s));
+    // "Where is…?" with nowhere sensible to circle: nothing is drawn (he has said it).
+    let point = super::window::is_point(window);
+    if point && target.is_none() {
+        crate::log::line("explain: a place to circle, but not on the picture");
+        return;
+    }
     // What he explains, never covered: the area he marked, or else all you circled, or else the target.
     let about = shot
         .and_then(|s| {
@@ -150,8 +162,27 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
             [px, py, w / scale, h / scale]
         })
     };
+    let target_phys = target;
     let (target, about) = (in_page(target), in_page(about));
     OPEN.store(true, Ordering::Relaxed);
+    // "Where is…?" (#88): he goes to it and circles it, and nothing else; no card, no drawing.
+    if point {
+        // #94: several clicks away: the steps, one at a time; the first one is circled now.
+        let steps: Vec<String> = window["steps"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str()).map(|s| s.trim().chars().take(60).collect::<String>()).filter(|s| !s.is_empty()).take(8).collect())
+            .unwrap_or_default();
+        let guide = match (steps.len() >= 2, target_phys) {
+            (true, Some(rect)) => Some(super::guide::start(app, question, steps.clone(), rect)),
+            _ => {
+                super::guide::cancel();
+                None
+            }
+        };
+        crate::log::line(format!("explain: circled where it is{}", if guide.is_some() { format!(", step 1 of {}", steps.len()) } else { String::new() }));
+        let _ = win.emit("explain-point", json!({ "add": add, "target": target, "cursor": page(cursor), "steps": if guide.is_some() { steps } else { Vec::new() }, "guide": guide }));
+        return;
+    }
     // His line: one sentence, at most 15 words. A requested drawing opens empty (his eye
     // sweeping) and fills in when the drawing model is done (issue #14).
     let line = super::window::short_line(said);
@@ -207,8 +238,30 @@ fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
     };
 }
 
+/// A box on the screen (physical px) in the layer's page px, as its last placement set it.
+/// "Where is…?" by name (#96): he circles `rect` (physical px, from Windows' list of the app's
+/// buttons, no picture), with the guide's steps when it takes several clicks.
+pub fn circle(app: &AppHandle, rect: (f64, f64, f64, f64), steps: &[String], guide: Option<u64>) {
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let cursor = crate::platform::cursor_physical().unwrap_or((0.0, 0.0));
+    let Some(((mx, my, mw, mh), scale)) = super::sight::monitor_at(rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0) else { return };
+    *PLACE.lock().unwrap() = ((mx as f64, my as f64), scale);
+    let _ = win.set_size(PhysicalSize::new(mw as u32, mh as u32));
+    let _ = win.set_position(PhysicalPosition::new(mx, my));
+    OPEN.store(true, Ordering::Relaxed);
+    let page = [(cursor.0 - mx as f64) / scale, (cursor.1 - my as f64) / scale];
+    crate::log::line(format!("explain: circled by name{}", if guide.is_some() { format!(", step 1 of {}", steps.len()) } else { String::new() }));
+    let _ = win.emit("explain-point", json!({ "add": false, "target": to_page(rect), "cursor": page, "steps": steps, "guide": guide }));
+}
+
+pub fn to_page((x, y, w, h): (f64, f64, f64, f64)) -> [f64; 4] {
+    let ((ox, oy), scale) = *PLACE.lock().unwrap();
+    [(x - ox) / scale, (y - oy) / scale, w / scale, h / scale]
+}
+
 /// Every window goes (Esc, the ask shortcut again, a new question).
 pub fn close_all(app: &AppHandle) {
+    super::guide::cancel();
     OPEN.store(false, Ordering::Relaxed);
     HOT.lock().unwrap().clear();
     let _ = app.emit_to(LABEL, "explain-close", ());

@@ -49,7 +49,7 @@ pub struct PillState {
     pub enabled: bool,
     /// The user chose to hide the resting pill: it shows only while something happens.
     pub hide_idle: bool,
-    /// « OK Coucou » is talking with you.
+    /// « Hey JARVIS » is talking with you.
     pub voice: Option<crate::voice::VoiceView>,
 }
 
@@ -252,6 +252,11 @@ pub fn update(app: &AppHandle, change: impl FnOnce(&mut PillState)) {
         (s.clone(), s.edge != edge_before)
     };
     let _ = app.emit_to(LABEL, "pill-state", &state);
+    // JARVIS #90: the tutorial shows that you're dictating, as the pill does.
+    if crate::tutorial::is_open() {
+        crate::tutorial::note_phase(&state.phase);
+        let _ = app.emit_to(crate::tutorial::LABEL, "pill-state", &state);
+    }
     let visible = (state.enabled && !state.hide_idle) || state.note_started_at.is_some() || state.announcement.is_some() || state.voice.is_some() || state.phase != "idle";
     let was = pill.shown.swap(visible, Ordering::Relaxed);
     if visible && (!was || edge_changed) {

@@ -1,0 +1,350 @@
+/* JARVIS: the first-launch tutorial (issue #90), from prototypes/jarvis-tutorial.html (design B). */
+:root {
+  --bg: #000; --s0: #0e0f11; --s1: #1c1c1e; --s2: #2c2c2e; --s3: #3a3a3c;
+  --t1: #f5f5f7; --t2: #8e8e93; --t3: #636366;
+  --blue: #0a84ff; --eye: #0a84ff; --green: #30d158;
+  --ease: cubic-bezier(.32,.72,0,1);
+  --font: "Segoe UI Variable Text", "Segoe UI", -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: #0b0b0c; color: var(--t1); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+button, input, textarea { font: inherit; color: inherit; border: 0; background: none; }
+button { cursor: pointer; padding: 0; }
+p { margin: 0; }
+kbd { font: 600 11.5px var(--font); color: var(--t1); background: var(--s2); border-radius: 6px; padding: 2px 7px; box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); white-space: nowrap; }
+kbd.down { background: #e5e5ea; color: #000; }
+
+/* ── Frame: a window over your desktop ── */
+.app { position: fixed; inset: 0; }
+.frame { position: absolute; display: flex; }
+.copy { display: flex; flex-direction: column; min-width: 0; }
+.eyebrowless { }
+.step-n { font-size: 12px; color: var(--t2); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.copy h1 { font-size: 30px; line-height: 1.12; letter-spacing: -.02em; font-weight: 600; margin: 0 0 10px; text-wrap: balance; }
+.copy .say { color: #c7c7cc; font-size: 15px; max-width: 44ch; }
+.copy .keys { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 16px; font-size: 13px; color: var(--t2); }
+.copy .task { margin-top: 18px; padding: 12px 14px; border-radius: 14px; background: var(--s1); font-size: 13.5px; color: #e5e5ea; max-width: 46ch; }
+.copy .task b { color: #fff; font-weight: 600; }
+.copy .task .done { color: var(--green); display: none; margin-top: 6px; font-weight: 500; }
+.copy .task.ok .done { display: block; }
+.nav { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 22px; }
+.dots { display: flex; gap: 6px; margin-right: auto; }
+.dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--s3); transition: width .3s var(--ease), background .3s; }
+.dots i.on { width: 18px; border-radius: 3px; background: #e5e5ea; }
+.dots i.past { background: #8e8e93; }
+.btn { font-size: 13.5px; font-weight: 500; border-radius: 999px; padding: 9px 20px; transition: background .15s, transform .12s var(--ease), opacity .2s; }
+.btn.primary { background: #f5f5f7; color: #000; } .btn.primary:hover { background: #fff; }
+.btn.ghost { color: var(--t2); } .btn.ghost:hover { color: var(--t1); }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .35; pointer-events: none; }
+.btn:focus-visible, .hold:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.stage { position: relative; min-width: 0; overflow: hidden; }
+.pane { position: absolute; inset: 0; opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .35s var(--ease), transform .45s var(--ease), visibility 0s .35s; }
+.pane.on { opacity: 1; visibility: visible; transform: none; transition: opacity .35s var(--ease), transform .45s var(--ease); }
+
+/* B · A window over your desktop */
+.app.b .frame { inset: 0; border-radius: 0 !important; box-shadow: none !important; flex-direction: column-reverse; background: #0b0b0c; border-radius: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06); overflow: hidden; }
+.app.b .copy { flex: none; padding: 18px 26px 18px 22px; display: grid; grid-template-columns: auto 1fr auto; column-gap: 18px; align-items: end; }
+.app.b .copy h1 { font-size: 22px; margin-bottom: 4px; }
+.app.b .copy .say { font-size: 13.5px; max-width: 70ch; }
+.app.b .copy .task { margin-top: 10px; max-width: none; }
+.app.b .copy .keys { margin-top: 8px; }
+.app.b .copy > :not(.nav):not(.narrator) { grid-column: 2; }
+.app.b .copy .narrator { grid-column: 1; grid-row: 1 / span 5; align-self: start; margin-top: 4px; }
+.app.b .copy .nav { grid-column: 3; grid-row: 1 / span 5; padding: 0; flex-direction: column; align-items: flex-end; gap: 12px; }
+.app.b .copy .dots { margin: 0 0 6px; }
+.app.b .stage { flex: 1; background: radial-gradient(120% 90% at 30% 0%, #26313f 0%, #151a21 60%, #0c0e12 100%); }
+
+
+/* ════════════ Life: the motion layer ════════════ */
+
+/* The window arrives out of a soft blur. */
+.app.b .frame { animation: win-in 1s var(--ease) .15s both; }
+@keyframes win-in { from { opacity: 0; transform: translateY(14px) scale(.94); filter: blur(14px); } to { opacity: 1; transform: none; filter: blur(0); } }
+
+/* The words come in one after another, and leave together. */
+.copy .in { animation: word-in .55s var(--ease) both; }
+@keyframes word-in { from { opacity: 0; transform: translateY(8px); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.copy .out { opacity: 0; transform: translateY(-4px); transition: opacity .16s, transform .16s; }
+
+/* Panes slide the way you're going. */
+.pane { transition: opacity .42s var(--ease), transform .55s var(--ease), visibility 0s .42s; transform: translateX(var(--from, 48px)) scale(.985); }
+.pane.on { transform: none; transition: opacity .42s var(--ease) .06s, transform .6s var(--ease) .06s; }
+.pane.left { transform: translateX(-48px) scale(.985); }
+/* What's on the practice desktop lands just after. */
+.pane.on .win, .pane.on .cheat > div { animation: land .7s var(--ease) both; animation-delay: .18s; }
+@keyframes land { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+.pane.on .cheat > div:nth-child(2) { animation-delay: .24s; } .pane.on .cheat > div:nth-child(3) { animation-delay: .30s; }
+.pane.on .cheat > div:nth-child(4) { animation-delay: .36s; } .pane.on .cheat > div:nth-child(5) { animation-delay: .42s; } .pane.on .cheat > div:nth-child(6) { animation-delay: .48s; }
+.pane.on .under { animation: word-in .6s var(--ease) .45s both; }
+
+/* The narrator: his visor next to the words. He blinks, looks where you point, listens, thinks, is pleased. */
+.narrator { width: 44px; height: 31px; position: relative; }
+.narrator .shell { position: absolute; inset: 0; border-radius: 24.3% / 34.7%; background: linear-gradient(180deg, #f6f7f9 0%, #eceef1 70%, #dcdfe4 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 6px 16px rgba(0,0,0,.4); transition: transform .5s var(--ease); }
+.narrator .slot { position: absolute; left: 18.5%; right: 18.5%; top: 40%; height: 20.4%; border-radius: 999px; background: linear-gradient(180deg, #0b0f17, #1b2433); box-shadow: 0 0 0 1px rgba(201,205,212,.9); display: grid; place-items: center; overflow: hidden; }
+.narrator .eye { width: 46%; height: 34%; min-height: 2px; border-radius: 999px; background: var(--eye); transition: transform .35s var(--ease), width .3s var(--ease), background .3s; }
+.narrator .ring { position: absolute; inset: -7px; border-radius: 50%; border: 1.5px solid rgba(10,132,255,0); pointer-events: none; }
+.narrator .badge { position: absolute; right: -5px; bottom: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--green); border: 2.5px solid #0b0b0c; transform: scale(0); transition: transform .35s var(--ease); }
+.narrator.blink .eye { animation: blink .22s ease-in-out; }
+@keyframes blink { 50% { transform: scaleY(.1); } }
+.narrator.listen .eye { animation: listen .5s ease-in-out infinite alternate; }
+@keyframes listen { from { width: 34%; } to { width: 66%; } }
+.narrator.listen .ring { animation: halo-s 1.6s ease-out infinite; }
+@keyframes halo-s { 0% { transform: scale(.85); border-color: rgba(10,132,255,.5); } 100% { transform: scale(1.35); border-color: rgba(10,132,255,0); } }
+.narrator.think .eye { animation: think 1.1s ease-in-out infinite; }
+@keyframes think { 0%, 100% { transform: translateX(-35%); width: 30%; } 50% { transform: translateX(35%); width: 38%; } }
+.narrator.happy .shell { animation: hop .6s var(--ease); }
+.narrator.happy .badge { transform: scale(1); }
+.narrator.happy .eye { background: #5ac8fa; }
+@keyframes hop { 30% { transform: translateY(-6px) rotate(-4deg); } 60% { transform: translateY(0) rotate(2deg); } }
+
+/* Keys: they press themselves now and then as a hint, and for real when you press them. */
+kbd { display: inline-block; transition: transform .12s var(--ease), background .12s, color .12s, box-shadow .12s; }
+kbd.tap, kbd.down { transform: translateY(1.5px); background: #e5e5ea; color: #000; box-shadow: none; }
+
+/* The task: when it's done, a tick draws itself and the card warms to green for a moment. */
+.copy .task { position: relative; transition: background .5s, box-shadow .5s; }
+.copy .task.ok { background: rgba(48,209,88,.12); box-shadow: inset 0 0 0 1px rgba(48,209,88,.35); }
+.copy .task .done { display: flex !important; align-items: center; gap: 6px; height: 0; overflow: hidden; opacity: 0; margin-top: 0; transition: height .35s var(--ease), opacity .3s, margin-top .35s var(--ease); }
+.copy .task.ok .done { height: 20px; opacity: 1; margin-top: 6px; }
+.tick { width: 16px; height: 16px; }
+.tick path { stroke-dasharray: 20; stroke-dashoffset: 20; }
+.task.ok .tick path { animation: draw .45s ease-out .15s forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+/* Next nudges once when you can go on. */
+.btn.nudge { animation: nudge .7s var(--ease); }
+@keyframes nudge { 30% { transform: scale(1.08); } 60% { transform: scale(.98); } }
+.btn .lbl { display: inline-block; }
+.btn .lbl.swap { animation: swap .32s var(--ease); }
+@keyframes swap { 0% { opacity: 1; transform: none; } 45% { opacity: 0; transform: translateY(-6px); } 55% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } }
+
+/* Dictation: words drop in one by one; the mail flies off when sent. */
+.mail .w { display: inline-block; animation: w-in .32s var(--ease) both; white-space: pre; }
+@keyframes w-in { from { opacity: 0; transform: translateY(5px); filter: blur(3px); } to { opacity: 1; transform: none; filter: blur(0); } }
+.mail .send:disabled { opacity: .35; }
+.mail.sent { animation: fly .8s cubic-bezier(.55,0,.75,.2) forwards; }
+@keyframes fly { 30% { transform: translateY(8px) scale(.98); } 100% { transform: translate(40%, -140%) scale(.4) rotate(-6deg); opacity: 0; } }
+.toast { position: absolute; left: 50%; top: 46%; transform: translate(-50%, 8px); background: rgba(28,28,30,.95); border-radius: 999px; padding: 8px 16px; font-size: 13px; opacity: 0; transition: opacity .3s, transform .45s var(--ease); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* The island opens with a little overshoot, the way a spring would. */
+.isl { transition: width .55s cubic-bezier(.34,1.3,.5,1), height .55s cubic-bezier(.34,1.3,.5,1), border-radius .45s var(--ease); }
+.isl .body > * { animation: word-in .45s var(--ease) .15s both; }
+.isl .li { animation: word-in .4s var(--ease) both; }
+.isl .li:nth-child(2) { animation-delay: .06s; } .isl .li:nth-child(3) { animation-delay: .12s; }
+.isl .ck { transition: background .25s, border-color .25s, transform .3s var(--ease); }
+.isl .ck.on { transform: scale(1.2); }
+
+/* The hold buttons breathe until you use them. */
+.hold:not(.down) { animation: breathe 2.4s ease-in-out infinite; }
+@keyframes breathe { 50% { box-shadow: 0 0 0 6px rgba(255,255,255,.06); } }
+
+/* His card and the ask box spring open; the circle trail shimmers. */
+.ex { transition: opacity .3s, transform .55s cubic-bezier(.34,1.25,.5,1); }
+.trail { animation: dash 1s linear infinite; }
+@keyframes dash { to { stroke-dashoffset: -18; } }
+
+/* The welcome: his words arrive one by one out of a blur. */
+.boot .hello .w { display: inline-block; animation: w-in .5s var(--ease) both; white-space: pre; }
+.boot .hello::after { display: none; }
+
+/* ── JARVIS himself: the visor with his halo ── */
+.jarvis { position: relative; width: 132px; height: 92px; }
+.jarvis .halo { position: absolute; inset: -34px -26px; border-radius: 50%; border: 2px solid rgba(10,132,255,.0); }
+.jarvis .shell { position: absolute; inset: 0; border-radius: 24.3% / 34.7%; background: linear-gradient(180deg, #f6f7f9 0%, #eceef1 70%, #dcdfe4 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 10px 30px rgba(0,0,0,.45); }
+.jarvis .slot { position: absolute; left: 18.5%; right: 18.5%; top: 40%; height: 20.4%; border-radius: 999px; background: linear-gradient(180deg, #0b0f17, #1b2433); box-shadow: 0 0 0 1px rgba(201,205,212,.9); display: grid; place-items: center; }
+.jarvis .eye { width: 0; height: 22%; min-height: 3px; border-radius: 999px; background: var(--eye); box-shadow: 0 0 10px rgba(10,132,255,.8); }
+.jarvis.small { width: 30px; height: 21px; }
+.jarvis.small .halo { display: none; }
+.jarvis.small .eye { width: 46%; box-shadow: none; }
+.jarvis .badge { position: absolute; right: -6px; bottom: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--green); border: 3px solid #000; transform: scale(0); }
+
+/* Welcome */
+.p-welcome .practice { position: absolute; inset: 0; display: grid; place-items: center; }
+.boot { display: grid; justify-items: center; gap: 26px; }
+.boot .hello { font-size: 15px; color: #c7c7cc; min-height: 22px; font-family: var(--font); }
+.boot .hello::after { content: "▍"; color: var(--eye); animation: caret 1s steps(1) infinite; margin-left: 1px; }
+.boot .hello.done::after { display: none; }
+@keyframes caret { 50% { opacity: 0; } }
+.boot.go .eye { animation: eye-on 1.1s var(--ease) .5s forwards; }
+.boot.go .halo { animation: halo 2.6s ease-out .9s infinite; }
+.boot.go .halo.h2 { animation-delay: 2.2s; }
+.boot.go .badge { animation: pop .4s var(--ease) 1.8s forwards; }
+.boot.go .jarvis { animation: rise .9s var(--ease) both; }
+@keyframes eye-on { 0% { width: 0; } 55% { width: 70%; } 100% { width: 46%; } }
+@keyframes halo { 0% { transform: scale(.8); border-color: rgba(10,132,255,.55); } 100% { transform: scale(1.5); border-color: rgba(10,132,255,0); } }
+@keyframes pop { to { transform: scale(1); } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px) scale(.92); } to { opacity: 1; transform: none; } }
+
+/* Practice desktops */
+.practice { position: absolute; inset: 0; padding: 28px; display: flex; align-items: center; justify-content: center; transition: transform .55s cubic-bezier(.34,1.2,.5,1); }
+.win { position: relative; background: #f5f5f7; color: #1d1d1f; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.45); overflow: hidden; width: min(560px, 100%); }
+.win .bar { height: 34px; display: flex; align-items: center; padding: 0 12px; gap: 6px; background: #e8e8ed; font-size: 12.5px; color: #3a3a3c; }
+.win .bar i { width: 10px; height: 10px; border-radius: 50%; background: #c7c7cc; }
+.win .bar b { margin-left: 8px; font-weight: 600; }
+.win.dark { background: #1f242c; color: #e6e7ea; }
+.win.dark .bar { background: #272d36; color: #aeb4bd; }
+.win.dark .bar i { background: #48505c; }
+
+/* Mail compose (any mail app) */
+.mail .row { display: flex; gap: 10px; padding: 9px 16px; border-bottom: 1px solid #e3e3e8; font-size: 13px; }
+.mail .row span { color: #86868b; width: 54px; }
+.mail .body { padding: 14px 16px; min-height: 170px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.mail .body .interim { color: #86868b; }
+.mail .body .cursor { display: inline-block; width: 1.5px; height: 1.05em; background: var(--blue); vertical-align: text-bottom; animation: caret 1s steps(1) infinite; }
+.mail .foot { display: flex; gap: 8px; align-items: center; padding: 10px 16px; }
+.mail .send { background: #1d1d1f; color: #fff; border-radius: 999px; padding: 7px 16px; font-size: 13px; font-weight: 500; }
+
+/* Dictation pill: what shows while you speak */
+.flowpill { position: absolute; left: 50%; bottom: 62px; transform: translate(-50%, 10px); display: flex; align-items: center; gap: 10px; background: #000; color: #fff; border-radius: 999px; padding: 8px 14px 8px 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); opacity: 0; transition: opacity .2s, transform .35s var(--ease); font-size: 12.5px; }
+.flowpill.on { opacity: 1; transform: translate(-50%, 0); }
+.wave { display: flex; gap: 2px; align-items: center; height: 18px; }
+.wave i { width: 3px; border-radius: 2px; background: #fff; height: 4px; transition: height .08s; }
+
+/* Hold-to-talk button (the demo's stand-in for keys a browser can't see) */
+.hold { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 16px; background: var(--s2); color: #fff; font-size: 13px; font-weight: 500; user-select: none; touch-action: none; }
+.hold.down { background: #e5e5ea; color: #000; }
+.hold .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff453a; }
+.under { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--t2); }
+.app.b .under { bottom: 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.chip { font-size: 12.5px; background: rgba(28,28,30,.92); color: #e5e5ea; border-radius: 999px; padding: 6px 12px; box-shadow: 0 0 0 1px rgba(255,255,255,.06); }
+.chip:hover { background: var(--s2); }
+
+/* The island (notch) */
+.isl { position: absolute; left: 50%; top: 0; transform: translateX(-50%); background: #000; border-radius: 0 0 22px 22px; width: 132px; height: 34px; overflow: hidden; z-index: 6; box-shadow: 0 14px 40px rgba(0,0,0,.5); transition: width .42s var(--ease), height .42s var(--ease), border-radius .42s var(--ease); }
+.isl .closed { position: absolute; inset: 0; display: grid; place-items: center; transition: opacity .15s; }
+.isl .open { position: absolute; left: 0; top: 0; width: 600px; padding: 12px 16px 16px; opacity: 0; transition: opacity .25s ease .12s; }
+.isl.big { width: 600px; border-radius: 0 0 30px 30px; }
+.isl.big .closed { opacity: 0; }
+.isl.big .open { opacity: 1; }
+.isl .tabs { display: flex; gap: 4px; height: 32px; align-items: center; margin-bottom: 12px; }
+.isl .tab { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: #8e8e93; font-size: 13px; }
+.isl .tab.on { background: #2c2c2e; color: #fff; }
+.isl .tab:hover { color: #fff; }
+.isl .tabs .sp { flex: 1; }
+.isl .tabs .lbl { font-size: 12px; color: #8e8e93; }
+.isl .card { background: #1c1c1e; border-radius: 16px; padding: 12px 14px; font-size: 13px; }
+.isl .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.isl .li { display: flex; gap: 10px; align-items: center; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #2c2c2e; }
+.isl .li:last-child { border: 0; }
+.isl .ck { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #636366; flex: none; }
+.isl .muted { color: #8e8e93; font-size: 12px; }
+.isl .agent { display: flex; gap: 12px; align-items: center; }
+.isl .agent .what { flex: 1; min-width: 0; }
+.isl .agent code { font: 12px var(--mono); color: #e5e5ea; background: #2c2c2e; border-radius: 6px; padding: 2px 6px; }
+.isl .acts { display: flex; gap: 6px; }
+.isl .acts button { font-size: 12.5px; border-radius: 999px; padding: 6px 13px; background: #2c2c2e; color: #fff; }
+.isl .acts button.allow { background: #f5f5f7; color: #000; }
+
+/* His card (frame B of the explanation windows) */
+.ex { position: absolute; z-index: 5; width: 270px; background: rgba(10,14,22,.97); border: 1px solid #2f5f8f; border-radius: 10px; color: #e6e7ea; font-size: 12px; overflow: hidden; opacity: 0; transform: scale(.94); transform-origin: top left; transition: opacity .3s, transform .45s var(--ease); }
+.ex.on { opacity: 1; transform: none; }
+.ex .hd { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border-bottom: 1px solid #1f2a38; }
+/* His slot: empty (dashed) while the card is drawn, then he lands in it and stays as its icon. */
+.ex .dock { flex: none; width: 30px; height: 21px; border-radius: 6px; border: 1px dashed rgba(127,191,255,.45); }
+.ex .dock.home { border: 0; animation: settle .35s var(--ease); }
+@keyframes settle { from { transform: scale(1.15); } to { transform: none; } }
+.ex .hd b { flex: 1; font-size: 12px; }
+.ex .bd { padding: 9px 11px 12px; line-height: 1.45; color: #cfd2d8; }
+.ex .st { display: flex; gap: 8px; align-items: center; padding: 3px 0; }
+.ex .st i { flex: none; width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid #4fa3ff; color: #4fa3ff; font: 600 9px var(--font); display: grid; place-items: center; font-style: normal; }
+.ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4; overflow: visible; }
+.ptr { position: absolute; z-index: 7; left: 0; top: 0; opacity: 0; transition: left .35s cubic-bezier(.4,.1,.2,1), top .35s cubic-bezier(.4,.1,.2,1), opacity .2s; pointer-events: none; }
+.spoken { position: absolute; z-index: 7; font-size: 12.5px; color: #fff; background: rgba(0,0,0,.85); border-radius: 999px; padding: 6px 12px; opacity: 0; transition: opacity .25s; white-space: nowrap; }
+.spoken.on { opacity: 1; }
+.spoken::before { content: "🔊  "; }
+
+/* Ask box at the cursor */
+.askbox { position: absolute; z-index: 6; width: 300px; background: rgba(28,28,30,.96); backdrop-filter: blur(20px); border-radius: 14px; padding: 8px 8px 8px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 14px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.07); opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .3s var(--ease); }
+.askbox.on { opacity: 1; transform: none; }
+.askbox input { flex: 1; min-width: 0; font-size: 13px; outline: none; }
+.askbox input::placeholder { color: #8e8e93; }
+.askbox .go { width: 26px; height: 26px; border-radius: 50%; background: #f5f5f7; color: #000; font-size: 13px; display: grid; place-items: center; }
+
+/* Mock app pieces */
+.chart { display: flex; align-items: flex-end; gap: 10px; height: 140px; padding: 18px 20px 8px; }
+.chart i { flex: 1; border-radius: 4px 4px 0 0; background: #4f7cff; }
+.chart i.lo { background: #ff9f0a; }
+.axis { display: flex; gap: 10px; padding: 0 20px 14px; font-size: 11px; color: #86868b; }
+.axis span { flex: 1; text-align: center; }
+.toolbar { display: flex; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #e3e3e8; }
+.toolbar span { font-size: 12px; padding: 5px 10px; border-radius: 6px; background: #e8e8ed; color: #3a3a3c; }
+.doc { padding: 16px 18px; display: grid; gap: 8px; }
+.doc i { display: block; height: 8px; border-radius: 4px; background: #e3e3e8; }
+.photo { position: relative; height: 230px; background: linear-gradient(160deg, #3b4a5e, #1d2530); display: grid; place-items: center; }
+.gadget { position: absolute; display: grid; place-items: center; font-size: 11px; color: #cfe3ff; border-radius: 8px; background: rgba(79,163,255,.12); border: 1px solid rgba(79,163,255,.35); }
+
+/* Done */
+.cheat { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: min(560px, 100%); }
+.cheat div { background: rgba(28,28,30,.92); border-radius: 14px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; }
+.cheat div span { color: #c7c7cc; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01s !important; transition-duration: .01s !important; } }
+
+/* The app: the mail's body is a real text box, so the real dictation key types into it. */
+.mail textarea.body { display: block; width: 100%; min-height: 170px; resize: none; border: 0; outline: none; background: transparent; color: #1d1d1f; font: 14px/1.55 var(--font); padding: 14px 16px; }
+/* Skip the tour: quiet, top right of the window. */
+.skip-all { position: absolute; z-index: 30; top: 14px; right: 16px; font-size: 12.5px; color: var(--t2); border-radius: 999px; padding: 5px 11px; background: rgba(28,28,30,.7); }
+.skip-all:hover { color: var(--t1); }
+
+/* ── The tour's last steps (#102): profile, passkey, your AI (prototypes/jarvis-tutorial-profile.html, A) ── */
+.sheet { width: min(460px, calc(100% - 32px)); max-height: calc(100% - 24px); overflow-y: auto; background: rgba(14,15,17,.92); border-radius: 18px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+.sheet.wide { width: min(560px, calc(100% - 32px)); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 12.5px; color: var(--t2); }
+.input { height: 40px; border-radius: 10px; background: var(--s1); padding: 0 12px; outline: none; border: 1px solid transparent; transition: border-color .15s; }
+.input:focus { border-color: var(--blue); }
+.avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--s2); display: grid; place-items: center; font-size: 24px; font-weight: 600; align-self: center; transition: background .3s; }
+.avatar.set { background: var(--s3); }
+.seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--s1); align-self: flex-start; }
+.seg button { padding: 5px 11px; border-radius: 7px; font-size: 12.5px; color: var(--t2); transition: background .15s, color .15s; }
+.seg button.on { background: var(--s3); color: var(--t1); }
+.pin { display: flex; gap: 8px; cursor: text; }
+.pin span { width: 40px; height: 48px; border-radius: 10px; background: var(--s1); display: grid; place-items: center; font-size: 20px; border: 1px solid transparent; transition: border-color .15s, background .15s; }
+.pin span.f { background: var(--s2); }
+.pin span.cur { border-color: var(--blue); }
+.pin.ok span { background: rgba(48,209,88,.16); }
+.pin-in { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pk-msg { font-size: 12.5px; color: var(--t2); min-height: 18px; }
+.pk-msg.ok { color: #6ee38f; } .pk-msg.bad { color: #ff6961; }
+.ai { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--s1); }
+.ai .mark { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-weight: 600; font-size: 13px; background: var(--s2); }
+.ai .name { font-weight: 500; }
+.ai .what { font-size: 12px; color: var(--t2); }
+.ai .what.warn { color: #ffe066; }
+.ai .right { display: flex; align-items: center; gap: 8px; }
+.ai .connect { font-size: 12.5px; padding: 6px 12px; border-radius: 999px; background: var(--s2); }
+.ai .connect.ok { background: rgba(48,209,88,.16); color: #6ee38f; }
+.ai .connect:disabled { opacity: .5; }
+.tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--s2); color: var(--t2); font-weight: 400; }
+.tag.free { background: rgba(48,209,88,.14); color: #6ee38f; }
+.tag.paid { background: rgba(255,214,10,.13); color: #ffe066; }
+.keynote { font-size: 12.5px; color: #c7c7cc; padding: 10px 12px; border-radius: 12px; background: rgba(255,214,10,.07); }
+.keynote b { color: #ffe066; font-weight: 600; }
+#next:disabled { opacity: .35; pointer-events: none; }
+
+/* ── What he keeps an eye on (#106): tap tiles, up to four (prototypes/jarvis-tutorial-connections.html, A) ── */
+.sheet.watch { width: min(640px, calc(100% - 32px)); gap: 12px; }
+.watch .count { font-size: 12.5px; color: var(--t2); }
+.watch .count b { color: var(--t1); font-weight: 500; }
+.watch .room { font-size: 12px; color: var(--t2); margin: 2px 2px -4px; }
+.watch .need { font-size: 11.5px; color: var(--t2); }
+.watch .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.wt { text-align: left; padding: 12px; border-radius: 14px; background: var(--s1); display: flex; flex-direction: column; gap: 8px; position: relative; transition: background .2s, color .2s, transform .12s var(--ease), opacity .2s; }
+.wt:active { transform: scale(.97); }
+.wt .dot { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 600; font-size: 12px; color: #fff; background: var(--s3); transition: background .2s; }
+.wt b { font-weight: 500; font-size: 13.5px; }
+.wt.on { background: #f5f5f7; color: #000; }
+.wt.on .need { color: #3a3a3c; }
+.wt.on .dot { background: var(--c); }
+.wt.on::after { content: "✓"; position: absolute; right: 10px; top: 10px; width: 18px; height: 18px; border-radius: 50%; background: var(--green); color: #000; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.wt.off { opacity: .4; pointer-events: none; }
+
+/* Beta (#108): an outlined word beside what's still being worked out (prototypes/jarvis-experimental-labels.html, B). */
+.jv-beta { display: inline-block; vertical-align: middle; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; line-height: 1.5;
+  color: #8e8e93; border: 1px solid #3a3a3c; border-radius: 6px; padding: 0 6px; margin-left: 8px; white-space: nowrap; }
+.copy .say .beta-note { display: block; margin-top: 8px; font-size: 12.5px; color: #8e8e93; }
+.wt b .jv-beta { margin-left: 6px; font-size: 9px; }

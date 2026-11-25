@@ -39,6 +39,14 @@ use logic::{Action, KeyLogic};
 use store::{AppStyle, Entry, Prefs, Store, Words};
 use text::Snippet;
 
+/// JARVIS #90: the dictation key pressed (or let go) in the tutorial's window, as the hook would say it.
+pub fn key_from_tutorial(down: bool) {
+    #[cfg(windows)]
+    os::send_key(if down { KeyEvent::Down } else { KeyEvent::Up });
+    #[cfg(not(windows))]
+    let _ = down;
+}
+
 /// What reaches the dictation thread.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyEvent {
@@ -97,7 +105,7 @@ pub fn is_shell(id: &str) -> bool {
     matches!(
         id,
         "explorer" | "applicationframehost" | "textinputhost" | "shellexperiencehost" | "searchhost"
-            | "startmenuexperiencehost" | "lockapp" | "coucou" | "gnome-shell" | "plasmashell" | "xfdesktop"
+            | "startmenuexperiencehost" | "lockapp" | "jarvis" | "gnome-shell" | "plasmashell" | "xfdesktop"
     )
 }
 
@@ -117,7 +125,7 @@ fn is_terminal(id: &str) -> bool {
 // ── Setup, on and off ─────────────────────────────────────────────────────────
 
 pub fn setup(app: &AppHandle) {
-    // Sound left muted by a Coucou that quit while listening comes back.
+    // Sound left muted by a JARVIS that quit while listening comes back.
     hush::setup();
     let flow = Arc::new(Flow { store: Mutex::new(Store::load()), running: Mutex::new(None) });
     app.manage(flow.clone());
@@ -130,9 +138,17 @@ pub fn setup(app: &AppHandle) {
     });
     if prefs.enabled {
         enable(app, &flow);
+        // #117: on from the start, so the voice model comes down by itself the first time.
+        // shortcut: also after you remove the model with dictation still on; turn it off to stop that.
+        if matches!(crate::speech::status().parakeet, crate::speech::ModelState::Missing) {
+            crate::log::line("speech models missing: downloading them");
+            crate::speech::download(app.clone());
+        }
     }
     crate::voice::shortcut::apply(&prefs);
     crate::voice::sync(app);
+    // JARVIS: Ctrl + Win works with « Hey JARVIS » off too.
+    crate::voice::on_demand(app);
 }
 
 /// The key as the pages write it ("right_ctrl"…, "custom:AltLeft+ShiftLeft+KeyF"
@@ -172,7 +188,7 @@ fn enable(app: &AppHandle, flow: &Arc<Flow>) {
     let app2 = app.clone();
     let flow2 = flow.clone();
     std::thread::Builder::new()
-        .name("coucou-flow".into())
+        .name("jarvis-flow".into())
         .spawn(move || run(app2, flow2, rx))
         .ok();
     *running = Some(Running { tx, _listener: listener });
@@ -200,7 +216,7 @@ fn disable(app: &AppHandle, flow: &Arc<Flow>) {
 
 struct Listening {
     capture: audio::Capture,
-    /// The other apps are silent while Coucou listens (hush.rs); dropped with it.
+    /// The other apps are silent while JARVIS listens (hush.rs); dropped with it.
     _hush: Option<hush::Guard>,
     take: Arc<Mutex<audio::Take>>,
     started: Instant,
@@ -227,6 +243,12 @@ fn run(app: AppHandle, flow: Arc<Flow>, rx: mpsc::Receiver<(KeyEvent, Instant)>)
                 Err(_) => break,
             }
         };
+        // JARVIS #90: during the tutorial, every dictation key event is logged (which never arrive?).
+        if crate::tutorial::is_open() {
+            if let Some((e, _)) = &received {
+                crate::log::line(format!("tutorial: flow key {e:?}"));
+            }
+        }
         let action = match received {
             Some((KeyEvent::Quit, _)) => {
                 drop(listening.take());
@@ -271,6 +293,9 @@ fn run(app: AppHandle, flow: Arc<Flow>, rx: mpsc::Receiver<(KeyEvent, Instant)>)
             }
             None => logic.tick(secs(Instant::now())),
         };
+        if crate::tutorial::is_open() && !matches!(action, Action::None) {
+            crate::log::line(format!("tutorial: flow action {action:?}"));
+        }
         match action {
             Action::None => {}
             Action::Start => {
@@ -303,7 +328,7 @@ fn run(app: AppHandle, flow: Arc<Flow>, rx: mpsc::Receiver<(KeyEvent, Instant)>)
         if let Some(l) = &listening {
             let levels = l.take.lock().unwrap().meter.levels;
             let _ = app.emit_to(pill::LABEL, "pill-bands", levels);
-            // The Coucou window's bands breathe with the voice while it is on screen.
+            // The JARVIS window's bands breathe with the voice while it is on screen.
             if crate::hub_is_shown() {
                 let _ = app.emit_to(crate::HUB_LABEL, "flow-bands", levels);
             }
@@ -319,7 +344,7 @@ fn begin(app: &AppHandle, flow: &Arc<Flow>) -> Option<Listening> {
             app,
             "download",
             "#3B9EFF",
-            t("Download the voice model first, in Coucou → Settings → Recognition."),
+            t("Download the voice model first, in JARVIS → Settings → Recognition."),
             Some((t("Open Settings"), "openSettings")),
             10,
         );
@@ -353,7 +378,7 @@ fn begin(app: &AppHandle, flow: &Arc<Flow>) -> Option<Listening> {
                 app,
                 "mic",
                 "#FF6B6B",
-                t("Coucou can't hear you: the microphone is not allowed or not available."),
+                t("JARVIS can't hear you: the microphone is not allowed or not available."),
                 None,
                 8,
             );
@@ -416,6 +441,14 @@ fn process(app: &AppHandle, flow: &Arc<Flow>, samples: &[f32], front: Option<&(S
     crate::log::line(format!("flow: {} words in {:?}", text::word_count(&final_text), started.elapsed()));
 
     os::wait_key_released(&key);
+    // JARVIS #90: during the tutorial the words go to its practice mail only (flow-dictated).
+    // JARVIS #90: with the tour in front the words go to it only (flow-dictated); elsewhere they're pasted.
+    if crate::tutorial::in_front() {
+        let _ = app.emit_to(crate::tutorial::LABEL, "flow-dictated", &final_text);
+        crate::log::line(format!("tutorial: dictated {} words into the practice mail", text::word_count(&final_text)));
+        pill::update(app, |s| s.phase = "idle".into());
+        return Ok(());
+    }
     let terminal = front.is_some_and(|(id, _)| is_terminal(id));
     let outcome = paste::paste(&final_text, terminal);
     let entry = {
@@ -468,7 +501,7 @@ pub struct FlowStatus {
     has_claude_key: bool,
     mics: Vec<audio::InputDevice>,
     platform: &'static str,
-    /// Coucou started with the computer.
+    /// JARVIS started with the computer.
     autostarted: bool,
     /// The user's first name, for "Hello Louis".
     user_name: Option<String>,

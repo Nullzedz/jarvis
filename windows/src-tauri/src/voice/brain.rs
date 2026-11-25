@@ -1,4 +1,4 @@
-// « OK Coucou »'s brain: Claude with the user's key and Coucou's tools —
+// « Hey JARVIS »'s brain: Claude with the user's key and JARVIS's tools —
 // pills, music, the user's own data, opening an app, preparing an email (the
 // mail app opens with it filled in; the user sends it) and Anthropic's web
 // search. The conversation lives in memory only and is forgotten 90 s after
@@ -56,7 +56,7 @@ fn tools() -> Vec<Value> {
         }),
         json!({
             "name": "service_info",
-            "description": "Read the user's real data that Coucou already has, as JSON: the active pills, the agent sessions (Claude Code, Codex…) and what they are doing, Claude or Codex plan usage, Spotify now playing, and the services' latest data (Stripe, GitHub, Vercel, Resend, n8n, Notion, Cal.com).",
+            "description": "Read the user's real data that JARVIS already has, as JSON: the active pills, the agent sessions (Claude Code, Codex…) and what they are doing, Claude or Codex plan usage, Spotify now playing, and the services' latest data (Stripe, GitHub, Vercel, Resend, n8n, Notion, Cal.com).",
             "input_schema": { "type": "object", "properties": {} }
         }),
         json!({
@@ -90,7 +90,8 @@ fn persona() -> String {
     let os = if cfg!(windows) { "Windows" } else { "Linux" };
     format!(
         "You are JARVIS, the user's personal voice assistant living at the top of the screen of their {os} computer: \
-formal, composed and courteous, like a refined British butler, quietly witty, never gushing. Address the user as \"sir\"."
+formal, composed and courteous, like a refined British butler, quietly witty, never gushing. {}",
+        crate::profile::address_rule()
     )
 }
 
@@ -100,7 +101,8 @@ fn instructions(pills: &str) -> String {
 no markdown, no lists, no emojis, no links.\n\
 Act with the tools instead of describing: pills, music, service_info for the user's own data, open_app, \
 prepare_email, and web_search for anything current (weather, news, scores, prices, facts you are not sure of). \
-Never invent the user's data.\n\
+Never invent the user's data. Their reminders, notes and today's calendar come in brackets before \
+each question: answer about them from there, never say you have no access to them.\n\
 Email: gather the recipient's address, the subject and what to say (write the text yourself from what the user \
 wants to say, in the language they used), asking for what is missing one short question at a time, then call \
 prepare_email. The email is never sent by you: the user checks it in their mail app and sends it.\n\
@@ -120,7 +122,7 @@ const SIGHT: &str = concat!(
 /// it, so the same process serves every question: each question carries the time.
 pub fn claude_code_system() -> String {
     format!(
-        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets, for you to know: never repeat it in your answer. {}",
+        "{}\n{}\nHere you have no tools besides web search: answer in words only, and if you are asked to do something on the computer, say briefly that you can't from here, except two things you do with the blocks below: the user's reminders, notes and calendar (the island block), and pointing at or explaining something on their screen when a picture of it came (the window and point blocks). Never say you can't draw on or point at the screen when a picture came: answer with the block. Never search the web about what is on the user's screen: the picture is all you need. Never apologise for how you answered before: just answer. After a web search, say which publication reported it, in words, as a person would (\"according to Reuters\", \"the Manila Bulletin reports\"); never add a Sources list, links or web addresses. Each message starts with the current date and time in brackets, for you to know: never repeat it in your answer. {}",
         persona(),
         instructions("(not available)"),
         SIGHT
@@ -135,6 +137,9 @@ impl Brain {
             self.messages.clear();
         }
         self.last = Instant::now();
+        // JARVIS #92: the island's reminders, notes and today's calendar, in front of the question.
+        let with_island = format!("{}{transcript}", crate::pocket::context());
+        let transcript = with_island.as_str();
         // JARVIS: no Claude key — your own Claude Code answers (words and web search, no tools).
         if !crate::secrets::present(crate::claude::KEY) {
             return self.respond_with_claude_code(transcript, sight, on_text);

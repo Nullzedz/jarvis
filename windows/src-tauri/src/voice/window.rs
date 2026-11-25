@@ -72,9 +72,73 @@ pub fn ready(w: &Value) -> bool {
         Some("breakdown") => list("parts"),
         Some("timeline") => list("points"),
         // His own picture: plain SVG, made safe where it's drawn (src/explain/draw.ts).
-        Some("drawing") => w["svg"].as_str().is_some_and(|s| s.contains("<svg")),
+        Some("drawing") => w["svg"].as_str().is_some_and(|s| s.to_ascii_lowercase().contains("<svg")),
+        // "Where is…?" (#88): only the place he circles; no card.
+        Some("point") => is_point(w),
+        // JARVIS #92: the island opens on reminders, notes or calendar, with what he added or ticked off.
+        Some("island") => is_island(w),
         _ => false,
     }
+}
+
+/// JARVIS #92: the island block: a tab to open, and reminders or notes to add or tick off.
+pub fn is_island(w: &Value) -> bool {
+    let some = |k: &str| w[k].as_array().is_some_and(|a| !a.is_empty());
+    w["kind"].as_str() == Some("island")
+        && (matches!(w["tab"].as_str(), Some("reminders" | "notes" | "calendar")) || some("add_reminders") || some("done_reminders") || some("add_notes"))
+}
+
+/// "Where is…?" (#88): a window that is only a place to circle, with no card.
+pub fn is_point(w: &Value) -> bool {
+    w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
+}
+
+/// A question a guide answers by drawing (#96): « where is… » and « show me how… », « take
+/// me to… ». A « how do I… » is told in words, not drawn.
+pub fn wants_guide(question: &str) -> bool {
+    let q = question.to_lowercase();
+    if ["show me", "take me", "walk me", "guide me", "navigate"].iter().any(|k| q.contains(k)) {
+        return true;
+    }
+    asks_where(question)
+}
+
+/// « Where is…? », « find… »: a place on the screen is asked for. A « how… » question isn't
+/// (#96: those are told in words; « show me how » is drawn, see `wants_guide`).
+pub fn asks_where(question: &str) -> bool {
+    let q = question.to_lowercase();
+    if q.trim_start().starts_with("how") || ["how do i", "how can i", "how to "].iter().any(|k| q.contains(k)) {
+        return false;
+    }
+    ["where", "find", "get to", "go to", "locate", "which button"].iter().any(|k| q.contains(k))
+}
+
+/// "Where is…? / how do I get to…?" answered with an explanation block that has a target
+/// (#94: « Click the profile icon, then Settings, then Billing » came as a card of steps): made
+/// the circle-and-guide it should have been, its clicks read from the idea.
+pub fn as_point(question: &str, w: Value) -> Value {
+    let asks_where = asks_where(question);
+    let kind = w["kind"].as_str().unwrap_or("");
+    if !asks_where || is_point(&w) || kind == "island" || !w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2) {
+        return w;
+    }
+    let mut steps: Vec<String> = w["steps"].as_array().map(|a| a.iter().filter_map(|s| s.as_str().map(str::to_string)).collect()).unwrap_or_default();
+    if steps.is_empty() {
+        let idea = w["idea"].as_str().unwrap_or("").trim_end_matches('.');
+        steps = idea
+            .split(", then ")
+            .flat_map(|p| p.split(" then "))
+            .flat_map(|p| p.split(", and "))
+            .map(|p| p.trim().trim_start_matches("and ").trim())
+            .filter(|p| !p.is_empty())
+            .map(|p| { let mut c = p.chars(); c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default() })
+            .collect();
+    }
+    let mut out = serde_json::json!({ "kind": "point", "target": w["target"].clone() });
+    if steps.len() >= 2 {
+        out["steps"] = serde_json::json!(steps);
+    }
+    out
 }
 
 /// The target box on the picture, if he gave a sensible one: [x, y, w, h], inside it.
@@ -90,6 +154,11 @@ pub fn about(w: &Value, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
 fn picture_box(w: &Value, key: &str, size: (u32, u32)) -> Option<(f64, f64, f64, f64)> {
     let t = w[key].as_array()?;
     let n: Vec<f64> = t.iter().filter_map(Value::as_f64).collect();
+    // #92: a point alone ([x, y], as he sometimes gives) is a small box round it.
+    let n = match n[..] {
+        [x, y] => vec![(x - 30.0).max(0.0), (y - 14.0).max(0.0), 60.0, 28.0],
+        _ => n,
+    };
     let [x, y, bw, bh] = n[..] else { return None };
     let fits = x >= 0.0 && y >= 0.0 && bw > 0.0 && bh > 0.0 && x + bw <= size.0 as f64 + 2.0 && y + bh <= size.1 as f64 + 2.0;
     fits.then_some((x, y, bw, bh))
@@ -105,6 +174,13 @@ mod tests {
         assert_eq!(said, "Four steps, sir.");
         let w = w.unwrap();
         assert_eq!(w["steps"][1], "Choose PDF");
+        let card = serde_json::json!({ "idea": "Click the profile icon at bottom left, then Settings, then find Billing in the menu.", "about": [0, 650, 200, 70], "target": [0, 690, 90, 30] });
+        let p = as_point("where is billing", card.clone());
+        assert!(is_point(&p));
+        assert_eq!(p["steps"], serde_json::json!(["Click the profile icon at bottom left", "Settings", "Find Billing in the menu"]));
+        assert_eq!(as_point("explain this chart", card.clone()), card);
+        assert!(wants_guide("where is billing?") && wants_guide("show me how to export") && wants_guide("Take me to the settings"));
+        assert!(!wants_guide("how do I export this?") && !wants_guide("How can I find dark mode") && !wants_guide("what is this chart"));
         assert_eq!(target(&w, (1280, 720)), Some((10.0, 20.0, 60.0, 24.0)));
     }
 
@@ -154,6 +230,29 @@ mod tests {
         assert_eq!(short_line("Version 2.5 is out, sir."), "Version 2.5 is out, sir.");
         let long = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen, sixteen seventeen";
         assert_eq!(short_line(long), "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen…");
+    }
+
+    #[test]
+    fn the_island_block_opens_a_tab_or_changes_the_lists() {
+        let (said, w) = split(r#"You have two. <window>{"kind": "island", "tab": "reminders"}</window>"#);
+        assert_eq!(said, "You have two.");
+        assert!(is_island(&w.unwrap()));
+        let (_, w) = split(r#"Added. <window>{"kind": "island", "add_reminders": ["Call Sam"]}</window>"#);
+        assert!(is_island(&w.unwrap()));
+        assert!(split(r#"Hm. <window>{"kind": "island", "tab": "mail"}</window>"#).1.is_none());
+    }
+
+    #[test]
+    fn where_is_comes_as_a_point_with_only_its_target() {
+        let (said, w) = split(r#"Top right, next to Share. <window>{"kind": "point", "target": [600, 10, 80, 24]}</window>"#);
+        assert_eq!(said, "Top right, next to Share.");
+        let w = w.unwrap();
+        assert!(is_point(&w));
+        assert_eq!(target(&w, (1280, 720)), Some((600.0, 10.0, 80.0, 24.0)));
+        assert!(split(r#"Here. <window>{"kind": "point"}</window>"#).1.is_none());
+        // A point alone is a small box round it.
+        let (_, w) = split(r#"Top left. <window>{"kind": "point", "target": [44, 46]}</window>"#);
+        assert_eq!(target(&w.unwrap(), (1280, 720)), Some((14.0, 32.0, 60.0, 28.0)));
     }
 
     #[test]

@@ -433,7 +433,7 @@ mod tests {
     }
 
     /// Renders a sample per voice from an unpacked model:
-    /// JARVIS_KOKORO_DIR=<…/kokoro-int8-multi-lang-v1_0> JARVIS_SAMPLES=<out dir> cargo test -p coucou --lib tts::tests::render -- --ignored
+    /// JARVIS_KOKORO_DIR=<…/kokoro-int8-multi-lang-v1_0> JARVIS_SAMPLES=<out dir> cargo test -p jarvis --lib tts::tests::render -- --ignored
     #[test]
     #[ignore]
     fn render_samples() {

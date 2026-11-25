@@ -88,10 +88,10 @@ fn random_token() -> Result<String, String> {
     Ok(bytes.iter().map(|b| ALPHABET[(b & 63) as usize] as char).collect())
 }
 
-/// `coucou://pair?v=1&host=…&port=…&fp=…&token=…&name=…`
+/// `jarvis://pair?v=1&host=…&port=…&fp=…&token=…&name=…`
 pub fn pairing_link(host: &str, port: u16, fingerprint: &str, token: &str, name: &str) -> String {
     format!(
-        "coucou://pair?v=1&host={}&port={port}&fp={fingerprint}&token={token}&name={}",
+        "jarvis://pair?v=1&host={}&port={port}&fp={fingerprint}&token={token}&name={}",
         percent_encode(host),
         percent_encode(name)
     )
@@ -279,7 +279,7 @@ pub mod tests {
         assert_eq!(
             link,
             format!(
-                "coucou://pair?v=1&host=192.168.1.20&port=47821&fp={}&token=tok_en-1234567890abcd&name=L%C3%A9a%27s%20PC%20%26%20co",
+                "jarvis://pair?v=1&host=192.168.1.20&port=47821&fp={}&token=tok_en-1234567890abcd&name=L%C3%A9a%27s%20PC%20%26%20co",
                 "ab".repeat(32)
             )
         );
@@ -317,7 +317,7 @@ pub mod tests {
         assert!(link.len() < 2048, "the phone refuses a link of 2,048 characters or more (PairingScan.MAX_LINK): {}", link.len());
         assert!(qr_svg(&link).is_some(), "and the QR code can hold it");
         // The ordinary case is far shorter, so the code stays easy to scan.
-        let usual = pairing_link_with_relay("192.168.1.20", 47821, &"ab".repeat(32), &"t".repeat(32), "My PC", &RelayLink { url: "wss://coucou-link.me.workers.dev", room: &"A".repeat(22), key: &"B".repeat(43), access: &"C".repeat(43) });
+        let usual = pairing_link_with_relay("192.168.1.20", 47821, &"ab".repeat(32), &"t".repeat(32), "My PC", &RelayLink { url: "wss://jarvis-link.me.workers.dev", room: &"A".repeat(22), key: &"B".repeat(43), access: &"C".repeat(43) });
         assert!(usual.len() < 450, "{}", usual.len());
     }
 

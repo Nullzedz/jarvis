@@ -5,7 +5,7 @@
 //
 // Kept apart from the user's sessions like claude_code.rs: no settings file (so
 // no hooks), no MCP server, no slash command, nothing saved to resume, in
-// Coucou's own empty folder. Its only tool is web search.
+// JARVIS's own empty folder. Its only tool is web search.
 //
 // The conversation lives in the process: after FORGET_AFTER without a question
 // it is replaced by a fresh one (started straight away, so it is warm again
@@ -182,8 +182,11 @@ fn send(w: &mut Warm, content: Value) -> Result<(), String> {
 fn read(w: &mut Warm, timeout: Duration, on_text: &mut dyn FnMut(&str)) -> Result<String, String> {
     let started = Instant::now();
     let mut text = String::new();
-    // Text of the turn being written; a turn that ends in a tool call is not the answer.
+    // Text of the turn being written. Only a turn that ends without a tool call is the answer: one
+    // that goes on to a web search ("let me look that up"), and anything said between searches,
+    // is dropped (#92: every turn was joined, an answer full of apologies for searching).
     let mut turn = String::new();
+    let mut searching = false;
     loop {
         let left = timeout.saturating_sub(started.elapsed());
         let line = match w.lines.recv_timeout(left) {
@@ -195,18 +198,23 @@ fn read(w: &mut Warm, timeout: Duration, on_text: &mut dyn FnMut(&str)) -> Resul
             Some("stream_event") => {
                 let event = &line["event"];
                 match event["type"].as_str() {
-                    Some("message_start") => turn.clear(),
+                    Some("message_start") => {
+                        turn.clear();
+                        searching = false;
+                    }
+                    Some("content_block_start") if event["content_block"]["type"] != "text" => searching = true,
                     Some("content_block_delta") if event["delta"]["type"] == "text_delta" => {
                         if let Some(delta) = event["delta"]["text"].as_str() {
-                            // A later turn (after a web search) goes on from what was said.
-                            if turn.is_empty() && !text.is_empty() && !delta.starts_with(char::is_whitespace) {
-                                on_text(" ");
-                                text.push(' ');
-                            }
                             turn.push_str(delta);
-                            text.push_str(delta);
-                            on_text(delta);
                         }
+                    }
+                    Some("message_delta") if event["delta"]["stop_reason"] == "tool_use" => searching = true,
+                    Some("message_stop") => {
+                        if !searching && !turn.trim().is_empty() {
+                            text = std::mem::take(&mut turn);
+                            on_text(&text);
+                        }
+                        turn.clear();
                     }
                     _ => {}
                 }

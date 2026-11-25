@@ -1,7 +1,7 @@
 // JARVIS: Home's Claude plan widget (step 4 of #57), one to one with the demo's
 // (prototypes/jarvis-home.html): two rings, the session's (5 hours, pink) outside and the week's
 // (green) inside, the two percentages and when the session resets. The numbers are the island's
-// (views/usage.ts keeps them in this window's shared storage, "coucou.claudePlanUsage"); when
+// (views/usage.ts keeps them in this window's shared storage, "jarvis.claudePlanUsage"); when
 // they are missing or old, one tiny Claude Code question refreshes them, as the notch does.
 
 import { h, clear } from "../views/dom";
@@ -9,7 +9,7 @@ import { t } from "../i18n/i18n";
 import { Bridge, onEvent } from "../core/bridge";
 import { PLAN_TEXT, parseClaudePlan, type PlanUsage } from "../core/plan";
 
-const STORE_KEY = "coucou.claudePlanUsage";
+const STORE_KEY = "jarvis.claudePlanUsage";
 /** Older than this, the numbers are asked again (at most this often), as the notch does. */
 const STALE_MS = 10 * 60_000;
 let askedAt = 0;

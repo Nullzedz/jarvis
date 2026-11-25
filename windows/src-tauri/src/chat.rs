@@ -115,7 +115,9 @@ impl Chat {
 /// has one worth using (identity.rs), and only claims web search where the
 /// provider runs it (Claude).
 pub fn system_prompt(web_search: bool) -> String {
-    let base = system_prompt_for(crate::identity::first_name(), web_search);
+    // The name from the tour first (#102), else the account's.
+    let from_tour = crate::profile::name().map(|n| n.split_whitespace().next().unwrap_or(&n).to_string());
+    let base = system_prompt_for(from_tour.as_deref().or(crate::identity::first_name()), web_search);
     // The chat's Mail switch is on for this turn: how to write a mail plan.
     if crate::mail::MAIL_TURN.load(std::sync::atomic::Ordering::Relaxed) {
         return base + crate::mail::plan::INSTRUCTIONS;
@@ -125,8 +127,8 @@ pub fn system_prompt(web_search: bool) -> String {
 
 fn system_prompt_for(first_name: Option<&str>, web_search: bool) -> String {
     let opening = match first_name {
-        Some(name) => format!("You are JARVIS, {name}'s personal AI assistant living at the top of their screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address {name} as \"sir\"."),
-        None => "You are JARVIS, a personal AI assistant living at the top of the user's screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address the user as \"sir\".".to_string(),
+        Some(name) => format!("You are JARVIS, {name}'s personal AI assistant living at the top of their screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. Address {name} as \"{}\".{}", crate::profile::title(), crate::profile::about_line()),
+        None => format!("You are JARVIS, a personal AI assistant living at the top of the user's screen. You are formal, composed and courteous, in the manner of a refined British butler: precise, quietly witty, never gushing. {}", crate::profile::address_rule()),
     };
     let abilities = if web_search {
         "You have web search access and can help with absolutely anything — research, coding, finding places, recommendations, tasks, questions."
@@ -177,7 +179,7 @@ pub fn model_for(settings: &Settings, provider: &str) -> String {
         .unwrap_or_default()
 }
 
-/// A file rides along only if it is one of Coucou's own copies of a dropped
+/// A file rides along only if it is one of JARVIS's own copies of a dropped
 /// file (files.rs puts them in the inbox). The page names the path, so without
 /// this any file the user can read could be sent to a chat provider.
 fn checked_context(context: ChatContext) -> Result<ChatContext, String> {
@@ -381,7 +383,7 @@ mod tests {
 
     #[test]
     fn only_files_in_the_inbox_ride_along() {
-        let base = std::env::temp_dir().join(format!("coucou-chat-ctx-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("jarvis-chat-ctx-{}", std::process::id()));
         let inbox = base.join("inbox");
         std::fs::create_dir_all(inbox.join("sub")).unwrap();
         std::fs::write(inbox.join("a.txt"), b"a").unwrap();

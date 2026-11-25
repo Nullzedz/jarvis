@@ -1,13 +1,13 @@
 // The Claude Code relay: with no Anthropic API key saved, the chat, Flow's
 // clean-up and the notes of a call are answered by the user's own Claude Code
-// (`claude -p`), signed in with their own account. Coucou reads no credential
+// (`claude -p`), signed in with their own account. JARVIS reads no credential
 // and makes no network call of its own: Claude Code answers exactly as it does
 // in a terminal.
 //
 // Each run is kept apart from the user's sessions: no settings file is loaded
-// (so no hooks: Coucou's own would show the relay's runs as sessions), no MCP
+// (so no hooks: JARVIS's own would show the relay's runs as sessions), no MCP
 // server, no skill, nothing saved to resume, and it runs in an empty folder of
-// Coucou's, so no CLAUDE.md is picked up. It may only use the tools it is
+// JARVIS's, so no CLAUDE.md is picked up. It may only use the tools it is
 // given: web search for the chat, and reading the one dropped file.
 
 use std::ffi::OsString;
@@ -40,6 +40,8 @@ pub struct Request<'a> {
     /// A folder the run may read from, besides its own.
     pub read_dir: Option<&'a Path>,
     pub timeout: Duration,
+    /// No thinking first (#96: a route of a few names took 30 s with it, 3 without).
+    pub quick: bool,
 }
 
 /// The Claude Code CLI, when it is installed.
@@ -66,6 +68,7 @@ pub async fn ask(request: &Request<'_>) -> Result<String, String> {
     cmd.args(args(request))
         .current_dir(&workdir)
         .env_remove("CLAUDECODE")
+        .envs(request.quick.then_some(("MAX_THINKING_TOKENS", "0")))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -188,6 +191,7 @@ mod tests {
             tools: &[],
             read_dir: None,
             timeout: Duration::from_secs(1),
+            quick: false,
         };
         let a = strings(&args(&request));
         assert_eq!(&a[..8], ["-p", "--output-format", "json", "--model", "claude-x", "--system-prompt", "sys", "--tools"]);

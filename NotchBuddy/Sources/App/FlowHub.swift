@@ -3,7 +3,7 @@ import AppKit
 import Carbon
 import SwiftUI
 
-/// The pages of the Coucou window: Flow (the dictation, the Notetaker) and the notch's settings.
+/// The pages of the JARVIS window: Flow (the dictation, the Notetaker) and the notch's settings.
 enum HubPage: String, CaseIterable, Identifiable {
     case dictation, notes, insights, dictionary, snippets, styles, settings
     case general, pills, agents, chat, integrations, voice, shortcuts
@@ -81,7 +81,7 @@ enum HubPage: String, CaseIterable, Identifiable {
     }
 }
 
-/// The colors of the Coucou Flow window: the island's dark, with Coucou's orange.
+/// The colors of the JARVIS Flow window: the island's dark, with JARVIS's orange.
 enum HubTheme {
     /// OLED black: the window and the sidebar.
     static let window = Color.black
@@ -138,7 +138,7 @@ final class HubRouter: ObservableObject {
     @Published var page: HubPage = .dictation
 }
 
-/// Opens the Coucou Flow window: the history of the dictations, the Notetaker, the numbers, the
+/// Opens the JARVIS Flow window: the history of the dictations, the Notetaker, the numbers, the
 /// dictionary, the snippets, the styles and the settings of the dictation.
 @MainActor
 final class FlowHubController {
@@ -147,10 +147,10 @@ final class FlowHubController {
     let windowState = HubWindowState()
     private var window: NSWindow?
 
-    static let showInDockKey = "coucouShowInDock"
-    static let openAtLaunchKey = "coucouOpenAtLaunch"
+    static let showInDockKey = "jarvisShowInDock"
+    static let openAtLaunchKey = "jarvisOpenAtLaunch"
 
-    /// Coucou in the Dock, like a regular app (on by default in the GitHub build).
+    /// JARVIS in the Dock, like a regular app (on by default in the GitHub build).
     static var showInDock: Bool {
         get { UserDefaults.standard.object(forKey: showInDockKey) as? Bool ?? true }
         set {
@@ -160,13 +160,13 @@ final class FlowHubController {
         }
     }
 
-    /// The window opens when Coucou is opened by hand (never at login).
+    /// The window opens when JARVIS is opened by hand (never at login).
     static var openAtLaunch: Bool {
         get { UserDefaults.standard.object(forKey: openAtLaunchKey) as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: openAtLaunchKey) }
     }
 
-    /// Whether macOS opened Coucou at login, rather than you from the Finder, the Dock or Spotlight.
+    /// Whether macOS opened JARVIS at login, rather than you from the Finder, the Dock or Spotlight.
     static func launchedAtLogin() -> Bool {
         if let event = NSAppleEventManager.shared().currentAppleEvent,
            event.paramDescriptor(forKeyword: AEKeyword(keyAEPropData))?.enumCodeValue == OSType(keyAELaunchedAsLogInItem) {
@@ -187,7 +187,7 @@ final class FlowHubController {
         let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
                            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
                            backing: .buffered, defer: false)
-        win.title = "Coucou"
+        win.title = "JARVIS"
         win.titlebarAppearsTransparent = true
         win.titleVisibility = .hidden
         win.appearance = NSAppearance(named: .darkAqua)
@@ -196,8 +196,8 @@ final class FlowHubController {
         windowState.watch(win)
         win.contentMinSize = NSSize(width: 940, height: 600)
         win.isReleasedWhenClosed = false
-        win.setFrameAutosaveName("CoucouFlowWindow")
-        if !win.setFrameUsingName("CoucouFlowWindow") { win.center() }
+        win.setFrameAutosaveName("JarvisFlowWindow")
+        if !win.setFrameUsingName("JarvisFlowWindow") { win.center() }
         window = win
         win.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -273,7 +273,7 @@ private struct HubSidebar: View {
                 // hops and hats): lifted so his body lines up with the name.
                 HubLiveMochi(size: 28)
                     .offset(y: -4)
-                Text(verbatim: "Coucou")
+                Text(verbatim: "JARVIS")
                     .font(.system(size: 18, weight: .bold))
             }
             .padding(.horizontal, 8)

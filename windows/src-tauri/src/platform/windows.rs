@@ -46,7 +46,7 @@ use super::LocalTime;
 use crate::session_window::{self, Proc};
 
 /// File name of the Claude Code relay.
-pub const HOOK_EXE: &str = "coucou-hook.exe";
+pub const HOOK_EXE: &str = "jarvis-hook.exe";
 
 /// Environment variable holding the home directory.
 pub const HOME_VAR: &str = "USERPROFILE";
@@ -56,20 +56,22 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 // ── Files ─────────────────────────────────────────────────────────────────────
 
-/// %APPDATA%\Coucou — preferences.
+/// %APPDATA%\JARVIS — preferences.
 pub fn config_dir() -> PathBuf {
     let base = std::env::var_os("APPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("Coucou")
+    base.join("JARVIS")
 }
 
-/// %LOCALAPPDATA%\Coucou — where coucou-hook.exe, the inbox and the log live.
+/// %LOCALAPPDATA%\com.nullzedz.jarvis — where jarvis-hook.exe, the inbox and the log live,
+/// beside the windows' own data. Not %LOCALAPPDATA%\JARVIS: the installer puts the app there,
+/// and its uninstaller would take the data with it (#98).
 pub fn local_dir() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("Coucou")
+    base.join("com.nullzedz.jarvis")
 }
 
 /// Where a saved image goes, best first: Pictures (also where OneDrive moves
@@ -182,8 +184,8 @@ pub fn cli_candidates(name: &str) -> Vec<PathBuf> {
 // ── Who we are ────────────────────────────────────────────────────────────────
 //
 // Named pipes share one machine-wide namespace, so the SID in the name is what
-// keeps two accounts on the same machine from ever meeting on `coucou-*`.
-// coucou-hook computes the same string (hook/src/win.rs) and additionally checks
+// keeps two accounts on the same machine from ever meeting on `jarvis-*`.
+// jarvis-hook computes the same string (hook/src/win.rs) and additionally checks
 // that the process serving the pipe really is us.
 
 /// The SID of the account this process runs as, as `S-1-5-21-…`.
@@ -486,7 +488,7 @@ pub fn window_owners(ancestors: &[u32]) -> Vec<u32> {
     first_with_window(ancestors).into_iter().collect()
 }
 
-fn bring_forward(raw: isize) -> bool {
+pub fn bring_forward(raw: isize) -> bool {
     let hwnd = HWND(raw as *mut _);
     unsafe {
         if !IsWindow(Some(hwnd)).as_bool() {
@@ -498,7 +500,7 @@ fn bring_forward(raw: isize) -> bool {
             let _ = ShowWindow(hwnd, SW_SHOW);
         }
 
-        // The island window has WS_EX_NOACTIVATE, so clicks on it do not make Coucou
+        // The island window has WS_EX_NOACTIVATE, so clicks on it do not make JARVIS
         // the active foreground window. Windows blocks SetForegroundWindow unless the
         // calling thread is attached to the foreground thread or owns foreground rights.
         let fg_hwnd = GetForegroundWindow();

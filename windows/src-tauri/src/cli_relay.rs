@@ -2,13 +2,13 @@
 // subscriptions, as on the Mac: CLIRelay.swift). With the switch on, the chat
 // is answered by the provider's official terminal tool, signed in with the
 // user's own account: Claude Code (claude_code.rs), Antigravity CLI or Gemini
-// CLI, Codex CLI, Cursor CLI and GitHub Copilot CLI. Coucou reads no
+// CLI, Codex CLI, Cursor CLI and GitHub Copilot CLI. JARVIS reads no
 // credential and makes no network call of its own.
 //
 // Each run is kept apart from the user's sessions and can only answer: plan,
 // ask or read-only modes, no shell, no edits, no user hooks, MCP servers,
 // extensions or plugins where the tool lets us turn them off, nothing saved to
-// resume, in an empty folder of Coucou's. Web search for the chat only: a
+// resume, in an empty folder of JARVIS's. Web search for the chat only: a
 // dropped file is read with no web at all (a file written to steer the model
 // could otherwise send what it reads to a website). Claude Code reads the file
 // itself; the other tools get a text file's contents in the prompt.
@@ -222,7 +222,7 @@ fn args(cli: Cli, r: &Request<'_>, prompt_arg: bool) -> Vec<OsString> {
             }
             out.extend(
                 ["--output-format", "json", "--approval-mode", "plan", "--skip-trust", "--extensions", "none",
-                 "--allowed-mcp-server-names", "coucou-none"]
+                 "--allowed-mcp-server-names", "jarvis-none"]
                     .map(String::from),
             );
             if let (false, Some(policy)) = (r.web, r.no_web_policy) {
@@ -507,6 +507,7 @@ pub async fn send(
             tools,
             read_dir: reads_file.then_some(inbox.as_path()),
             timeout: CHAT_TIMEOUT,
+            quick: false,
         })
         .await?
     } else {
@@ -664,7 +665,7 @@ mod tests {
 
     #[test]
     fn a_file_goes_in_the_prompt_but_not_in_the_history() {
-        let dir = std::env::temp_dir().join(format!("coucou-cli-relay-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("jarvis-cli-relay-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("notes.txt");
         std::fs::write(&path, "secret plan").unwrap();

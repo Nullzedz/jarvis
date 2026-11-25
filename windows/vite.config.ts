@@ -16,7 +16,7 @@ export const SOUNDS_DIR = resolve(__dirname, "sounds"); // JARVIS's own sounds (
 function sharedSounds(): Plugin {
   const prefix = "/sounds/";
   return {
-    name: "coucou-shared-sounds",
+    name: "jarvis-shared-sounds",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (!req.url?.startsWith(prefix)) return next();
@@ -68,6 +68,7 @@ export default defineConfig({
         ask: resolve(__dirname, "ask.html"),
         ink: resolve(__dirname, "ink.html"),
         explain: resolve(__dirname, "explain.html"),
+        tutorial: resolve(__dirname, "tutorial.html"),
       },
       output: {
         // The interface's strings in every language (src/i18n/*.json) make a

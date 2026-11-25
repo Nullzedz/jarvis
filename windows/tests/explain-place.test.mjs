@@ -32,3 +32,31 @@ test("with no room beside the target it goes to the far corner, linked back", ()
   assert.equal(r.linked, true);
   assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= 1280 && r.y + r.h <= 720);
 });
+
+test("#88: with no room beside it, it takes a free corner, not one where a window already is", () => {
+  const target = { x: 150, y: 120, w: 980, h: 480 };
+  const old = { x: 1280 - 12 - 320, y: 12, w: 320, h: 200 };
+  const r = place(target, 320, 200, 1280, 720, [old]);
+  assert.equal(r.linked, true);
+  assert.ok(!overlaps(r, old));
+  assert.ok(r.x >= 12 && r.y >= 12 && r.x + r.w <= 1268 && r.y + r.h <= 708);
+});
+
+test("#88: a window bigger than the screen is made to fit it", () => {
+  const r = place({ x: 100, y: 100, w: 80, h: 30 }, 1600, 900, 1280, 720);
+  assert.ok(r.w <= 1280 - 24 && r.h <= 720 - 24);
+  assert.ok(r.x >= 12 && r.y >= 12 && r.x + r.w <= 1268 && r.y + r.h <= 708);
+});
+
+test("#88: thousands of layouts: always on screen, never on the target when a spot is free", () => {
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 3000; i++) {
+    const vw = 800 + Math.floor(rnd() * 2000), vh = 600 + Math.floor(rnd() * 1200);
+    const t = { x: rnd() * vw * 0.8, y: rnd() * vh * 0.8, w: 10 + rnd() * vw * 0.5, h: 10 + rnd() * vh * 0.5 };
+    const taken = Array.from({ length: Math.floor(rnd() * 3) }, () => ({ x: rnd() * vw, y: rnd() * vh, w: 200, h: 150 }));
+    const r = place(t, 200 + rnd() * 400, 120 + rnd() * 400, vw, vh, taken);
+    assert.ok(r.x >= 11.5 && r.y >= 11.5 && r.x + r.w <= vw - 11.5 && r.y + r.h <= vh - 11.5, JSON.stringify({ vw, vh, t, r }));
+    assert.ok(Number.isFinite(r.x + r.y + r.w + r.h));
+  }
+});

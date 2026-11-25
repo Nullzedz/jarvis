@@ -68,13 +68,22 @@ impl Trail {
     pub fn start(app: &AppHandle) -> Trail {
         DRAWING.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let at = crate::platform::cursor_physical().and_then(|(x, y)| super::sight::monitor_at(x, y));
+        let win = app.get_webview_window(LABEL);
+        // No monitor under the pointer: the main one, so the trail still shows (#88: it was invisible).
+        let at = at.or_else(|| {
+            let m = win.as_ref()?.primary_monitor().ok()??;
+            let (p, s) = (m.position(), m.size());
+            Some(((p.x, p.y, s.width as i32, s.height as i32), m.scale_factor()))
+        });
         let ((x, y, w, h), scale) = at.unwrap_or(((0, 0, 0, 0), 1.0));
-        if let Some(win) = app.get_webview_window(LABEL) {
+        if let Some(win) = &win {
             if w > 0 {
-                let _ = win.set_size(PhysicalSize::new(w as u32, h as u32));
+                // Onto the monitor first, then its size (#88: sized first, a monitor at another
+                // scale could rescale it on the move and leave it the wrong size).
                 let _ = win.set_position(PhysicalPosition::new(x, y));
+                let _ = win.set_size(PhysicalSize::new(w as u32, h as u32));
             }
-            let _ = win.emit("ink-start", ());
+            let _ = app.emit_to(LABEL, "ink-start", ());
         }
         Trail { app: app.clone(), ink: Ink::new(scale), origin: (x as f64, y as f64), scale, shown: 0 }
     }
@@ -82,11 +91,16 @@ impl Trail {
     /// The pointer moved: true when this closed the circle.
     pub fn feed(&mut self, p: Pt) -> bool {
         let closed = self.ink.feed(p);
-        let path = self.ink.circle().unwrap_or(self.ink.path());
-        if closed || (self.ink.circle().is_none() && path.len() != self.shown) {
+        let local = |pts: &[Pt]| pts.iter().map(|&(x, y)| [(x - self.origin.0) / self.scale, (y - self.origin.1) / self.scale]).collect::<Vec<[f64; 2]>>();
+        if closed {
+            // Closed: the loop alone, once, in place of the trail.
+            let circle = self.ink.circle().unwrap_or(&[]);
+            let _ = self.app.emit_to(LABEL, "ink-path", json!({ "points": local(circle), "from": 0, "closed": true }));
+        } else if self.ink.circle().is_none() && self.ink.path().len() > self.shown {
+            // Only the new points (#88: the whole path went again each time, about 32 KB at 33 a second).
+            let path = self.ink.path();
+            let _ = self.app.emit_to(LABEL, "ink-path", json!({ "points": local(&path[self.shown..]), "from": self.shown, "closed": false }));
             self.shown = path.len();
-            let local: Vec<[f64; 2]> = path.iter().map(|&(x, y)| [(x - self.origin.0) / self.scale, (y - self.origin.1) / self.scale]).collect();
-            let _ = self.app.emit_to(LABEL, "ink-path", json!({ "points": local, "closed": self.ink.circle().is_some() }));
         }
         closed
     }

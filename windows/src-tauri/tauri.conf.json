@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "JARVIS",
-  "version": "0.5.9",
-  "identifier": "fr.louisraille.coucou",
+  "version": "0.1.0",
+  "identifier": "com.nullzedz.jarvis",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -48,8 +48,8 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "resources": { "../target/release/coucou-hook.exe": "coucou-hook.exe" },
-    "copyright": "JARVIS, a fork of Coucou (MIT) by Louis Raillé",
+    "resources": { "../target/release/jarvis-hook.exe": "jarvis-hook.exe" },
+    "copyright": "JARVIS by Nullzedz, built on Coucou by Louis Raillé (MIT)",
     "category": "DeveloperTool",
     "shortDescription": "JARVIS lives at the top of your screen",
     "longDescription": "JARVIS, your personal assistant at the top of the screen: it shows your Claude Code sessions and a few integrations, and lets you approve, answer, chat and drop files without leaving what you are doing.",

@@ -77,8 +77,7 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
     const settingsButton = buttons[buttons.length - 1];
     settingsButton.fire("click");
     await settle();
-    assert.equal(hub.current(), "prefs");
-    assert.equal(root.find("H1")[0].textContent, "Settings");
+    assert.equal(hub.current(), "profile", "you open on your profile (#104)");
     calls.length = 0;
 
     for (const language of ["fr", "ar", "en"]) {
@@ -86,12 +85,13 @@ test("language redraw relabels sidebar nodes and preserves selection and navigat
       await settle();
       assert.deepEqual(root.find(".jv-ri"), buttons, "keep the existing buttons");
       assert.deepEqual(buttons.map((button) => button.find(".n")[0]), labels);
-      assert.deepEqual(labels.map((label) => label.textContent), railSections.map((s) => s.name()));
-      assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
+      // Every section by its name; at the bottom, you (#104): your name and « Profile · Settings ».
+      assert.deepEqual(labels.slice(0, -1).map((label) => label.textContent), railSections.slice(0, -1).map((s) => s.name()));
+      assert.equal(labels.at(-1).find("span")[0].textContent, t("Profile · Settings"));
+      assert.equal(root.find(".hub-status")[0].textContent, t("Download the voice model to dictate"));
       assert.equal(root.find(".jv-wc")[0].find(".jv-visor")[0], logo);
-      assert.equal(hub.current(), "prefs");
+      assert.equal(hub.current(), "profile");
       assert.deepEqual(buttons.filter((button) => button.classList.contains("on")), [settingsButton]);
-      assert.equal(root.find("H1")[0].textContent, t("Settings"));
       assert.equal(document.documentElement.dataset.dir, language === "ar" ? "rtl" : "ltr");
     }
     assert.deepEqual(calls, [], "redrawing must not save settings or request data");
@@ -130,8 +130,9 @@ test("the sidebar uses the selected language on its first render", async () => {
   setLanguage("es");
   const { root, off, buttons } = await openHub();
   try {
-    assert.deepEqual(buttons.map((button) => button.find(".n")[0].textContent), railSections.map((s) => s.name()));
-    assert.equal(root.find(".hub-status")[0].textContent, t("Dictation is off"));
+    assert.deepEqual(buttons.slice(0, -1).map((button) => button.find(".n")[0].textContent), railSections.slice(0, -1).map((s) => s.name()));
+    assert.equal(buttons.at(-1).find(".n")[0].find("span")[0].textContent, t("Profile · Settings"));
+    assert.equal(root.find(".hub-status")[0].textContent, t("Download the voice model to dictate"));
   } finally {
     off();
   }

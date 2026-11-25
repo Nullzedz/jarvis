@@ -27,7 +27,17 @@ export function contentHeight(el: HTMLElement): number {
   const last = el.lastElementChild as HTMLElement | null;
   if (!last) return 0;
   const pad = parseFloat(getComputedStyle(el).paddingBottom) || 0;
-  return last.offsetTop + last.offsetHeight + pad;
+  // #86: the bottom margin of the last item (a reminder, an agent's card, the empty note) collapses
+  // out through its list; uncounted, the tab came out 6-14 px short and showed a scrollbar.
+  let margin = 0;
+  for (let k: HTMLElement | null = last; k; k = k.lastElementChild as HTMLElement | null) {
+    const cs = getComputedStyle(k);
+    margin = Math.max(margin, parseFloat(cs.marginBottom) || 0);
+    // A child's margin stops at a bottom padding or border, and doesn't leave a flex or grid box.
+    const walled = (parseFloat(cs.paddingBottom) || 0) > 0 || (parseFloat(cs.borderBottomWidth) || 0) > 0;
+    if (walled || cs.display.includes("flex") || cs.display.includes("grid") || cs.overflow !== "visible") break;
+  }
+  return last.offsetTop + last.offsetHeight + margin + pad;
 }
 
 import { Pocket, newId, noteTitle, save, REMINDERS_KEY, NOTES_KEY, type Note } from "../core/pocket";

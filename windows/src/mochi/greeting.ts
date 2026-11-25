@@ -1,11 +1,12 @@
-// The launch "coucou" (greeting v2) — port of GreetingCanvasView.swift.
+// The launch "jarvis" (greeting v2) — port of GreetingCanvasView.swift.
 // Mochi drops into the island, bounces, slides to the side and waves hello with
 // a quick little hand, then comes back and settles in the compact island.
 // Everything is laid out in the same 640×150 reference space as on macOS.
 
 import { closeCurve } from "../core/anim";
 import { Sound } from "../core/sound";
-import { COMPACT_W, NOTCH_H, NOTCH_W } from "../core/layout";
+import { COMPACT_W, NOTCH_W } from "../core/layout";
+import { CLOSED_BOT_D, CLOSED_H } from "../core/closed";
 
 // ── Timing (GT in the Swift file) ─────────────────────────────────────────────
 
@@ -46,10 +47,11 @@ const CARD_R = 20;
 /** IslandRestingLayout for the compact island the greeting lands in. */
 const COMPACT = {
   width: COMPACT_W,
-  height: NOTCH_H,
-  botDiameter: Math.min(20, Math.max(0, NOTCH_H - 6)),
-  botCenterY: NOTCH_H / 2,
-  miniGridScale: Math.min(1, Math.max(0, NOTCH_H - 4) / 28),
+  // #86: the compact pill is the closed one: 34 tall, his visor 22 across.
+  height: CLOSED_H,
+  botDiameter: CLOSED_BOT_D,
+  botCenterY: CLOSED_H / 2,
+  miniGridScale: 1,
   miniGridCenterX: COMPACT_W - 40,
 };
 

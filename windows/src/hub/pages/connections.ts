@@ -10,6 +10,9 @@ import { emitToWindow, onEvent } from "../../core/bridge";
 import { AGENTS_WANTED, CONNECTIONS_SNAPSHOT, type ConnectionRow } from "../../core/agents";
 import type { HubContext, PageId } from "../shell";
 
+/** Still being worked out (#108): a Beta tag after its name. */
+const beta = (id: string) => (id === "integration_whatsapp" ? [h("span", { class: "jv-beta", text: t("Beta") })] : []);
+
 export type Room = "code" | "money" | "life";
 const ROOM_OF: Record<string, Room> = {
   integration_github: "code", integration_gitlab: "code", integration_gitea: "code", integration_vercel: "code", integration_n8n: "code",
@@ -93,10 +96,11 @@ export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
     ic.style.background = tile.color;
     root.append(
       h("button", { class: "back", text: `‹ ${t("Connections")}`, onclick: () => { draw(); requestAnimationFrame(() => { const s = scroller(); if (s) s.scrollTop = scrollBack; }); } }),
-      h("div", { class: "jv-chead" }, ic, h("p", { class: "jv-ptitle", text: tile.name })),
+      h("div", { class: "jv-chead" }, ic, h("p", { class: "jv-ptitle" }, tile.name, ...beta(tile.id))),
       h("div", { class: "jv-csetup" }, block),
     );
     if (note && tile.id !== "integration_whatsapp") root.append(h("p", { class: "jv-cnote", text: note.textContent ?? "" }));
+    if (tile.id === "integration_whatsapp") root.append(h("p", { class: "jv-cnote", text: t("Still being worked out: messages may arrive late or not at all.") }));
     const s = scroller();
     if (s) s.scrollTop = 0;
   };
@@ -124,7 +128,7 @@ export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
         const ic = h("span", { class: "ic", text: mk[list.indexOf(tile)] });
         ic.style.background = tile.color;
         grid.append(h("button", { class: `jv-ht${tile.on && tile.live ? "" : " off"}`, "aria-label": `${tile.name}: ${line}`, onclick: () => setup(tile) },
-          ic, h("div", {}, h("p", { class: "n", text: tile.name }), h("p", { class: `v${act ? " act" : ""}`, text: line }))));
+          ic, h("div", {}, h("p", { class: "n" }, tile.name, ...beta(tile.id)), h("p", { class: `v${act ? " act" : ""}`, text: line }))));
       }
     }
     if (!list.length) grid.append(h("p", { class: "cap", text: t("No connections on this computer.") }));

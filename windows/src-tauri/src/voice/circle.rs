@@ -13,12 +13,16 @@ pub type Pt = (f64, f64);
 const CLOSE_GAP: f64 = 30.0;
 /// ...after travelling at least this far (a tiny wiggle isn't a circle).
 const MIN_RUN: f64 = 120.0;
-/// Each side of the loop's box at least this long.
-const MIN_SIDE: f64 = 28.0;
+/// Each side of the loop's box at least this long (#88: 28 let a 30 px twitch count).
+const MIN_SIDE: f64 = 40.0;
 /// The loop's area at least this share of its box (a closed zigzag or a sliver isn't round anything).
 const MIN_FILL: f64 = 0.3;
 /// Moves smaller than this aren't kept (jitter).
 const STEP: f64 = 3.0;
+/// A path this long is plenty: later points aren't kept (#88: 10,000 points took 33 s to check).
+const MAX_PTS: usize = 3000;
+/// Loops tried for each new point, newest first: each costs a pass over the loop.
+const MAX_TRIES: usize = 8;
 
 #[derive(Default)]
 pub struct Ink {
@@ -41,6 +45,9 @@ impl Ink {
             if dist(last, p) < STEP * self.scale {
                 return false;
             }
+        }
+        if self.pts.len() >= MAX_PTS {
+            return false;
         }
         self.pts.push(p);
         if let Some(start) = closing(&self.pts, self.scale) {
@@ -75,6 +82,14 @@ fn dist(a: Pt, b: Pt) -> f64 {
     (a.0 - b.0).hypot(a.1 - b.1)
 }
 
+/// How far `p` is from the line between `a` and `b`.
+fn to_segment(p: Pt, a: Pt, b: Pt) -> f64 {
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let len = dx * dx + dy * dy;
+    let t = if len > 0.0 { (((p.0 - a.0) * dx + (p.1 - a.1) * dy) / len).clamp(0.0, 1.0) } else { 0.0 };
+    dist(p, (a.0 + t * dx, a.1 + t * dy))
+}
+
 fn bounds(q: &[Pt]) -> (f64, f64, f64, f64) {
     q.iter().fold((f64::MAX, f64::MAX, f64::MIN, f64::MIN), |b, p| (b.0.min(p.0), b.1.min(p.1), b.2.max(p.0), b.3.max(p.1)))
 }
@@ -88,13 +103,16 @@ fn area(q: &[Pt]) -> f64 {
     }).sum::<f64>().abs() / 2.0
 }
 
-/// Where the loop the newest point just closed begins, if it did.
+/// Where the loop the newest point just closed begins, if it did. The newest point counts as back
+/// when it is near an earlier stretch of the path, not only an earlier point (#88: a quick circle's
+/// points are far apart, so it never came near one of them).
 fn closing(p: &[Pt], scale: f64) -> Option<usize> {
     let end = *p.last()?;
     let mut run = 0.0;
+    let mut tries = 0;
     for i in (0..p.len() - 1).rev() {
         run += dist(p[i], p[i + 1]);
-        if run < MIN_RUN * scale || dist(p[i], end) > CLOSE_GAP * scale {
+        if run < MIN_RUN * scale || to_segment(end, p[i], p[i + 1]) > CLOSE_GAP * scale {
             continue;
         }
         let q = &p[i..];
@@ -102,6 +120,10 @@ fn closing(p: &[Pt], scale: f64) -> Option<usize> {
         let (w, h) = (x1 - x0, y1 - y0);
         if w >= MIN_SIDE * scale && h >= MIN_SIDE * scale && area(q) >= MIN_FILL * w * h {
             return Some(i);
+        }
+        tries += 1;
+        if tries >= MAX_TRIES {
+            break;
         }
     }
     None
@@ -153,6 +175,28 @@ mod tests {
         let first = ink.area();
         feed(&mut ink, &ring(900.0, 600.0, 60.0, 1.05, 60));
         assert_eq!(ink.area(), first);
+    }
+
+    #[test]
+    fn a_quick_circle_with_points_far_apart_closes() {
+        // 1¼ turns in 9 points, about 90 px apart (#88).
+        let mut ink = Ink::new(1.0);
+        assert!(feed(&mut ink, &ring(500.0, 300.0, 110.0, 1.25, 9)));
+    }
+
+    #[test]
+    fn a_thirty_pixel_twitch_is_not_a_circle() {
+        let mut ink = Ink::new(1.0);
+        assert!(!feed(&mut ink, &ring(500.0, 300.0, 15.0, 3.0, 90)));
+    }
+
+    #[test]
+    fn a_very_long_scribble_stays_quick() {
+        let mut ink = Ink::new(1.0);
+        let strip: Vec<Pt> = (0..10_000).map(|i| (100.0 + (i % 200) as f64 * 4.0 * if (i / 200) % 2 == 0 { 1.0 } else { -1.0 }, 200.0 + (i / 200) as f64 * 0.5)).collect();
+        let t = std::time::Instant::now();
+        feed(&mut ink, &strip);
+        assert!(t.elapsed().as_secs_f64() < 2.0);
     }
 
     #[test]
