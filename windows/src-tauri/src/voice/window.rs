@@ -93,19 +93,24 @@ pub fn is_point(w: &Value) -> bool {
     w["kind"].as_str() == Some("point") && w["target"].as_array().is_some_and(|t| t.len() == 4 || t.len() == 2)
 }
 
-/// A question a guide may answer (#96): « where is… », and also « how do I export… », « show me
-/// how to… », « take me to… », « open the… settings ». Wider than `asks_where` (which turns his
-/// drawn answers into a ring): one that isn't about the app costs a quick « no route » and goes on.
+/// A question a guide answers by drawing (#96): « where is… » and « show me how… », « take
+/// me to… ». A « how do I… » is told in words, not drawn.
 pub fn wants_guide(question: &str) -> bool {
     let q = question.to_lowercase();
+    if ["show me", "take me", "walk me", "guide me", "navigate"].iter().any(|k| q.contains(k)) {
+        return true;
+    }
     asks_where(question)
-        || ["how do i", "how can i", "how to", "how do you", "show me", "take me", "navigate", "open the", "turn on", "turn off", "change the", "where's", "wheres"].iter().any(|k| q.contains(k))
 }
 
-/// « Where is…? », « how do I get to…? »: a place on the screen is asked for.
+/// « Where is…? », « find… »: a place on the screen is asked for. A « how… » question isn't
+/// (#96: those are told in words; « show me how » is drawn, see `wants_guide`).
 pub fn asks_where(question: &str) -> bool {
     let q = question.to_lowercase();
-    ["where", "find", "get to", "go to", "how do i open", "how do i get", "locate", "which button"].iter().any(|k| q.contains(k))
+    if q.trim_start().starts_with("how") || ["how do i", "how can i", "how to "].iter().any(|k| q.contains(k)) {
+        return false;
+    }
+    ["where", "find", "get to", "go to", "locate", "which button"].iter().any(|k| q.contains(k))
 }
 
 /// "Where is…? / how do I get to…?" answered with an explanation block that has a target
@@ -174,6 +179,8 @@ mod tests {
         assert!(is_point(&p));
         assert_eq!(p["steps"], serde_json::json!(["Click the profile icon at bottom left", "Settings", "Find Billing in the menu"]));
         assert_eq!(as_point("explain this chart", card.clone()), card);
+        assert!(wants_guide("where is billing?") && wants_guide("show me how to export") && wants_guide("Take me to the settings"));
+        assert!(!wants_guide("how do I export this?") && !wants_guide("How can I find dark mode") && !wants_guide("what is this chart"));
         assert_eq!(target(&w, (1280, 720)), Some((10.0, 20.0, 60.0, 24.0)));
     }
 
