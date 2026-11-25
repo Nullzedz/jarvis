@@ -127,7 +127,8 @@ fn key(s: &str) -> String {
 /// The thing called `name`: the same name first, then one that contains it (« Billing » finds
 /// « Billing & plans »), then one it contains if that's most of it (« Open Help menu » finds
 /// « Help »… but « App Settings » never finds « Apps »: #96, Discord); the closest wins, so
-/// « Settings » isn't « Settings sync status ».
+/// « Settings » isn't « Settings sync status ». One that contains it has at most two words more
+/// (#114: « Usage » isn't the chat « Claude token usage mystery »).
 pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
     let want = key(name);
     if want.is_empty() {
@@ -136,9 +137,11 @@ pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
     if let Some(n) = list.iter().find(|n| key(&n.name) == want) {
         return Some(n);
     }
+    let words = |s: &str| s.split_whitespace().filter(|w| w.chars().any(char::is_alphanumeric)).count();
+    let most = words(name) + 2;
     let mut near: Vec<&Named> = list.iter().filter(|n| {
         let k = key(&n.name);
-        !k.is_empty() && (k.contains(&want) || (k.len() >= 4 && k.len() * 2 >= want.len() && want.contains(&k) && !want.starts_with(&k)))
+        !k.is_empty() && ((k.contains(&want) && words(&n.name) <= most) || (k.len() >= 4 && k.len() * 2 >= want.len() && want.contains(&k) && !want.starts_with(&k)))
     }).collect();
     near.sort_by_key(|n| (key(&n.name).len() as i64 - want.len() as i64).abs());
     near.first().copied()
@@ -596,6 +599,7 @@ mod tests {
         assert_eq!(find(&[n("Help menu")], "Open Help menu").unwrap().name, "Help menu");
         assert!(find(&list, "Export").is_none());
         assert!(find(&list, "").is_none());
+        assert!(find(&[n("Claude token usage mystery")], "Usage").is_none());
     }
 
     #[test]
