@@ -88,7 +88,7 @@ pub enum SummaryEngine {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Prefs {
-    /// Hold a key to dictate anywhere. Off until the user turns it on.
+    /// Hold a key to dictate anywhere. On from the start (#117); off once the user turns it off.
     pub enabled: bool,
     pub key: FlowKey,
     /// The keys of a shortcut of the user's own, when `key` is `Custom`: their
@@ -141,7 +141,7 @@ pub struct Prefs {
 impl Default for Prefs {
     fn default() -> Self {
         Self {
-            enabled: false,
+            enabled: true,
             key: FlowKey::default(),
             key_combo: Vec::new(),
             edge: Edge::Bottom,
