@@ -69,7 +69,7 @@ export function phoneSection(on: boolean, makeToggle: Toggle, settings: Settings
       pairingBox,
       clients,
       h("div", { class: "hint", text: t("The phone connects to {address}", { address }) }),
-      h("div", { class: "hint", text: t("If Windows asks about the firewall, allow Coucou on private networks. The phone and this computer must be on the same Wi-Fi.") }),
+      h("div", { class: "hint", text: t("If Windows asks about the firewall, allow JARVIS on private networks. The phone and this computer must be on the same Wi-Fi.") }),
       h("div", { class: "hint", text: t("Your phone finds this computer again by itself when the network changes. It is announced on your local network only while this switch is on. Some hotspots and guest networks block this.") }),
       relaySlot(makeToggle, () => void refreshPairing()),
       detailsBlock(makeToggle),
@@ -84,8 +84,11 @@ export function phoneSection(on: boolean, makeToggle: Toggle, settings: Settings
 
   /** Kept up to date while the window is open and the link is on; nothing runs otherwise. */
   const clients = h("div", { class: "hint" });
+  let shown = false, waits = 0;
   const watch = window.setInterval(() => {
-    if (!section.isConnected) return window.clearInterval(watch);
+    // #84: stops once it's gone, not before it's first shown (nor forever if it never is).
+    if (!section.isConnected) { if (shown || ++waits > 12) window.clearInterval(watch); return; }
+    shown = true;
     if (document.visibilityState !== "visible" || !clients.isConnected) return;
     void Bridge.phoneLinkStatus().then((s) => {
       if (s?.running) clients.textContent = t("Phones connected: {count}", { count: s.clients });
@@ -190,8 +193,10 @@ function relayBlock(makeToggle: Toggle, changed: () => void): HTMLElement {
 
   void Bridge.phoneRelayStatus().then(show);
   // Kept up to date while the window is open; nothing runs while it is hidden.
+  let shown = false, waits = 0;
   const watch = window.setInterval(() => {
-    if (!state.isConnected) return window.clearInterval(watch);
+    if (!state.isConnected) { if (shown || ++waits > 12) window.clearInterval(watch); return; }
+    shown = true;
     if (document.visibilityState !== "visible") return;
     void Bridge.phoneRelayStatus().then(show);
   }, 5000);

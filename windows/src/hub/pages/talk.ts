@@ -10,6 +10,7 @@ import { Bridge, onEvent, type HisWindow } from "../../core/bridge";
 import { visor } from "../../theme/theme";
 import { listeningChip, voiceLine } from "../jarvis-widget";
 import type { HubContext } from "../shell";
+import { fillWindow } from "../fit";
 
 export interface Turn { you: string; him: string; at: number }
 
@@ -23,10 +24,13 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   const wave = h("div", { class: "jv-wv" });
   const bars: HTMLElement[] = Array.from({ length: BARS }, () => h("i"));
   wave.append(...bars);
-  const heard = h("p", { class: "jv-heard", text: t("Say “Hey JARVIS”, or type to him.") });
+  // What to do, said plainly: with the wake word off, "Hey JARVIS" isn't an option (#84).
+  const idle = () => (status.prefs.voice ? t("Say “Hey JARVIS”, or type to him.") : t("Press the microphone, or type to him."));
+  const heard = h("p", { class: "jv-heard", text: idle() });
   const name = h("p", { class: "nm" });
   const desc = h("p", { class: "cap" });
-  const play = h("span", { class: "play", text: "▶︎" });
+  const play = h("span", { class: "play", text: "▶︎", title: t("Play") });
+  if (status.prefs.voiceOutput !== "jarvis") play.style.display = "none";
   const card = h("button", { class: "jv-voicecard", onclick: () => ctx.navigate("voice") },
     play, h("div", { class: "x" }, name, desc), h("span", { class: "cap", text: `${t("Change")} ›` }));
   void voiceLine(status).then((line) => {
@@ -37,7 +41,7 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   // ▶ plays his voice (JARVIS's own voice only; the others are previewed on Hey JARVIS).
   play.addEventListener("click", (e) => {
     e.stopPropagation();
-    if (status.prefs.voiceOutput !== "jarvis") { ctx.navigate("voice"); return; }
+    if (status.prefs.voiceOutput !== "jarvis") return;
     void Bridge.voicePreview(status.prefs.voiceName || "george").then((bytes) => {
       const url = URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
       const a = new Audio(url);
@@ -46,19 +50,25 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
     }).catch(() => {});
   });
   const toggle = h("span", { class: `jv-switch${status.prefs.voiceOnlyMe ? " on" : ""}` }, h("i"));
-  const onlyMe = h("button", { class: "jv-onlyme" }, h("span", { text: t("Answer only my voice") }), toggle);
+  const onlyMe = h("button", { class: "jv-onlyme", role: "switch", "aria-checked": String(!!status.prefs.voiceOnlyMe) }, h("span", { text: t("Answer only my voice") }), toggle);
+  const teach = h("p", { class: "jv-teach" }, document.createTextNode(`${t("He needs to learn your voice first.")} `),
+    h("button", { class: "jv-link", text: `${t("Teach him in Settings")} ›`, onclick: () => ctx.navigate("voice") }));
+  teach.style.display = "none";
   onlyMe.addEventListener("click", async () => {
     const print = await Bridge.voicePrintStatus();
-    // Not trained yet: Hey JARVIS teaches him your voice first.
-    if (!print?.trained) { ctx.navigate("voice"); return; }
+    // Not trained yet: say so, with the way there (it used to jump to Settings without a word, #84).
+    if (!print?.trained) { teach.style.display = ""; return; }
     const on = !toggle.classList.contains("on");
     toggle.classList.toggle("on", on);
+    onlyMe.setAttribute("aria-checked", String(on));
     await ctx.setPrefs((p) => (p.voiceOnlyMe = on));
   });
+  const chipDot = h("span", { class: "dot", style: `background:${chip.color}` });
+  const chipText = h("span", { text: chip.text });
   const glow = h("div", { class: "jv-glow" },
-    h("span", { class: "jv-chip" }, h("span", { class: "dot", style: `background:${chip.color}` }), h("span", { text: chip.text })),
+    h("span", { class: "jv-chip" }, chipDot, chipText),
     h("div", { class: "mid" }, visor(84), wave, heard),
-    h("div", { class: "foot" }, h("p", { class: "cap", text: t("His voice") }), card, onlyMe));
+    h("div", { class: "foot" }, h("p", { class: "cap", text: t("His voice") }), card, onlyMe, teach));
 
   // ── Right: the conversation ──
   const convo = h("div", { class: "jv-convo" });
@@ -95,14 +105,30 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   }
 
   const input = h("input", { class: "q", placeholder: t("Type to JARVIS"), "aria-label": t("Type to JARVIS") }) as HTMLInputElement;
+  // His "…" doesn't wait forever (#84): no answer in 45 s, or a failure, says so with Try again.
+  let giveUp = 0;
+  const failed = (q: string) => {
+    window.clearTimeout(giveUp);
+    if (!waiting) return;
+    const him = h("div", { class: "jv-bub him err" }, document.createTextNode(`${t("I couldn't answer that just now, sir.")} `),
+      h("button", { class: "jv-link", text: t("Try again"), onclick: () => ask(q) }));
+    waiting = h("div", { class: "jv-waiting" }, bubble("you", q), him);
+    paint();
+  };
+  const ask = (q: string) => {
+    heard.textContent = `“${q}”`;
+    waiting = h("div", { class: "jv-waiting" }, bubble("you", q), h("div", { class: "jv-bub him typing", text: "…" }));
+    paint();
+    window.clearTimeout(giveUp);
+    giveUp = window.setTimeout(() => failed(q), 45_000);
+    void Promise.resolve(Bridge.askSend(q)).catch(() => failed(q));
+  };
   const send = () => {
     const q = input.value.trim();
     if (!q) return;
     input.value = "";
-    heard.textContent = `“${q}”`;
-    waiting = h("div", { class: "jv-waiting" }, bubble("you", q), h("div", { class: "jv-bub him typing", text: "…" }));
-    paint();
-    void Bridge.askSend(q);
+    syncAction();
+    ask(q);
   };
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
   // The microphone: talk to him (a tap of the talk keys: he listens until you pause, then answers
@@ -114,36 +140,52 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
   micPath.setAttribute("d", "M12 2a3.5 3.5 0 0 1 3.5 3.5v6a3.5 3.5 0 0 1-7 0v-6A3.5 3.5 0 0 1 12 2zM5.5 10.5a1 1 0 0 1 1 1 5.5 5.5 0 0 0 11 0 1 1 0 1 1 2 0 7.5 7.5 0 0 1-6.5 7.4V21a1 1 0 1 1-2 0v-2.1a7.5 7.5 0 0 1-6.5-7.4 1 1 0 0 1 1-1z");
   micIcon.append(micPath);
   const mic = h("button", { class: "talk", title: t("Talk to JARVIS"), "aria-label": t("Talk to JARVIS"), "aria-pressed": "false" }, micIcon);
+  // While there's text, the round button sends it (an arrow); empty, it's the microphone (#84).
+  const sendBtn = h("button", { class: "talk send", title: t("Send"), "aria-label": t("Send"), text: "↑", onclick: send });
+  const syncAction = () => {
+    const typing = input.value.trim() !== "";
+    sendBtn.style.display = typing ? "" : "none";
+    mic.style.display = typing ? "none" : "";
+  };
+  input.addEventListener("input", syncAction);
   const listening = (on: boolean) => {
     mic.classList.toggle("on", on);
     mic.setAttribute("aria-pressed", String(on));
     if (on) heard.textContent = t("Listening…");
+    // The chip says what the microphone does now (it said "Not listening" while it listened).
+    chipText.textContent = on ? t("Listening…") : chip.text;
+    chipDot.style.background = on ? "#ff453a" : chip.color;
   };
   mic.addEventListener("click", async () => {
     const was = mic.classList.contains("on");
     if ((await Bridge.voiceTap()) !== "ok") {
-      heard.textContent = t("He can't hear you yet: set up his voice on the Hey JARVIS tab.");
+      heard.replaceChildren(document.createTextNode(`${t("He can't hear you yet: set up his voice in Settings › Voice.")} `),
+        h("button", { class: "jv-link", text: `${t("Open")} ›`, onclick: () => ctx.navigate("voice") }));
       return;
     }
     listening(!was);
-    // He stops on his own after a long silence: so does the button.
+    // He stops on his own after a long silence: so does the button, and it says so.
     window.clearTimeout(quietAt);
-    if (!was) quietAt = window.setTimeout(() => { if (mic.classList.contains("on")) { listening(false); heard.textContent = t("Say “Hey JARVIS”, or type to him."); } }, 20_000);
+    if (!was) quietAt = window.setTimeout(() => { if (mic.classList.contains("on")) { listening(false); heard.textContent = t("I didn't hear anything. Press the microphone to try again."); } }, 20_000);
   });
   let quietAt = 0;
-  const ask = h("div", { class: "jv-talkask" }, input, mic);
+  const askBox = h("div", { class: "jv-talkask" }, input, sendBtn, mic);
+  syncAction();
 
-  page.append(h("div", { class: "jv-talk" }, glow,
+  const talkEl = h("div", { class: "jv-talk" });
+  const stopFit = fillWindow(talkEl, 420);
+  page.append(talkEl);
+  talkEl.append(glow,
     h("div", { class: "right" },
       h("div", { class: "top" }, h("p", { class: "jv-atitle", text: "JARVIS" }), h("span", { class: "cap", text: t("Today") })),
-      convo, ask)));
+      convo, askBox));
   paint();
 
   // ── Live: the conversation, what he heard, your voice ──
   void Bridge.conversation().then((c) => { if (Array.isArray(c)) { turns.splice(0, turns.length, ...c); paint(); } });
   void Bridge.hisWindows().then((w) => { drawn = w?.last ?? []; paint(); });
   const offs = [
-    onEvent<Turn>("jarvis-turn", (x) => { turns.push(x); waiting = null; listening(false); paint(); }),
+    onEvent<Turn>("jarvis-turn", (x) => { turns.push(x); waiting = null; window.clearTimeout(giveUp); listening(false); paint(); }),
     // What he heard: your bubble, and his "…" until he answers (the pill stays hidden for this).
     onEvent<string>("jarvis-heard", (q) => {
       listening(false);
@@ -153,16 +195,19 @@ export function talkPage(page: HTMLElement, ctx: HubContext, start: Turn[] = [])
     }),
     onEvent<string>("jarvis-missed", (why) => {
       listening(false);
-      heard.textContent = why === "unclear" ? t("I didn't catch that. Try again, a little closer to the microphone.") : t("Say “Hey JARVIS”, or type to him.");
+      heard.textContent = why === "unclear" ? t("I didn't catch that. Try again, a little closer to the microphone.") : idle();
     }),
     onEvent<{ last: HisWindow[] }>("his-windows", (w) => { drawn = w.last ?? []; paint(); }),
     onEvent<number>("voice-level", (level) => {
       const v = Math.max(0, Math.min(1, level));
-      bars.forEach((b, i) => { b.style.height = `${i > 11 ? 6 + v * 8 : 8 + v * (20 + Math.random() * 40)}px`; });
+      bars.forEach((b, i) => { b.style.transform = `scaleY(${(i > 11 ? 6 + v * 8 : 8 + v * (20 + Math.random() * 40)) / 8})`; });
     }),
   ];
   void Bridge.voiceLevelWatch(true);
   ctx.onLeave = () => {
+    stopFit();
+    window.clearTimeout(quietAt);
+    window.clearTimeout(giveUp);
     void Bridge.voiceLevelWatch(false);
     for (const off of offs) void off.then((f) => f());
   };

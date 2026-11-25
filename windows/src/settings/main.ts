@@ -93,7 +93,7 @@ const HOOKS_CHANGE: Change = {
   preview: Bridge.hooksPreview,
   apply: Bridge.hooksApply,
   get installText() { return t("This is exactly what will change in your settings.json. Your own hooks are left untouched."); },
-  get removeText() { return t("This removes Coucou's entries only. Your own hooks are left untouched."); },
+  get removeText() { return t("This removes JARVIS's entries only. Your own hooks are left untouched."); },
   get installButton() { return t("Back up and write"); },
   get removeButton() { return t("Back up and remove"); },
   done: (backup) => backup
@@ -104,7 +104,7 @@ const HOOKS_CHANGE: Change = {
 const STATUS_LINE_CHANGE: Change = {
   preview: Bridge.statusLinePreview,
   apply: Bridge.statusLineApply,
-  get installText() { return t("This is exactly what will change: only the status line. If you already have one it keeps working, Coucou's relay runs it for you."); },
+  get installText() { return t("This is exactly what will change: only the status line. If you already have one it keeps working, JARVIS's relay runs it for you."); },
   get removeText() { return t("This puts your previous status line back, or removes the entry if there was none."); },
   get installButton() { return t("Back up and write"); },
   get removeButton() { return t("Back up and remove"); },
@@ -200,7 +200,7 @@ function claudeSection(status: HookStatus): HTMLElement {
       h("div", {
         class: "hint",
         text: status.installed
-          ? t("Coucou is hooked into your Claude Code sessions. Tool calls, questions and permission requests show up in the island, and you can answer them there.")
+          ? t("JARVIS is hooked into your Claude Code sessions. Tool calls, questions and permission requests show up in the island, and you can answer them there.")
           : t("Install the hooks to see your Claude Code sessions in the island and approve permissions without leaving what you are doing."),
       }),
       h("div", { class: "row" },
@@ -257,12 +257,12 @@ function claudeSection(status: HookStatus): HTMLElement {
  * that has been confirmed. A status line the user had keeps working.
  */
 const PLAN_SETTINGS_TEXT = {
-  get claude() { return t("Shows your Claude plan usage (5-hour and weekly limits) in the island's header. Coucou adds a status line relay in ~/.claude/settings.json. If you already have a status line, it keeps working as before. Pro and Max plans only."); },
+  get claude() { return t("Shows your Claude plan usage (5-hour and weekly limits) in the island's header. JARVIS adds a status line relay in ~/.claude/settings.json. If you already have a status line, it keeps working as before. Pro and Max plans only."); },
   get claudeCli() { return t("The numbers come from the Claude Code command-line tool. The Claude desktop app does not report them, so the gauge stays empty if you only use the desktop app."); },
-  get showClaude() { return t("Show in notch"); },
+  get showClaude() { return t("Show in the island"); },
   get showClaudeCompact() { return t("Show in compact island"); },
-  get codex() { return t("Shows your Codex plan usage (weekly limit and free resets left) in the island's header. Coucou asks the Codex CLI (codex app-server) when the pill shows; nothing is installed. Codex must be signed in with ChatGPT."); },
-  get showCodex() { return t("Show Codex plan in the notch"); },
+  get codex() { return t("Shows your Codex plan usage (weekly limit and free resets left) in the island's header. JARVIS asks the Codex CLI (codex app-server) when the pill shows; nothing is installed. Codex must be signed in with ChatGPT."); },
+  get showCodex() { return t("Show Codex plan in the island"); },
 };
 
 function planSection(status: HookStatus): HTMLElement {
@@ -414,7 +414,7 @@ function subscriptionsSection(): HTMLElement {
     h("h2", { text: t("Your AI subscriptions") }),
     h("div", {
       class: "hint",
-      text: t("Chat on the plan you already pay for. Coucou asks your AI's official terminal tool, signed in with your own account: it never sees your password or your key."),
+      text: t("Chat on the plan you already pay for. JARVIS asks your AI's official terminal tool, signed in with your own account: it never sees your password or your key."),
     }),
     list,
   );
@@ -575,7 +575,7 @@ function activePillsSection(connected: Record<string, boolean>): HTMLElement {
     "section",
     {},
     h("h2", {}, h("span", { text: t("Active pills") })),
-    h("div", { class: "hint", text: t("Choose the tools you use. Coucou only shows what you declare here.") }),
+    h("div", { class: "hint", text: t("Choose the tools you use. JARVIS only shows what you declare here.") }),
     slots,
     h("div", { class: "row" }, h("label", { text: t("Main tool") }), main),
     groups,
@@ -905,14 +905,29 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
 
   function updateNote() {
     const used = settings.activeIntegrations.length;
-    note.textContent = t("Pick up to {max} pills to show next to Mochi — {used}/{max} in use. Keys are stored in the {store}, never on disk.", { max: MAX_ACTIVE, used, store: KEY_STORE });
+    note.textContent = t("Pick up to {max} pills to show next to JARVIS — {used}/{max} in use. Keys are stored in the {store}, never on disk.", { max: MAX_ACTIVE, used, store: KEY_STORE });
   }
   declaredViews.push(updateNote);
 
   const offered = new Set(availablePills().map((p) => p.id));
   for (const def of INTEGRATIONS.filter((d) => offered.has(d.id))) {
     const active = settings.activeIntegrations.includes(def.id);
-    const sw = h("button", { class: active ? "switch on" : "switch" });
+    const sw = h("button", { class: active ? "switch on" : "switch", role: "switch", "aria-checked": String(active), "aria-label": t("{0} pill in the island", { 0: def.name }) }) as HTMLButtonElement;
+    // At the limit, a switch that's off says why it can't turn on, and which pills are using the room (#84: it silently refused).
+    const full = h("div", { class: "hint", style: "display:none" });
+    const fit = () => {
+      const on = settings.activeIntegrations.includes(def.id);
+      const blocked = !on && settings.activeIntegrations.length >= MAX_ACTIVE;
+      sw.classList.toggle("on", on);
+      sw.setAttribute("aria-checked", String(on));
+      sw.disabled = blocked;
+      full.style.display = blocked ? "" : "none";
+      if (blocked) {
+        const names = settings.activeIntegrations.map((id) => INTEGRATIONS.find((d) => d.id === id)?.name ?? (id === WHATSAPP_ID ? "WhatsApp" : id));
+        full.textContent = t("All {max} pills are in use ({names}). Turn one off to use this one.", { max: MAX_ACTIVE, names: names.join(", ") });
+      }
+    };
+    declaredViews.push(fit);
     sw.addEventListener("click", () => {
       const on = settings.activeIntegrations.includes(def.id);
       if (on) {
@@ -921,7 +936,6 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         if (settings.activeIntegrations.length >= MAX_ACTIVE) return;
         settings.activeIntegrations = [...settings.activeIntegrations, def.id];
       }
-      sw.classList.toggle("on", !on);
       declaredChanged();
     });
 
@@ -936,6 +950,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
       }) as HTMLInputElement;
       const saveBtn = h("button", { text: t("Save") });
       const dotEl = statusDot(present[field.key] ?? false);
+      // The key's state in words beside its dot, so it never reads as the colour dot (#84).
+      const said = h("span", { class: "keystate", text: present[field.key] ? t("Saved") : t("Not set") });
       saveBtn.addEventListener("click", async () => {
         const value = input.value.trim();
         try {
@@ -944,14 +960,16 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
           input.value = "";
           input.placeholder = value ? CHAT_STRINGS.stored : field.placeholder;
           dotEl.style.background = value ? "#22c55e" : "#f4505e";
+          said.textContent = value ? t("Saved") : t("Not set");
         } catch {
           dotEl.style.background = "#f5a524";
+          said.textContent = t("Couldn't save");
         }
       });
       rows.append(
         h("div", { class: "row" },
           h("label", { style: "min-width:104px", text: t(field.label) }),
-          input, saveBtn, dotEl,
+          input, saveBtn, dotEl, said,
         ),
       );
     }
@@ -977,6 +995,8 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
         rows,
       ),
     );
+    rows.prepend(full);
+    fit();
   }
 
   updateNote();
@@ -1055,7 +1075,7 @@ function generalSection(): HTMLElement {
   // The closed island (core/closed.ts): what stays at the top of the screen.
   const closed = h("select", {}) as HTMLSelectElement;
   closed.append(
-    h("option", { value: "mochi", text: t("Mochi, as on a Mac without a notch") }),
+    h("option", { value: "mochi", text: t("JARVIS himself") }),
     h("option", { value: "time", text: t("The time") }),
     h("option", { value: "datetime", text: t("The date and the time") }),
     h("option", { value: "claude", text: t("Claude usage") }),
@@ -1118,10 +1138,14 @@ function generalSection(): HTMLElement {
     h("div", { class: "row" },
       h("label", { text: t("Sound") }),
       sound,
+    ),
+    // #84: its own row, so it has a name (and search finds "volume").
+    h("div", { class: "row" },
+      h("label", { text: t("Volume") }),
       volume,
     ),
     h("div", { class: "row" }, soundsFolder, reloadSounds, customCount),
-    h("div", { class: "hint", text: t("Drop a file named like one of Mochi's sounds (finish.wav, approval.mp3, greet.m4a…) in the sounds folder to replace it, then Reload.") }),
+    h("div", { class: "hint", text: t("Drop a file named like one of JARVIS's sounds (finish.wav, approval.mp3, greet.m4a…) in the sounds folder to replace it, then Reload.") }),
     h("div", { class: "row" },
       h("label", { text: t("Open on hover") }),
       openOnHover,
@@ -1131,7 +1155,7 @@ function generalSection(): HTMLElement {
       h("label", { text: t("Open for every pill’s alerts") }),
       toggle(settings.alertsFromAllPills, (v) => { settings.alertsFromAllPills = v; void save(); }),
     ),
-    h("div", { class: "hint", text: t("When a pill other than the one shown finishes or hits an error, the notch shows it for a moment, then the pill you had comes back.") }),
+    h("div", { class: "hint", text: t("When a pill other than the one shown finishes or hits an error, the island shows it for a moment, then the pill you had comes back.") }),
     h("div", { class: "row" },
       h("label", { text: t("Show clock in the island") }),
       toggle(settings.showClock, (v) => { settings.showClock = v; void save(); }),
@@ -1141,7 +1165,7 @@ function generalSection(): HTMLElement {
       h("label", { text: t("Closed island shows") }),
       closed,
     ),
-    h("div", { class: "hint", text: t("A PC has no notch: once closed, a small island stays at the top of the screen. Hover it to bring Coucou back. Hidden, move the pointer to the very top of the screen.") }),
+    h("div", { class: "hint", text: t("A PC has no notch: once closed, a small island stays at the top of the screen. Hover it to bring JARVIS back. Hidden, move the pointer to the very top of the screen.") }),
     h("div", { class: "row" },
       h("label", { text: t("Auto-close") }),
       autoClose,

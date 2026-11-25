@@ -16,10 +16,15 @@ export function themeChoice(): ThemeChoice {
   return "dark";
 }
 
+/** Whether the choice asks for light, for when the pages get a light version. */
+export function wantsLight(c = themeChoice()): boolean {
+  return c === "light" || (c === "auto" && !!media()?.matches);
+}
+
 function apply() {
-  const c = themeChoice();
-  const light = c === "light" || (c === "auto" && !!media()?.matches);
-  document.documentElement.dataset.theme = light ? "light" : "dark";
+  // #84: the new pages are drawn dark only, as the demos are; a stored light choice would put
+  // white boxes into dark panels. The choice is kept (wantsLight) for a light version later.
+  document.documentElement.dataset.theme = "dark";
 }
 
 export function setTheme(c: ThemeChoice) {

@@ -18,11 +18,14 @@ const ROOM_OF: Record<string, Room> = {
 export const roomOf = (id: string): Room => ROOM_OF[id] ?? "life";
 const ROOMS: [Room, () => string][] = [["code", () => t("Code")], ["money", () => t("Money")], ["life", () => t("Life")]];
 
-export interface Tile { id: string; name: string; color: string; on: boolean; live: boolean; headline: string | null }
+export interface Tile { id: string; name: string; color: string; on: boolean; live: boolean; headline: string | null; checking?: boolean }
 
 /** What a tile says under its name, and whether that is a call to act. */
 export function tileLine(tile: Tile): [string, boolean] {
-  if (!tile.on) return [t("Off · turn on"), true];
+  // "Off", not "Off · turn on": it opens its setup, it doesn't switch on in one click (#84).
+  if (!tile.on) return [t("Off"), true];
+  // Until the island answers, it's not known yet (#84: it said "Connected" before it knew).
+  if (tile.checking) return [t("Checking…"), false];
   if (!tile.live) return [t("Needs a key"), true];
   return [tile.headline || t("Connected"), false];
 }
@@ -33,6 +36,24 @@ export function summary(tiles: readonly Tile[]): string {
   const need = tiles.filter((x) => x.on && !x.live).length;
   const off = tiles.filter((x) => !x.on).length;
   return [t("{0} live", { 0: live }), need ? t("{0} needs you", { 0: need }) : "", off ? t("{0} off", { 0: off }) : ""].filter(Boolean).join(" · ");
+}
+
+/** Each tile's mark: its first letter, or two when another tile starts the same (#84: G, G, G). */
+export function marks(names: readonly string[]): string[] {
+  const first = (n: string) => n.charAt(0).toUpperCase();
+  const out = names.map(first);
+  const taken = new Set<string>();
+  names.forEach((n, i) => {
+    if (names.filter((x) => first(x) === out[i]).length < 2) return;
+    const word = n.replace(/[^\p{L}\p{N}]/gu, "");
+    // Its capitals (GitHub → GH), else its first letter and the next one no other tile uses.
+    const caps = word.replace(/[^\p{Lu}]/gu, "");
+    const tries = [caps.length >= 2 ? caps.slice(0, 2) : "", ...[...word.slice(1)].map((c) => `${first(word)}${c.toLowerCase()}`)];
+    const pick = tries.find((x) => x && !taken.has(x)) ?? `${first(word)}${word.charAt(1)}`;
+    taken.add(pick);
+    out[i] = pick;
+  });
+  return out;
 }
 
 export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
@@ -54,7 +75,9 @@ export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
     const row = rows?.find((r) => r.id === id);
     // Its first switch: the pill's for a service, WhatsApp's own for WhatsApp.
     const on = !!b.querySelector(".switch")?.classList.contains("on");
-    return { id, name: b.dataset.name ?? row?.name ?? id, color: b.dataset.color ?? row?.color ?? "#3a3a3c", on, live: row ? row.live : on, headline: row?.headline ?? null };
+    // The colour you picked for its pill, not the catalog's (#84).
+    const picked = b.querySelector<HTMLElement>(".color-dot")?.style.background;
+    return { id, name: b.dataset.name ?? row?.name ?? id, color: picked || b.dataset.color || row?.color || "#3a3a3c", on, live: row ? row.live : false, headline: row?.headline ?? null, checking: on && !rows };
   });
 
   const setup = (tile: Tile) => {
@@ -65,7 +88,8 @@ export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
     if (label && tile.id !== "integration_whatsapp") label.textContent = t("Its pill in the island");
     scrollBack = scroller()?.scrollTop ?? 0;
     clear(root);
-    const ic = h("span", { class: "ic", text: tile.name.charAt(0) });
+    const all = tiles();
+    const ic = h("span", { class: "ic", text: marks(all.map((x) => x.name))[all.findIndex((x) => x.id === tile.id)] ?? tile.name.charAt(0) });
     ic.style.background = tile.color;
     root.append(
       h("button", { class: "back", text: `‹ ${t("Connections")}`, onclick: () => { draw(); requestAnimationFrame(() => { const s = scroller(); if (s) s.scrollTop = scrollBack; }); } }),
@@ -90,13 +114,14 @@ export async function connectionsPage(page: HTMLElement, ctx: HubContext) {
     root.append(chips);
     const grid = h("div", { class: "jv-ctiles" });
     const shown = room === "all" ? ROOMS : ROOMS.filter(([r]) => r === room);
+    const mk = marks(list.map((x) => x.name));
     for (const [r, name] of shown) {
       const inRoom = list.filter((x) => roomOf(x.id) === r);
       if (!inRoom.length) continue;
       if (room === "all") grid.append(h("p", { class: "jv-croom" }, `${name()} `, h("span", { class: "cap", text: String(inRoom.length) })));
       for (const tile of inRoom) {
         const [line, act] = tileLine(tile);
-        const ic = h("span", { class: "ic", text: tile.name.charAt(0) });
+        const ic = h("span", { class: "ic", text: mk[list.indexOf(tile)] });
         ic.style.background = tile.color;
         grid.append(h("button", { class: `jv-ht${tile.on && tile.live ? "" : " off"}`, "aria-label": `${tile.name}: ${line}`, onclick: () => setup(tile) },
           ic, h("div", {}, h("p", { class: "n", text: tile.name }), h("p", { class: `v${act ? " act" : ""}`, text: line }))));

@@ -53,8 +53,8 @@ function switchEl(on: boolean, onChange: (v: boolean) => void, label: string): H
 function time(ms: number, withDay = false): string {
   try {
     return new Intl.DateTimeFormat(document.documentElement.lang || undefined, withDay
-      ? { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
-      : { hour: "2-digit", minute: "2-digit" }).format(new Date(ms));
+      ? { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+      : { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(ms));
   } catch {
     return new Date(ms).toLocaleTimeString();
   }
@@ -68,18 +68,33 @@ type Kind = "junk" | "important" | "read" | "move";
 export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
   const view = await load();
   const root = h("div", { class: "jv-msort" });
-  page.append(root);
+  // Removing says what went, with Undo for a few seconds (#84).
+  const toast = h("div", { class: "jv-toast", role: "status" });
+  let toastAt = 0;
+  const removed = (what: string, undo: () => void) => {
+    clear(toast);
+    toast.append(h("span", { text: t("Removed “{0}”", { 0: what }) }),
+      h("button", { class: "jv-link", text: t("Undo"), onclick: () => { toast.classList.remove("on"); undo(); } }));
+    toast.classList.add("on");
+    window.clearTimeout(toastAt);
+    toastAt = window.setTimeout(() => toast.classList.remove("on"), 6000);
+  };
+  page.append(root, toast);
   const scroller = () => page.closest(".hub-scroll") as HTMLElement | null;
   let scrollBack = 0;
 
   /** When the automatic sorting is off, the pages that feed it say so, with the switch. */
-  const offHint = (): HTMLElement | null => view.settings.autoSort ? null : card(h("div", { class: "jv-srow" },
-    h("div", { class: "lbl" }, h("span", { text: t("Automatic sorting is off: these settings do nothing until it is on.") })),
-    h("button", { class: "jv-chipbtn", text: t("Turn on"), onclick: () => {
-      view.settings = { ...view.settings, autoSort: true };
-      save(view.settings);
-      drawMain();
-    } })));
+  const offHint = (): HTMLElement | null => {
+    if (view.settings.autoSort) return null;
+    const hint = card(h("div", { class: "jv-srow" },
+      h("div", { class: "lbl" }, h("span", { text: t("Automatic sorting is off: these settings do nothing until it is on.") })),
+      h("button", { class: "jv-chipbtn", text: t("Turn on"), onclick: () => {
+        view.settings = { ...view.settings, autoSort: true };
+        save(view.settings);
+        hint.remove();
+      } })));
+    return hint;
+  };
 
   // ── A row's own page ──
   const drill = (title: string, say: string | null, body: () => HTMLElement[]) => {
@@ -98,6 +113,12 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
   const chips = (key: "banned" | "vip", placeholder: string, emptyText: string) => (): HTMLElement[] => {
     const box = h("div", { class: "jv-schips" });
     const field = input(placeholder, () => add());
+    const addBtn = h("button", { class: "jv-chipbtn primary", text: t("Add"), disabled: true, onclick: () => add() }) as HTMLButtonElement;
+    const valid = () => {
+      const w = field.value.trim();
+      return !!w && !view.settings[key].some((x) => x.toLowerCase() === w.toLowerCase());
+    };
+    field.addEventListener("input", () => { addBtn.disabled = !valid(); });
     const add = () => {
       const w = field.value.trim();
       const list = view.settings[key];
@@ -105,6 +126,7 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
       view.settings = { ...view.settings, [key]: [...list, w] };
       save(view.settings);
       field.value = "";
+      addBtn.disabled = true;
       draw();
     };
     const draw = () => {
@@ -113,15 +135,17 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
       if (!list.length) { box.append(empty(emptyText)); return; }
       for (const w of list) {
         box.append(h("span", { class: "jv-schip" }, h("span", { text: w }),
-          h("button", { "aria-label": t("Delete"), title: t("Delete"), text: "×", onclick: () => {
-            view.settings = { ...view.settings, [key]: view.settings[key].filter((x) => x !== w) };
+          h("button", { "aria-label": t("Delete {0}", { 0: w }), title: t("Delete"), text: "×", onclick: () => {
+            const before = view.settings[key];
+            view.settings = { ...view.settings, [key]: before.filter((x) => x !== w) };
             save(view.settings);
             draw();
+            removed(w, () => { view.settings = { ...view.settings, [key]: before }; save(view.settings); draw(); });
           } })));
       }
     };
     draw();
-    return [offHint(), card(h("div", { class: "jv-sadd" }, field, h("button", { class: "jv-chipbtn primary", text: t("Add"), onclick: add })), box)]
+    return [offHint(), card(h("div", { class: "jv-sadd" }, field, addBtn), box)]
       .filter((x): x is HTMLElement => !!x);
   };
 
@@ -140,6 +164,10 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
       }
     };
     const list = h("div");
+    const addBtn = h("button", { class: "jv-chipbtn primary", text: t("Add"), disabled: true, onclick: () => add() }) as HTMLButtonElement;
+    const check = () => { addBtn.disabled = !value.value.trim() || !action(); };
+    value.addEventListener("input", check);
+    mailbox.addEventListener("input", check);
     const add = () => {
       const v = value.value.trim();
       const a = action();
@@ -151,6 +179,7 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
       save(view.settings);
       value.value = "";
       mailbox.value = "";
+      check();
       draw();
     };
     const draw = () => {
@@ -164,9 +193,11 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
           }, r.name),
           h("span", { class: "grow", text: r.name }),
           h("button", { class: "jv-chipbtn danger", text: t("Delete"), onclick: () => {
-            view.settings = { ...view.settings, rules: view.settings.rules.filter((x) => x.id !== r.id) };
+            const before = view.settings.rules;
+            view.settings = { ...view.settings, rules: before.filter((x) => x.id !== r.id) };
             save(view.settings);
             draw();
+            removed(r.name, () => { view.settings = { ...view.settings, rules: before }; save(view.settings); draw(); });
           } })));
       }
     };
@@ -181,8 +212,8 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
           ["important", ruleLine({ kind: "important" })],
           ["read", ruleLine({ kind: "markRead" })],
           ["move", t("Move to mailbox…")],
-        ], kind, (k) => { kind = k; mailbox.style.display = k === "move" ? "" : "none"; }),
-        mailbox, h("span", { class: "grow" }), h("button", { class: "jv-chipbtn primary", text: t("Add"), onclick: add })));
+        ], kind, (k) => { kind = k; mailbox.style.display = k === "move" ? "" : "none"; check(); }),
+        mailbox, h("span", { class: "grow" }), addBtn));
     return [offHint(), form, card(list)].filter((x): x is HTMLElement => !!x);
   };
 
@@ -198,7 +229,7 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
     clear(root);
     const sw = card(h("div", { class: "jv-srow" },
       h("div", { class: "lbl grow" }, h("b", { text: t("Sort new messages automatically") }),
-        h("span", { text: t("Coucou sorts your Outlook inboxes: VIPs first, then banned words, then your rules. It never deletes a message.") }),
+        h("span", { text: t("JARVIS sorts your Outlook inboxes: VIPs first, then banned words, then your rules. It never deletes a message.") }),
         h("span", { text: t("Only messages that arrive from now on, in every Outlook account. The classic Outlook must be open.") })),
       switchEl(view.settings.autoSort, (on) => { view.settings = { ...view.settings, autoSort: on }; save(view.settings); }, t("Sort new messages automatically"))));
     if (!view.windows) sw.append(h("p", { class: "jv-snote", text: t("Outlook is only reached on Windows.") }));
@@ -225,13 +256,23 @@ export async function mailOverviewPage(page: HTMLElement, ctx: HubContext) {
         t("A message whose sender, subject or text holds one of these words or addresses goes straight to Junk. Whole words only: “sale” does not catch “Salesforce”."),
         chips("banned", t("A word, a phrase or an address"), t("No banned words. Add a word, or click “Always ignore this sender” on a message in the island.")))),
       row(t("Rules"), view.settings.rules.length, "mail.rules", () => drill(t("Rules"),
-        t("If a message matches, Coucou does the action. The first rule that matches wins; VIPs and banned words come before."), rules)),
-      row(t("Sent by Coucou"), view.sent.length, null, () => drill(t("Sent by Coucou"), null, sent)));
+        t("If a message matches, JARVIS does the action. The first rule that matches wins; VIPs and banned words come before."), rules)),
+      row(t("Sent by JARVIS"), view.sent.length, null, () => drill(t("Sent by JARVIS"), null, sent)));
     groups.classList.add("list");
 
-    const journal = card(h("div", { class: "jv-srow head" }, h("span", { class: "cap grow", text: t("Journal") }),
-      view.journal.length ? h("button", { class: "jv-chipbtn", text: t("Clear"), onclick: () => void MailBridge.clearJournal().then(() => { view.journal = []; drawMain(); }) }) : null));
-    if (!view.journal.length) journal.append(empty(t("Nothing sorted yet. What Coucou does to your messages shows up here, with an Undo.")));
+    const head = h("div", { class: "jv-srow head" }, h("span", { class: "cap grow", text: t("Journal") }));
+    if (view.journal.length) {
+      const ask = h("button", { class: "jv-chipbtn", text: t("Clear") });
+      ask.addEventListener("click", () => {
+        ask.replaceWith(h("span", { class: "jv-sconfirm" },
+          h("span", { class: "cap", text: t("Clear the journal? Its Undo goes with it.") }),
+          h("button", { class: "jv-chipbtn danger", text: t("Clear"), onclick: () => void MailBridge.clearJournal().then(() => { view.journal = []; drawMain(); }) }),
+          h("button", { class: "jv-chipbtn", text: t("Keep"), onclick: () => drawMain() })));
+      });
+      head.append(ask);
+    }
+    const journal = card(head);
+    if (!view.journal.length) journal.append(empty(t("Nothing sorted yet. What JARVIS does to your messages shows up here, with an Undo.")));
     for (const e of view.journal) {
       journal.append(h("div", { class: "jv-srow line" },
         h("div", { class: "grow" },

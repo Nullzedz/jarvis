@@ -132,13 +132,20 @@ export function notchTabsSection(): HTMLElement {
   }
 
   draw();
-  // Reordered in the notch meanwhile (dragging its tabs): this list follows.
-  window.addEventListener("storage", (e) => { if (e.key?.startsWith("jarvis.tabs.")) draw(); });
+  // Reordered in the notch meanwhile (dragging its tabs): this list follows, while it's on screen (#84).
+  let seen = false;
+  const onStore = (e: StorageEvent) => {
+    if (!section.isConnected) { if (seen) window.removeEventListener("storage", onStore); return; }
+    seen = true;
+    if (e.key?.startsWith("jarvis.tabs.")) draw();
+  };
+  window.addEventListener("storage", onStore);
 
-  return h("section", {},
-    h("h2", {}, h("span", { text: t("Tabs in the notch") })),
-    h("div", { class: "hint", text: t("Choose what the notch's tab bar shows, and in what order. Home always comes first; a hidden tab still opens from the Overview.") }),
-    h("p", { class: "nt-cap", text: t("In the notch") }),
+  const section = h("section", {},
+    h("h2", {}, h("span", { text: t("Tabs in the island") })),
+    h("div", { class: "hint", text: t("Choose what the island's tab bar shows, and in what order. Home always comes first; a hidden tab still opens from the Overview.") }),
+    h("p", { class: "nt-cap", text: t("In the island") }),
     shownList,
     moreWrap);
+  return section;
 }

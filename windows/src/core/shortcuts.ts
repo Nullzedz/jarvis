@@ -26,8 +26,8 @@ export const SHORTCUT_TEXT = {
   attachFrontWindow: N_("Attach the front window to the chat"),
   nextPill: N_("Next pill"),
   prevPill: N_("Previous pill"),
-  muteToggle: N_("Mute or unmute Mochi"),
-  desktopToggle: N_("Send Mochi to the desktop"),
+  muteToggle: N_("Mute or unmute JARVIS"),
+  desktopToggle: N_("Send JARVIS to the desktop"),
   wardrobeToggle: N_("Open the wardrobe"),
   sleepToggle: N_("Put JARVIS to sleep or wake him"),
   island: {

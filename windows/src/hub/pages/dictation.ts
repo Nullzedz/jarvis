@@ -59,7 +59,7 @@ export async function dictationPage(page: HTMLElement, ctx: HubContext) {
   function draw() {
     clear(list);
     if (status.prefs.keepDays === 0) {
-      list.append(emptyState(t("The history is off. Turn it on in Settings → Privacy.")));
+      list.append(emptyState(t("The history is off. Turn it on in Settings › Dictation.")));
       return;
     }
     const shown = query ? entries.filter((e) => e.text.toLowerCase().includes(query)) : entries;

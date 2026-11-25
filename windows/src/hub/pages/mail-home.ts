@@ -10,6 +10,7 @@ import { t, tn, language, weekdayShort } from "../../i18n/i18n";
 import { MailBridge, senderName, type MailMessage, type TriageView } from "../../core/mail";
 import { Bridge, type MailMonth } from "../../core/bridge";
 import type { HubContext } from "../shell";
+import { fillWindow } from "../fit";
 
 export interface DayMessage extends MailMessage {
   files: string[];
@@ -32,13 +33,14 @@ export const PARTS: { from: number; to: number; at: string; name: () => string }
 ];
 
 /** The senders of a part of the day, most mail first: one pill each. */
-export function senders(list: readonly DayMessage[]): { name: string; n: number; vip: boolean }[] {
-  const by = new Map<string, { name: string; n: number; vip: boolean }>();
+export function senders(list: readonly DayMessage[]): { name: string; n: number; vip: boolean; wait: boolean }[] {
+  const by = new Map<string, { name: string; n: number; vip: boolean; wait: boolean }>();
   for (const m of list) {
     const key = (m.address || m.senderName).toLowerCase();
-    const s = by.get(key) ?? { name: senderName(m), n: 0, vip: false };
+    const s = by.get(key) ?? { name: senderName(m), n: 0, vip: false, wait: false };
     s.n++;
     s.vip ||= m.vip;
+    s.wait ||= m.flagged;
     by.set(key, s);
   }
   return [...by.values()].sort((a, b) => Number(b.vip) - Number(a.vip) || b.n - a.n);
@@ -74,7 +76,7 @@ export function todaysFiles(list: readonly DayMessage[]): { name: string; m: Day
 }
 
 function time(ms: number): string {
-  try { return new Date(ms).toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" }); }
+  try { return new Date(ms).toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }); }
   catch { return new Date(ms).toLocaleTimeString(); }
 }
 
@@ -106,7 +108,31 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   const main = h("div", { class: "jv-mailpg" });
   const full = h("div", { class: "jv-mfull" });
   full.style.display = "none";
-  page.append(main, full);
+  // Done says so, with Undo (#84).
+  const toast = h("div", { class: "jv-toast", role: "status" });
+  let toastAt = 0;
+  const note = (text: string, undo?: () => void) => {
+    clear(toast);
+    toast.append(h("span", { text }));
+    if (undo) toast.append(h("button", { class: "jv-link", text: t("Undo"), onclick: () => { toast.classList.remove("on"); undo(); } }));
+    toast.classList.add("on");
+    window.clearTimeout(toastAt);
+    toastAt = window.setTimeout(() => toast.classList.remove("on"), 6000);
+  };
+  page.append(main, full, toast);
+  // The month fills the window exactly (#84: a fixed height left a scrollbar).
+  ctx.onLeave = fillWindow(main, 460);
+  const done = (m: DayMessage) => {
+    void MailBridge.act(m, "unflag").then(() => {
+      const at = waiting.indexOf(m);
+      waiting = waiting.filter((x) => x !== m);
+      redrawWaiting();
+      note(t("Marked done: {0}", { 0: m.subject || senderName(m) }), () => {
+        void MailBridge.act(m, "flag").then(() => { waiting.splice(Math.max(0, at), 0, m); redrawWaiting(); });
+      });
+    });
+  };
+  let redrawWaiting = () => drawWaiting();
 
   const mon = h("div", { class: "jv-mon" });
   const dayBox = h("div", { class: "jv-mp" });
@@ -124,13 +150,18 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
     const todayDay = offset === 0 ? now.getDate() : 0;
     const counts = Array.from({ length }, (_, i) => Number(month?.days?.[String(i + 1)] ?? 0));
     const top = Math.max(1, ...counts);
-    const busy = [...counts].sort((a, b) => b - a)[Math.min(4, length - 1)] || Infinity;
+    // Busy is relative to your month: among its five biggest days and well above its usual day (#84).
+    const some = counts.filter((n) => n > 0);
+    const usual = some.length ? some.reduce((a, b) => a + b, 0) / some.length : 0;
+    const fifth = [...counts].sort((a, b) => b - a)[Math.min(4, length - 1)] || Infinity;
+    const busy = Math.max(fifth, Math.ceil(usual * 1.5), 3);
     const name = first.toLocaleDateString(language(), { month: "long" });
     mon.append(h("div", { class: "jv-mrow sb" },
       h("p", { class: "title" }, `${name.charAt(0).toUpperCase()}${name.slice(1)} `, h("span", { class: "yr", text: String(y) })),
       h("span", { class: "jv-mrow" },
-        rb("‹", "var(--jv-s2)", "var(--jv-t1)", t("Previous month"), () => { offset--; void loadMonth(); }),
-        rb("›", "var(--jv-s2)", "var(--jv-t1)", t("Next month"), offset < 0 ? () => { offset++; void loadMonth(); } : undefined),
+        offset < 0 || sel !== todayKey ? h("button", { class: "jv-chipbtn", text: t("Today"), onclick: () => { offset = 0; sel = todayKey; void loadMonth(); void loadDay(); } }) : null,
+        rb("‹", "var(--jv-s2)", "var(--jv-t1)", t("Previous month"), () => moveMonth(-1)),
+        offset < 0 ? rb("›", "var(--jv-s2)", "var(--jv-t1)", t("Next month"), () => moveMonth(1)) : nextOff(),
       )));
     const wd = h("div", { class: "jv-mwd" });
     for (let i = 1; i <= 7; i++) wd.append(h("span", { text: weekdayShort(i % 7) }));
@@ -143,11 +174,15 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
       const n = counts[d - 1];
       const key = dateKey(y, m, d);
       const fut = offset === 0 && d > todayDay;
-      const cell = h("button", {
-        class: `jv-md${d === todayDay ? " today" : ""}${key === sel ? " sel" : ""}${fut ? " fut" : ""}`,
-        "aria-label": `${d} ${name}, ${tn("{count} mail", "{count} mails", n)}`,
-        onclick: () => { if (fut) return; sel = key; drawMonth(); void loadDay(); },
-      }, h("span", { class: "n", text: String(d) }));
+      // Days still to come are just numbers, not buttons that do nothing (#84).
+      const cell = fut
+        ? h("div", { class: "jv-md fut" }, h("span", { class: "n", text: String(d) }))
+        : h("button", {
+          class: `jv-md${d === todayDay ? " today" : ""}${key === sel ? " sel" : ""}`,
+          "aria-label": `${d} ${name}, ${tn("{count} mail", "{count} mails", n)}`,
+          "aria-pressed": String(key === sel),
+          onclick: () => { sel = key; drawMonth(); void loadDay(); },
+        }, h("span", { class: "n", text: String(d) }));
       const mk = month?.marks?.[String(d)];
       if (n) {
         const dd = h("div", { class: "dd" });
@@ -173,6 +208,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   let dayList: DayMessage[] = [];
   const drawDay = () => {
     clear(dayBox);
+    if (!sel) { dayBox.append(h("div", { class: "cap jv-mempty", text: t("Choose a day in the month.") })); return; }
     const [y, m, d] = sel.split("-").map(Number);
     const date = new Date(y, m - 1, d);
     const wd = date.toLocaleDateString(language(), { weekday: "long" });
@@ -198,7 +234,8 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
         const list = senders(inPart);
         for (const s of list.slice(0, 3)) {
           const pill = h("span", { class: "jv-gpill" }, s.name, h("span", { class: "c", text: String(s.n) }));
-          pill.style.background = s.vip ? VIP : WAIT;
+          if (s.vip || s.wait) pill.style.background = s.vip ? VIP : WAIT;
+          else pill.classList.add("grey");
           cap.append(pill);
         }
         if (list.length > 3) {
@@ -216,7 +253,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   const busiest = (hours: number[]) => hours.reduce((bi, v, i, a) => (v > a[bi] ? i : bi), 0);
   const drawArrivals = () => {
     clear(arrBox);
-    const hours = (month?.hours ?? []).map(Number);
+    const hours = hourStacks(today).map((x) => x[0] + x[1] + x[2]);
     const peak = busiest(hours);
     const any = hours.some((v) => v > 0);
     arrBox.append(h("div", { class: "jv-mrow sb w" },
@@ -244,7 +281,9 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
         h("div", { class: "jv-mrow sb" }, h("b", { text: `${senderName(m)} · ${m.subject || t("(no subject)")}` }),
           h("span", { class: "cap", style: m.vip ? `color:${VIP}` : "", text: m.vip ? t("VIP") : "" })),
         h("div", { class: "jv-mrow acts" },
-          rb("↩", BLUE, "#fff", t("Reply")), rb("✓", "#30d158", "#000", t("Done")), rb("↗", "#3a3a3c", "#fff", t("Open in Outlook"))));
+          rb("↩", BLUE, "#fff", t("Reply"), () => void MailBridge.open(m, true)),
+          rb("✓", "#30d158", "#000", t("Done"), () => done(m)),
+          rb("↗", "#3a3a3c", "#fff", t("Open in Outlook"), () => void MailBridge.open(m, false))));
       waitBox.append(card);
     });
   };
@@ -264,16 +303,24 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   };
 
   // ── Full views ──
-  const back = () => { full.style.display = "none"; main.style.display = ""; };
+  let backTo = 0;
+  const scroller = () => page.closest<HTMLElement>(".hub-scroll");
+  const back = () => {
+    full.style.display = "none"; main.style.display = "";
+    redrawWaiting = () => drawWaiting();
+    const sc = scroller(); if (sc) sc.scrollTop = backTo;
+  };
   const openFull = (title: string, count: number | null, tabs: HTMLElement | null, ...body: HTMLElement[]) => {
     clear(full);
     const ttl = h("p", { class: "title", text: title });
     if (count != null) ttl.append(" ", h("span", { text: String(count) }));
     full.append(h("div", { class: "jv-mrow sb" },
-      h("div", { class: "jv-mrow g16" }, h("button", { class: "back", text: "‹ Mail", onclick: back }), ttl), tabs ?? h("span")), ...body);
+      h("div", { class: "jv-mrow g16" }, h("button", { class: "back", text: `‹ ${t("Mail")}`, onclick: back }), ttl), tabs ?? h("span")), ...body);
+    const sc = scroller();
+    if (main.style.display !== "none") backTo = sc?.scrollTop ?? 0;
     main.style.display = "none";
     full.style.display = "";
-    page.closest(".hub-panel")?.scrollTo?.(0, 0);
+    if (sc) sc.scrollTop = 0;
   };
   const tabs2 = (names: string[], on: number, pick: (i: number) => void) => {
     const box = h("span", { class: "jv-tabs2 wrap" });
@@ -347,9 +394,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
         text, filesRow,
         h("div", { class: "jv-mrow acts end-row" }, h("span", { class: "cap grow", text: `${t("Reply")} · ${t("Done")} · ${t("Open in Outlook")}` }),
           rb("↩", BLUE, "#fff", t("Reply"), () => void MailBridge.open(m, true), 32),
-          rb("✓", "#30d158", "#000", t("Done"), () => {
-            void MailBridge.act(m, "unflag").then(() => { waiting = waiting.filter((x) => x !== m); drawWaiting(); showWaiting(order); });
-          }, 32),
+          rb("✓", "#30d158", "#000", t("Done"), () => done(m), 32),
           rb("↗", "#3a3a3c", "#fff", t("Open in Outlook"), () => void MailBridge.open(m, false), 32)));
       grid.append(card);
       void MailBridge.detail(m).then((d) => {
@@ -363,6 +408,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
       }).catch(() => { text.textContent = ""; });
     }
     openFull(t("Waiting on you"), list.length, tabs2([t("Most important"), t("Oldest")], order, (i) => showWaiting(i)), grid);
+    redrawWaiting = () => { drawWaiting(); showWaiting(order); };
   };
 
   const showFiles = (filter = 0, selIdx = 0) => {
@@ -370,6 +416,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
     const all = todaysFiles(today);
     const grid = h("div", { class: "jv-mfgrid" });
     const shown = all.map((f, i) => ({ f, i })).filter(({ f }) => filter === 0 || fileKind(f.name)[1] === kinds[filter]);
+    if (!shown.some(({ i }) => i === selIdx)) selIdx = shown[0]?.i ?? -1;
     if (!shown.length) grid.append(h("p", { class: "cap", text: t("No files today.") }));
     for (const { f, i } of shown) {
       const [badge, kind, color] = fileKind(f.name);
@@ -378,7 +425,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
         h("div", { class: "jv-mrow meta" }, h("b", { style: `background:${color}`, text: badge }),
           h("div", { class: "grow" }, h("p", { class: "nm", text: f.name }), h("p", { class: "cap", text: `${senderName(f.m)} · ${time(f.m.date)}` })))));
     }
-    const chosen = all[selIdx];
+    const chosen = selIdx >= 0 ? all[selIdx] : undefined;
     const bar = h("div", { class: "jv-mrow sb jv-mselbar" },
       h("span", { class: "cap", text: chosen ? t("{0} selected", { 0: chosen.name }) : "" }),
       chosen ? h("span", { class: "jv-mrow g6" },
@@ -392,13 +439,31 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
   fileBox.addEventListener("click", () => showFiles());
 
   // ── Loading ──
+  let monthReq = 0, dayReq = 0;
   const loadMonth = async () => {
-    month = (await (offset === 0 ? Bridge.mailMonth() : Bridge.mailMonthAt(offset)).catch(() => null)) ?? null;
+    const mine = ++monthReq, at = offset;
+    const got = (await (at === 0 ? Bridge.mailMonth() : Bridge.mailMonthAt(at)).catch(() => null)) ?? null;
+    if (mine !== monthReq) return;
+    month = got;
     drawMonth();
   };
   const loadDay = async () => {
-    dayList = sel === todayKey ? today : ((await Bridge.mailDay(sel).catch(() => null))?.messages ?? []);
+    const mine = ++dayReq, at = sel;
+    const got = !at ? [] : at === todayKey ? today : ((await Bridge.mailDay(at).catch(() => null))?.messages ?? []);
+    if (mine !== dayReq) return;
+    dayList = got;
     drawDay();
+  };
+  // A new month clears the chosen day; back on this month it's today again (#84: the old day stayed chosen).
+  const moveMonth = (by: number) => {
+    offset = Math.min(0, offset + by);
+    sel = offset === 0 ? todayKey : "";
+    void loadMonth(); void loadDay();
+  };
+  const nextOff = () => {
+    const b = h("button", { class: "jv-mrb", disabled: true, "aria-label": t("Next month"), title: t("Next month"), text: "›" });
+    b.style.background = "var(--jv-s2)"; b.style.color = "var(--jv-t1)";
+    return b;
   };
   drawMonth(); drawDay(); drawArrivals(); drawWaiting(); drawFilesSmall();
   const [, day, flagged, tri] = await Promise.all([

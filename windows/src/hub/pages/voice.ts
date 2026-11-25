@@ -3,7 +3,7 @@
 
 import { h, clear } from "../../views/dom";
 import { t } from "../../i18n/i18n";
-import { Bridge, onEvent, type VoiceModel, type VoiceModelState } from "../../core/bridge";
+import { Bridge, onEvent, onEventWhileShown, type VoiceModel, type VoiceModelState } from "../../core/bridge";
 import type { VoiceOutput } from "../../core/flow";
 import type { HubContext } from "../shell";
 import { button, card, divider, label, row, segmented, select, toggle } from "../ui";
@@ -165,9 +165,9 @@ function piperVoice(): HTMLElement {
     status = m.status;
     draw();
   });
-  void onEvent<VoiceModelState>("piper-model-status", (s) => {
+  void onEventWhileShown<VoiceModelState>(box, "piper-model-status", (s) => {
     status = s;
-    if (box.isConnected) draw();
+    draw();
   });
   return box;
 }
@@ -179,26 +179,35 @@ function micMeterBar(mic: string): HTMLElement {
   // The quietest speech JARVIS hears (voice/wake.rs MIN_SPEECH, 0.0035 ≈ −49 dBFS) on the bar's −60…−10 dB scale.
   mark.style.left = `${((20 * Math.log10(0.0035) + 60) / 50) * 100}%`;
   const bar = h("div", { class: "mic-bar" }, fill, mark);
-  let alive = true;
-  const ping = () => {
-    if (!bar.isConnected && document.readyState === "complete" && alive) {
-      // The page is gone: stop the microphone.
-      alive = false;
-      void Bridge.micMeterStop();
-      return;
-    }
-    void Bridge.micMeter(mic);
+  // #84: the microphone is open only while the bar is on screen (Settings draws this page inside
+  // its Voice group: reading General must not light Windows' microphone icon). Off screen it stops;
+  // back on screen (after a sub-page, or scrolling back) it starts again. Gone for good: it ends.
+  let on = false;
+  let goneTicks = 0;
+  const set = (want: boolean) => {
+    if (want === on) return;
+    on = want;
+    if (on) void Bridge.micMeter(mic);
+    else { void Bridge.micMeterStop(); fill.style.width = "0%"; }
   };
-  ping();
-  const timer = window.setInterval(() => {
-    if (!alive) return window.clearInterval(timer);
-    ping();
-  }, 2000);
-  void onEvent<{ level: number; rms: number }>("mic-level", (e) => {
-    if (!bar.isConnected) return;
+  const seen = new IntersectionObserver(([e]) => set(!!e?.isIntersecting && bar.isConnected));
+  seen.observe(bar);
+  const off = onEvent<{ level: number; rms: number }>("mic-level", (e) => {
+    if (!on) return;
     fill.style.width = `${Math.round(e.level * 100)}%`;
     bar.classList.toggle("speech", e.rms >= 0.0035);
   });
+  const timer = window.setInterval(() => {
+    if (bar.isConnected) {
+      goneTicks = 0;
+      // The meter stops by itself without a ping (meter.rs): keep it going while it's wanted.
+      if (on) void Bridge.micMeter(mic);
+      return;
+    }
+    set(false);
+    // Detached for a minute: the page was left, not a sub-page opened. Stop listening for good.
+    if (++goneTicks > 30) { window.clearInterval(timer); seen.disconnect(); void off.then((f) => f()); }
+  }, 2000);
   return bar;
 }
 
@@ -268,9 +277,9 @@ function jarvisVoice(ctx: HubContext, voiceName: string): HTMLElement {
     draw();
   };
   void load();
-  void onEvent<VoiceModel["status"]>("voice-model-status", (status) => {
+  void onEventWhileShown<VoiceModel["status"]>(box, "voice-model-status", (status) => {
     if (model) model.status = status;
-    if (box.isConnected) draw();
+    draw();
   });
   return box;
 }
@@ -289,7 +298,7 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
     row(t("Parakeet, on your computer"), t("Hears « OK Coucou » here, without the internet."), modelsControl(ctx, () => ctx.navigate("voice"))),
   );
   if (prefs.voice && !ready) {
-    main.append(h("div", { class: "hub-warn", text: t("Download the voice model so Coucou can hear you.") }));
+    main.append(h("div", { class: "hub-warn", text: t("Download the voice model so JARVIS can hear you.") }));
   }
   if (!status.hasClaudeKey) {
     // JARVIS: no key needed — your own Claude Code answers.
@@ -333,6 +342,13 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
     ),
   );
   if (print.trained) {
+    // #84: it asks first, and says what goes.
+    const forgetBtn: HTMLElement = button(t("Forget my voice"), () => {
+      forgetBtn.replaceWith(h("span", { style: "display:inline-flex;gap:8px;align-items:center" },
+        h("span", { class: "hub-note", text: t("Forget your voice? JARVIS will answer anyone until you train him again.") }),
+        button(t("Forget"), () => void Bridge.voicePrintForget().then(() => ctx.setPrefs((p) => (p.voiceOnlyMe = false))).then(() => ctx.navigate("voice")), "danger", true),
+        button(t("Keep"), () => void ctx.navigate("voice"), "", true)));
+    }, "danger", true);
     yours.append(
       divider(),
       row(
@@ -347,7 +363,7 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
       divider(),
       h("div", { style: "display:flex;gap:8px;padding:2px 0" },
         button(t("Retrain"), train, "", true),
-        button(t("Forget my voice"), () => void Bridge.voicePrintForget().then(() => ctx.setPrefs((p) => (p.voiceOnlyMe = false))).then(() => ctx.navigate("voice")), "danger", true),
+        forgetBtn,
       ),
     );
   }
@@ -356,7 +372,7 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   page.append(label(t("Answers")));
   const outputs: [VoiceOutput, string][] = [["gemini", "Gemini"], ["jarvis", "JARVIS"], ["system", t("System voice")], ["elevenlabs", "ElevenLabs"], ["off", t("Text only")]];
   const answers = card(
-    row(t("Coucou answers out loud"), null, segmented(outputs, prefs.voiceOutput, (v) => void ctx.setPrefs((p) => (p.voiceOutput = v)).then(() => ctx.navigate("voice")))),
+    row(t("JARVIS answers out loud"), null, segmented(outputs, prefs.voiceOutput, (v) => void ctx.setPrefs((p) => (p.voiceOutput = v)).then(() => ctx.navigate("voice")))),
   );
   if (prefs.voiceOutput === "gemini") {
     // JARVIS: Google's voice with your own AI Studio key; the key's row links to where to get one.
@@ -402,6 +418,6 @@ export async function voicePage(page: HTMLElement, ctx: HubContext) {
   page.append(card(
     h("div", { class: "hub-note", text: t("Your voice never leaves this computer: Parakeet turns it into text here. Only the words after « OK Coucou » go to Anthropic with your Claude key, and to ElevenLabs if you picked it for the answers.") }),
     divider(),
-    h("div", { class: "hub-note", text: t("An email is never sent by Coucou: your mail app opens with it written, and you send it.") }),
+    h("div", { class: "hub-note", text: t("An email is never sent by JARVIS: your mail app opens with it written, and you send it.") }),
   ));
 }

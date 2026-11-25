@@ -47,6 +47,8 @@ body.at-home .hub-scroll { padding: 0; }
 .jv-home { position: relative; width: 100%; }
 /* The page's column; .jv-home itself spans the window so the dots start on a whole pixel. */
 .jv-home > .jv-hero, .jv-home > .jv-below { max-width: 980px; margin: 0 auto; padding: 0 32px; box-sizing: border-box; }
+/* #84: the shorthand above wiped the hero's room for the dock; the greeting is centred above it. */
+.jv-home > .jv-hero { padding-bottom: 120px; }
 /* The first screen is not flat black: a faint lift at the top, and printed dots that stay clear of him. No light. */
 .jv-home::before, .jv-texture { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 100vh; pointer-events: none; }
 .jv-home::before { background: linear-gradient(180deg, #0c0c0e 0%, #000 55%); }
@@ -85,7 +87,7 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 .jv-tab.on { color: var(--jv-blue); background: rgba(255, 255, 255, .1); cursor: default; }
 .jv-tab:focus-visible, .jv-askdock:focus-visible, .jv-tool:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
 /* Ask, docked beside the bar as iOS docks Search; its blue button is the one tinted action. */
-.jv-askdock { display: flex; align-items: center; gap: 10px; width: 300px; height: 64px; padding: 0 8px 0 20px; border: 0; border-radius: 32px; cursor: text;
+.jv-askdock { display: flex; align-items: center; gap: 10px; width: 300px; height: 64px; padding: 0 8px 0 20px; border: 0; border-radius: 32px; cursor: pointer;
   background: var(--glass); -webkit-backdrop-filter: var(--glass-fx); backdrop-filter: var(--glass-fx); box-shadow: var(--glass-edge), 0 10px 30px rgba(0, 0, 0, .45);
   color: #c7c7cc; font: 15px var(--font); text-align: left; transition: transform .25s var(--jv-ease); }
 .jv-askdock:active { transform: scale(.98); }
@@ -215,7 +217,11 @@ body:not(.at-home) .jv-bottom, body:not(.at-home) .jv-tools { display: none; }
 /* ── Agents · Sessions (#65): the demo's orbit, approval bar and card stack ── */
 body.hub-window.jv-space #hub .hub-panel { background: #000; }
 @media (prefers-reduced-motion: reduce) { .jv-stars animate { display: none; } }
-.jv-ahero { height: calc(100vh - 110px); min-height: 520px; display: flex; flex-direction: column; }
+/* #84: tall enough for the orbit, short enough that the cards below show their first row. */
+.jv-ahero { height: clamp(380px, calc(100vh - 230px), 600px); display: flex; flex-direction: column; }
+.jv-ahero-acts { display: flex; align-items: center; gap: 10px; }
+.jv-ahero > .jv-approve { margin: 10px 0 0; }
+.jv-ahero > .jv-approve.gone { display: none; }
 .jv-ahero-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .jv-atitle { margin: 0; font-size: 24px; font-weight: 600; color: var(--jv-t1); }
 .jv-atitle span { color: var(--jv-t3); font-weight: 400; font-size: 16px; margin-left: 8px; }
@@ -251,7 +257,7 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-card .foot { display: flex; justify-content: flex-end; }
 .jv-stack-empty { margin: 0; color: var(--jv-t2); font-size: 14px; }
 /* ── JARVIS · Conversation (#67): the demo's glowing panel and the bubbles ── */
-.jv-talk { display: grid; grid-template-columns: .9fr 1.1fr; gap: 26px; height: calc(100vh - 110px); min-height: 520px; }
+.jv-talk { display: grid; grid-template-columns: .9fr 1.1fr; gap: 26px; height: 520px; } /* fit.ts sets the real height */
 .jv-glow { border-radius: 26px; background: #08080a; padding: 22px; display: flex; flex-direction: column; align-items: center; min-height: 0;
   box-shadow: inset 0 0 0 2px rgba(191,90,242,.85), inset 0 0 34px 8px rgba(10,132,255,.35), inset 0 0 70px 12px rgba(255,55,95,.1); animation: jv-glow 4s ease-in-out infinite; }
 @keyframes jv-glow { 50% { box-shadow: inset 0 0 0 2px rgba(10,132,255,.85), inset 0 0 40px 10px rgba(191,90,242,.35), inset 0 0 70px 12px rgba(255,55,95,.12); } }
@@ -259,7 +265,7 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-glow .mid { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 0; min-height: 0; }
 .jv-glow .mid .jv-visor { margin-bottom: 22px; }
 .jv-wv { display: flex; align-items: center; gap: 5px; height: 70px; }
-.jv-wv i { width: 5px; height: 8px; border-radius: 3px; background: #bf5af2; display: block; transition: height .12s ease; }
+.jv-wv i { width: 5px; height: 8px; border-radius: 3px; background: #bf5af2; display: block; transition: transform .12s ease; }
 .jv-heard { margin: 16px 0 0; font-size: 15px; color: #e5e5ea; text-align: center; max-width: 34ch; }
 .jv-glow .foot { width: 100%; }
 .jv-glow .foot > .cap { margin: 0 0 8px; }
@@ -353,7 +359,13 @@ body.hub-window.jv-space #hub .hub-panel { background: #000; }
 .jv-prefs .jv-flowpart .hub-row > :not(.text) { justify-self: end; }
 .jv-prefs .jv-flowpart .hub-row .title { font-weight: 600; font-size: 14px; color: var(--jv-t1); }
 .jv-prefs .jv-flowpart .hub-row .detail { font-size: 12.5px; color: var(--jv-t2); margin-top: 2px; line-height: 1.45; }
-@media (max-width: 860px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } }
+/* #84: the smallest window (820 px, the rail included) keeps the layout: a narrower menu on the left,
+   each setting's control on the right of its name. Only a really narrow page stacks. */
+@media (max-width: 1000px) { .hub-page.jv-prefs { grid-template-columns: 150px minmax(0, 1fr); gap: 22px; } .jv-prefs .srow { grid-template-columns: minmax(0, 1fr) fit-content(60%); gap: 16px; } .jv-prefs .srow .ctl { justify-self: end; } }
+@media (max-width: 640px) { .hub-page.jv-prefs { grid-template-columns: 1fr; } .jv-snav { position: static; } .jv-prefs .srow, .jv-prefs .jv-flowpart .hub-row { grid-template-columns: 1fr; gap: 10px; } .jv-prefs .srow .ctl { justify-self: stretch; } }
+.jv-pnone { margin: 8px 0 0; font-size: 14px; color: var(--jv-t2); }
+/* A search result, lit for a moment where it lands (no glow, #84). */
+.jv-lit { background-color: rgba(255, 255, 255, .08) !important; border-radius: 12px; transition: background-color .9s ease; }
 /* ── Notes · Dictation (#72): the demo's page ── */
 .jv-tabs { background: none; gap: 6px; padding: 0; }
 .jv-tabs button { background: #2c2c2e; color: #e5e5ea; font: 13px var(--font); padding: 6px 15px; border-radius: 999px; }
@@ -484,7 +496,7 @@ button.jv-ntrow { cursor: pointer; }
 .jv-ntrec .live .dot { width: 8px; height: 8px; border-radius: 50%; background: #ff453a; animation: jv-pulse 1.4s ease-in-out infinite; }
 .jv-ntrec .meta { margin-top: 60px; }
 .jv-ntrec .wv { display: flex; align-items: center; gap: 5px; height: 140px; margin: 22px 0; }
-.jv-ntrec .wv i { width: 7px; height: 20px; border-radius: 3px; background: #ff453a; display: block; transition: height .12s ease; }
+.jv-ntrec .wv i { width: 7px; height: 135px; border-radius: 3px; background: #ff453a; display: block; transform: scaleY(.15); transition: transform .12s ease; }
 .jv-ntrec .prev { margin: 0; color: var(--jv-t3); font-size: 18px; min-height: 26px; text-align: center; }
 .jv-ntrec .now { margin: 12px 40px 0; font-size: 30px; text-align: center; line-height: 1.3; min-height: 80px; color: var(--jv-t1); }
 .jv-ntrec .who { margin-top: 8px; font-size: 13px; }
@@ -578,7 +590,7 @@ body.wc-open:not(.at-home) .jv-rail .jv-ri .n { opacity: 1; transform: none; tra
 @media (prefers-reduced-motion: reduce) { .jv-dot, .jv-wc-face { transition: none; } }
 
 /* ── Mail (#74): the live demo's design A, one to one ── */
-.jv-mailpg { display: grid; align-items: stretch; grid-template-columns: 1.15fr 1fr; gap: 12px; height: calc(100vh - 150px); min-height: 600px; }
+.jv-mailpg { display: grid; align-items: stretch; grid-template-columns: 1.15fr 1fr; gap: 12px; height: 600px; } /* fit.ts sets the real height */
 .jv-mailpg p, .jv-mfull p { margin: 0; }
 .jv-mailpg .cap, .jv-mfull .cap { font-size: 12px; color: var(--jv-t2); }
 .jv-mailpg .blue, .jv-mfull .blue { color: var(--jv-blue); }
@@ -789,3 +801,107 @@ span.jv-mrb { opacity: .9; }
 
 /* #80: the Notch group's parts (tabs, pills, behaviour) */
 .jv-sgroup .jv-psub { margin: 26px 0 6px; font-size: 13px; font-weight: 600; color: var(--jv-t2); text-transform: none; letter-spacing: 0; }
+
+/* ── #84: the old button rules carry no weight now (settings.css :where): each new control has its own states ── */
+.jv-tabs2 button:not(.on):hover { background: #3a3a3c; }
+.jv-tabs2 button:active { transform: scale(.95); }
+.jv-tabs button:not(.on):hover { background: #3a3a3c; }
+.jv-talkask .talk:hover { filter: brightness(1.12); }
+.jv-txbar .play:hover { filter: brightness(.92); }
+.jv-txbar .play:active { transform: scale(.94); }
+.jv-talk .jv-voicecard:hover { background: #222224; }
+.jv-rooms button:not(.on):hover:not(:disabled) { background: var(--jv-s2); color: #e5e5ea; }
+.jv-chipbtn:active { transform: scale(.95); }
+span.jv-chipbtn:hover { background: #2c2c2e; }
+/* The window dots: their own colours; on hover, macOS's symbols. Hidden, they're out of the Tab order too. */
+.jv-dot { position: relative; visibility: hidden; transition: transform .1s ease-in, opacity .08s ease-in, filter .15s ease, visibility 0s linear .1s; }
+.jv-wc.open .jv-dot { visibility: visible; transition: transform .38s var(--jv-ease), opacity .22s ease, filter .15s ease, visibility 0s; }
+.jv-dot { display: grid; place-items: center; }
+.jv-dot svg { width: 58%; height: 58%; display: block; opacity: 0; transition: opacity .1s ease; }
+.jv-dot svg path { fill: none; stroke: rgba(0, 0, 0, .6); stroke-width: 1.3; stroke-linecap: round; }
+.jv-dots:hover .jv-dot svg, .jv-dots:focus-within .jv-dot svg { opacity: 1; }
+.jv-dot:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
+/* Focus rings for the new controls that had none. */
+.jv-tabs button:focus-visible, .jv-tabs2 button:focus-visible, .jv-chipbtn:focus-visible, .jv-btn:focus-visible, .jv-talkask .talk:focus-visible,
+.jv-rooms button:focus-visible, .jv-ht:focus-visible, .jv-md:focus-visible, .jv-mp:focus-visible, .jv-sdrill:focus-visible, .jv-wchip:focus-visible,
+.jv-dcol:focus-visible, .jv-dhist:focus-visible, .jv-snav .lnk:focus-visible, .jv-ri:focus-visible { outline: 2px solid var(--jv-blue); outline-offset: 2px; }
+.jv-talkask .q:focus-visible, .jv-wsearch:focus-within, .jv-snav .search:focus-within { box-shadow: 0 0 0 2px rgba(10, 132, 255, .5); }
+
+/* ── #84: navigation ── */
+.jv-sechead { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
+.jv-sechead .jv-tabs { margin: 0; }
+.jv-sectitle { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--jv-t1); }
+.hub-search-row.sel { background: var(--jv-s2); }
+/* The window drags from the whole empty top edge, not a 10 px strip; tabs start below it. */
+.jv-dragedge { height: 22px; }
+/* The dots are 13 px to see but 25 px to hit. */
+.jv-dot::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; }
+/* Back links are at least 24 px tall to hit. */
+.jv-sub .back, .jv-msort > .back, .jv-connpg > .back, .jv-mfull .back, .jv-walltop .back, .jv-dict-full .back { min-height: 24px; display: inline-flex; align-items: center; }
+
+/* ── #84: Home ── */
+.jv-hometile .tx { display: block; min-width: 0; }
+.jv-hometile .nm { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jv-wapprove .said { font-size: 13px; color: var(--jv-green); font-weight: 500; padding: 0 8px; }
+.jv-wapprove .pg { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--jv-t2); flex: none; }
+.jv-pg, .jv-pg:hover:not(:disabled) { width: 24px; height: 24px; border-radius: 50%; border: 0; padding: 0; background: #3a3a3c; color: var(--jv-t1); font: 13px var(--font); cursor: pointer; display: grid; place-items: center; }
+.jv-pg:hover:not(:disabled) { background: #48484a; }
+.jv-ag-new { align-self: flex-start; margin-top: 6px; }
+.jv-plan .when { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* ── #84: JARVIS page ── */
+.jv-talkask .talk.send { background: #f5f5f7; color: #000; font: 600 16px var(--font); }
+.jv-talk .jv-voicecard { box-shadow: none; }
+.jv-talk .jv-voicecard:focus-visible { box-shadow: inset 0 0 0 2px var(--jv-blue); }
+.jv-teach { margin: 6px 0 0; font-size: 12.5px; color: var(--jv-t2); }
+.jv-link, .jv-link:hover:not(:disabled), .jv-link:active:not(:disabled) { background: none; border: 0; padding: 0; color: var(--jv-blue); font: inherit; cursor: pointer; transform: none; border-radius: 0; }
+.jv-link:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 3px; }
+.jv-bub.err { background: rgba(255, 69, 58, .12); color: #ff8a80; }
+
+/* ── #84: Notetaker ── */
+.jv-recpill, .jv-recpill:hover:not(:disabled) { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 12px; border: 0; border-radius: 999px; padding: 6px 14px; background: rgba(255, 69, 58, .14); color: #ff6961; font: 500 13px var(--font); cursor: pointer; font-variant-numeric: tabular-nums; }
+.jv-recpill:hover:not(:disabled) { background: rgba(255, 69, 58, .22); }
+.jv-recpill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: jv-blink 1.2s ease-in-out infinite; }
+@keyframes jv-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .jv-recpill .dot { animation: none; } }
+button.jv-ntrow:hover:not(:disabled) { background: #1f1f22; }
+.jv-ntrow .go { margin-left: auto; color: var(--jv-t3); }
+.jv-ntrow.event .dot.ring { background: none; box-shadow: inset 0 0 0 2px #ff9f0a; }
+.jv-nttools { display: inline-flex; align-items: center; gap: 10px; }
+.jv-ntok { font-size: 12.5px; color: var(--jv-t2); }
+.jv-ntok.bad { color: #ff8a80; }
+.jv-nthead { display: flex; align-items: center; gap: 10px; margin: 10px 0 2px; }
+.jv-ntheading { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; color: var(--jv-t1); }
+.jv-ntall { margin-top: 10px; }
+.jv-ntfind { width: 100%; max-width: 360px; margin: 8px 0 10px; }
+.jv-lyr .ly.gap { margin-top: 22px; }
+
+/* ── #84: Dictation ── */
+.jv-dsetup { display: flex; align-items: center; gap: 14px; justify-content: space-between; background: rgba(10, 132, 255, .12); border-radius: 16px; padding: 14px 18px; margin: 0 0 18px; }
+.jv-dsetup b { font-size: 14px; }
+.jv-dclean { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; font-size: 13px; color: #e5e5ea; }
+.jv-dcol, .jv-dcol:hover:not(:disabled), .jv-dcol:active:not(:disabled) { display: flex; flex-direction: column; justify-content: flex-start; align-items: stretch; }
+.jv-dcols { align-items: stretch; }
+.jv-dright.inhead { position: static; margin-left: auto; }
+
+/* An undo note, the same everywhere (#84). */
+.jv-toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 12px); opacity: 0; pointer-events: none; z-index: 60;
+  display: inline-flex; align-items: center; gap: 12px; background: #2c2c2e; color: var(--jv-t1); border-radius: 999px; padding: 8px 10px 8px 16px; font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5); transition: opacity .18s ease, transform .25s var(--jv-ease); }
+.jv-toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.jv-toast .jv-link { padding: 2px 6px; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .jv-toast { transition: opacity .1s linear; transform: translate(-50%, 0); } }
+
+/* ── #84: Mail ── */
+.jv-mrb:disabled { opacity: .3; cursor: default; }
+.jv-md.fut { cursor: default; }
+.jv-mon .jv-chipbtn { margin-right: 6px; }
+.jv-sconfirm { display: inline-flex; align-items: center; gap: 8px; }
+.jv-chipbtn:disabled { opacity: .4; cursor: default; }
+/* ── #84: Connections ── */
+.keystate { font-size: 12px; color: var(--jv-t2); min-width: 52px; }
+.switch:disabled { opacity: .35; cursor: not-allowed; }
+/* #84: subheads in sentence case, as Apple's settings (ALL CAPS read as shouting and hurt scanning). */
+.hub-group, .hub-label, .subhead { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; }
+/* #84: a tile reached with Tab never hides under the dock. */
+body.at-home .hub-scroll { scroll-padding-bottom: 130px; }

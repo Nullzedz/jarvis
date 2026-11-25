@@ -894,6 +894,19 @@ export async function onEvent<T>(name: string, handler: (payload: T) => void) {
   return listen<T>(name, (e) => handler(e.payload));
 }
 
+/**
+ * JARVIS (#84): `onEvent` for as long as `el` is on screen. Once it has been shown and is gone
+ * (its page left, Settings redrawn), the listener stops instead of piling up.
+ */
+export function onEventWhileShown<T>(el: HTMLElement, name: string, handler: (payload: T) => void) {
+  let seen = false;
+  const off = onEvent<T>(name, (payload) => {
+    if (el.isConnected) { seen = true; handler(payload); return; }
+    if (seen) void off.then((f) => f());
+  });
+  return off;
+}
+
 /** JARVIS: a model that can draw his windows: "maker:model", installed and signed in or not. */
 export interface DrawModel {
   id: string;
