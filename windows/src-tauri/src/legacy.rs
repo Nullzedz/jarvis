@@ -26,7 +26,11 @@ pub fn move_from_old_name() {
     let moved_local = move_dir(&old_local, &local, &mut notes);
     move_dir(&config.with_file_name(OLD_DIR), &config, &mut notes);
     if moved_local {
-        let _ = std::fs::rename(local.join("coucou.log"), local.join("jarvis.log"));
+        if local.join("jarvis.log").exists() {
+            let _ = std::fs::remove_file(local.join("coucou.log"));
+        } else {
+            let _ = std::fs::rename(local.join("coucou.log"), local.join("jarvis.log"));
+        }
         point_hooks_at_new_name(&old_hook, &crate::settings::hook_exe_path(), &mut notes);
     }
     #[cfg(windows)]
@@ -42,23 +46,14 @@ pub fn move_from_old_name() {
     }
 }
 
-/// `from` becomes `to`. If `to` is already there (an early log line made it), what it lacks
-/// comes over from `from`; nothing of JARVIS's is ever overwritten.
+/// `from` becomes `to`. If `to` is already there (an early start made it), what it lacks comes
+/// over from `from`, folder by folder all the way down; nothing of JARVIS's is ever overwritten.
 fn move_dir(from: &Path, to: &Path, notes: &mut Vec<String>) -> bool {
     if !from.is_dir() {
         return false;
     }
     if to.exists() {
-        let mut moved = 0;
-        if let Ok(entries) = std::fs::read_dir(from) {
-            for e in entries.flatten() {
-                let target = to.join(e.file_name());
-                if !target.exists() && std::fs::rename(e.path(), &target).is_ok() {
-                    moved += 1;
-                }
-            }
-        }
-        let _ = std::fs::remove_dir(from);
+        let moved = merge(from, to);
         if moved > 0 {
             notes.push(format!("merged {moved} item(s) from {} into {}", from.display(), to.display()));
         }
@@ -74,6 +69,24 @@ fn move_dir(from: &Path, to: &Path, notes: &mut Vec<String>) -> bool {
             false
         }
     }
+}
+
+/// What `to` lacks of `from`, moved in, into subfolders too; `from`'s folders left empty go.
+/// How many things moved.
+fn merge(from: &Path, to: &Path) -> usize {
+    let mut moved = 0;
+    if let Ok(entries) = std::fs::read_dir(from) {
+        for e in entries.flatten() {
+            let (src, target) = (e.path(), to.join(e.file_name()));
+            if !target.exists() {
+                moved += usize::from(std::fs::rename(&src, &target).is_ok());
+            } else if src.is_dir() && target.is_dir() {
+                moved += merge(&src, &target);
+            }
+        }
+    }
+    let _ = std::fs::remove_dir(from);
+    moved
 }
 
 /// The agents' settings files (Claude Code, Codex, Gemini, Cursor, Copilot, OpenCode…) that
@@ -177,6 +190,12 @@ mod tests {
         assert!(move_dir(&old, &new, &mut notes));
         assert_eq!(std::fs::read_to_string(new.join("settings.json")).unwrap(), "{}");
         assert!(new.join("notes.json").exists());
+        // Folders on both sides: merged inside too.
+        std::fs::create_dir_all(old.join("Models").join("parakeet")).unwrap();
+        std::fs::write(old.join("Models").join("parakeet").join("model.onnx"), "m").unwrap();
+        std::fs::create_dir_all(new.join("Models")).unwrap();
+        assert!(move_dir(&old, &new, &mut notes));
+        assert!(new.join("Models").join("parakeet").join("model.onnx").exists() && !old.join("Models").exists());
         let _ = std::fs::remove_dir_all(&base);
     }
 }

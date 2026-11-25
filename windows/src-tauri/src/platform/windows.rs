@@ -64,12 +64,14 @@ pub fn config_dir() -> PathBuf {
     base.join("JARVIS")
 }
 
-/// %LOCALAPPDATA%\JARVIS — where jarvis-hook.exe, the inbox and the log live.
+/// %LOCALAPPDATA%\com.nullzedz.jarvis — where jarvis-hook.exe, the inbox and the log live,
+/// beside the windows' own data. Not %LOCALAPPDATA%\JARVIS: the installer puts the app there,
+/// and its uninstaller would take the data with it (#98).
 pub fn local_dir() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
-    base.join("JARVIS")
+    base.join("com.nullzedz.jarvis")
 }
 
 /// Where a saved image goes, best first: Pictures (also where OneDrive moves
