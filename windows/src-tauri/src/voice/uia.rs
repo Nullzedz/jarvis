@@ -17,8 +17,8 @@ static FRONT: AtomicU32 = AtomicU32::new(0);
 
 /// Notes the app in front, unless it's JARVIS himself.
 pub fn note_front() {
-    if let Some(pid) = front_pid_now() {
-        if pid != std::process::id() {
+    if let Some(pid) = user_app() {
+        {
             FRONT.store(pid, Ordering::Relaxed);
             // Chromium and Electron apps fill in their list only once something asks for it:
             // asked now, it's ready by the time the question is typed.
@@ -29,12 +29,54 @@ pub fn note_front() {
     }
 }
 
-/// The app the user is in: the one in front, or, if that's JARVIS, the one noted before.
+/// The app the user is in: the one in front; if that's one of JARVIS's windows (the ask box,
+/// his layer: #96, then he read nothing and said he couldn't point), the top-most window
+/// that isn't his; else the one noted when the box opened.
 pub fn user_app() -> Option<u32> {
+    let me = std::process::id();
     match front_pid_now() {
-        Some(pid) if pid != std::process::id() => Some(pid),
-        _ => Some(FRONT.load(Ordering::Relaxed)).filter(|p| *p != 0),
+        Some(pid) if pid != me => Some(pid),
+        _ => top_other_app(me).or_else(|| Some(FRONT.load(Ordering::Relaxed)).filter(|p| *p != 0)),
     }
+}
+
+/// The top-most ordinary window (shown, titled, not a tool window) of another app than `me`.
+#[cfg(windows)]
+fn top_other_app(me: u32) -> Option<u32> {
+    use windows::core::BOOL;
+    use windows::Win32::Foundation::{HWND, LPARAM};
+    use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowLongPtrW, GetWindowTextLengthW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW};
+    struct Find {
+        me: u32,
+        found: u32,
+    }
+    unsafe extern "system" fn each(hwnd: HWND, data: LPARAM) -> BOOL {
+        let f = &mut *(data.0 as *mut Find);
+        let ordinary = IsWindowVisible(hwnd).as_bool()
+            && !IsIconic(hwnd).as_bool()
+            && GetWindowTextLengthW(hwnd) > 0
+            && (GetWindowLongPtrW(hwnd, GWL_EXSTYLE) as u32 & WS_EX_TOOLWINDOW.0) == 0;
+        if ordinary {
+            let mut pid = 0u32;
+            GetWindowThreadProcessId(hwnd, Some(&mut pid));
+            if pid != 0 && pid != f.me {
+                f.found = pid;
+                return false.into();
+            }
+        }
+        true.into()
+    }
+    let mut f = Find { me, found: 0 };
+    // Windows are listed from the top down.
+    unsafe {
+        let _ = EnumWindows(Some(each), LPARAM(&mut f as *mut Find as isize));
+    }
+    (f.found != 0).then_some(f.found)
+}
+
+#[cfg(not(windows))]
+fn top_other_app(_me: u32) -> Option<u32> {
+    None
 }
 
 /// The name of a name, for matching: lower case, letters and digits only.

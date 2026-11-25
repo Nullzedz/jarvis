@@ -321,7 +321,11 @@ fn read_buttons(pid: u32) -> Vec<super::uia::Named> {
 /// guide started; None when the app shares no names or no route was found from them (then
 /// the question goes the picture way, as before).
 pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Shot>) -> Option<String> {
-    let pid = super::uia::user_app()?;
+    let Some(pid) = super::uia::user_app() else {
+        crate::log::line("guide: no app found in front: the picture way");
+        return None;
+    };
+    crate::log::line(format!("guide: where is…? in {}", super::uia::app_name(pid)));
     let list = super::uia::clickable(pid);
     if list.len() < 3 {
         crate::log::line("guide: the app shares no button names: the picture way");
