@@ -33,22 +33,63 @@ pub fn note_front() {
 /// his layer: #96, then he read nothing and said he couldn't point), the top-most window
 /// that isn't his; else the one noted when the box opened.
 pub fn user_app() -> Option<u32> {
+    user_window().map(|(_, pid)| pid).or_else(|| Some(FRONT.load(Ordering::Relaxed)).filter(|p| *p != 0))
+}
+
+/// The user's window (its handle) and its app, as `user_app` finds them.
+pub fn user_window() -> Option<(isize, u32)> {
     let me = std::process::id();
-    match front_pid_now() {
-        Some(pid) if pid != me => Some(pid),
-        _ => top_other_app(me).or_else(|| Some(FRONT.load(Ordering::Relaxed)).filter(|p| *p != 0)),
+    match front_now() {
+        Some((hwnd, pid)) if pid != me => Some((hwnd, pid)),
+        _ => top_other_app(me),
     }
+}
+
+/// The app in front now, if it's another than `pid` and isn't JARVIS: the user went elsewhere.
+pub fn elsewhere(pid: u32) -> bool {
+    front_pid_now().is_some_and(|p| p != pid && p != std::process::id())
+}
+
+/// The window the question was asked from, brought back in front (#96: alt-tabbed away while
+/// he looked it up, the guide was drawn over another app).
+#[cfg(windows)]
+pub fn bring_back(hwnd: isize) -> bool {
+    crate::platform::bring_forward(hwnd)
+}
+
+#[cfg(not(windows))]
+pub fn bring_back(_hwnd: isize) -> bool {
+    false
+}
+
+/// Whose window is under a point on the screen (a click is the guided app's only if it's on it).
+#[cfg(windows)]
+pub fn pid_at(x: f64, y: f64) -> Option<u32> {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::UI::WindowsAndMessaging::{GetAncestor, GetWindowThreadProcessId, WindowFromPoint, GA_ROOT};
+    unsafe {
+        let hwnd = GetAncestor(WindowFromPoint(POINT { x: x as i32, y: y as i32 }), GA_ROOT);
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        (pid != 0).then_some(pid)
+    }
+}
+
+#[cfg(not(windows))]
+pub fn pid_at(_x: f64, _y: f64) -> Option<u32> {
+    None
 }
 
 /// The top-most ordinary window (shown, titled, not a tool window) of another app than `me`.
 #[cfg(windows)]
-fn top_other_app(me: u32) -> Option<u32> {
+fn top_other_app(me: u32) -> Option<(isize, u32)> {
     use windows::core::BOOL;
     use windows::Win32::Foundation::{HWND, LPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowLongPtrW, GetWindowTextLengthW, GetWindowThreadProcessId, IsIconic, IsWindowVisible, GWL_EXSTYLE, WS_EX_TOOLWINDOW};
     struct Find {
         me: u32,
         found: u32,
+        hwnd: isize,
     }
     unsafe extern "system" fn each(hwnd: HWND, data: LPARAM) -> BOOL {
         let f = &mut *(data.0 as *mut Find);
@@ -61,21 +102,22 @@ fn top_other_app(me: u32) -> Option<u32> {
             GetWindowThreadProcessId(hwnd, Some(&mut pid));
             if pid != 0 && pid != f.me {
                 f.found = pid;
+                f.hwnd = hwnd.0 as isize;
                 return false.into();
             }
         }
         true.into()
     }
-    let mut f = Find { me, found: 0 };
+    let mut f = Find { me, found: 0, hwnd: 0 };
     // Windows are listed from the top down.
     unsafe {
         let _ = EnumWindows(Some(each), LPARAM(&mut f as *mut Find as isize));
     }
-    (f.found != 0).then_some(f.found)
+    (f.found != 0).then_some((f.hwnd, f.found))
 }
 
 #[cfg(not(windows))]
-fn top_other_app(_me: u32) -> Option<u32> {
+fn top_other_app(_me: u32) -> Option<(isize, u32)> {
     None
 }
 
@@ -145,17 +187,21 @@ pub fn names(list: &[Named], most: usize) -> Vec<String> {
     out
 }
 
-#[cfg(windows)]
 fn front_pid_now() -> Option<u32> {
+    front_now().map(|(_, pid)| pid)
+}
+
+#[cfg(windows)]
+fn front_now() -> Option<(isize, u32)> {
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
     let hwnd = unsafe { GetForegroundWindow() };
     let mut pid = 0u32;
     unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
-    (pid != 0).then_some(pid)
+    (pid != 0).then_some((hwnd.0 as isize, pid))
 }
 
 #[cfg(not(windows))]
-fn front_pid_now() -> Option<u32> {
+fn front_now() -> Option<(isize, u32)> {
     None
 }
 

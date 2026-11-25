@@ -61,7 +61,13 @@ pub fn start(app: &AppHandle, question: &str, steps: Vec<String>, rect: (f64, f6
 /// Ended: Esc, another question, his windows closed.
 pub fn cancel() {
     *GUIDE.lock().unwrap() = None;
+    // A « where is…? » still being looked up draws nothing when it's done (Esc, a new question).
+    ASKED.fetch_add(1, Ordering::Relaxed);
 }
+
+/// Bumped by each « where is…? » and by `cancel`: a lookup that finishes after a newer
+/// question, or after Esc, draws nothing.
+static ASKED: AtomicU64 = AtomicU64::new(0);
 
 fn inside(r: (f64, f64, f64, f64), p: (f64, f64)) -> bool {
     // A little room round it: the ring is drawn round, not on, the thing.
@@ -98,7 +104,12 @@ fn watch(app: &AppHandle) {
                         continue;
                     }
                     let Some(p) = crate::platform::cursor_physical() else { continue };
-                    let hit = GUIDE.lock().unwrap().as_ref().is_some_and(|g| g.rect.map_or(true, |r| inside(r, p)));
+                    // Safeguard (#96): only a click on the guided app counts (the same spot in
+                    // another app, alt-tabbed to, doesn't move the guide on).
+                    let hit = GUIDE.lock().unwrap().as_ref().is_some_and(|g| {
+                        let on_app = g.named.as_ref().map_or(true, |(pid, _)| super::uia::pid_at(p.0, p.1).map_or(true, |at| at == *pid || at == std::process::id()));
+                        on_app && g.rect.map_or(true, |r| inside(r, p))
+                    });
                     if hit {
                         BUSY.store(true, Ordering::Relaxed);
                         let app = app.clone();
@@ -326,20 +337,12 @@ fn furthest(list: &[super::uia::Named], pid: u32, steps: &[String], from: usize)
     ends.into_iter().filter(|i| *i < steps.len()).find_map(|i| super::uia::named(pid, &steps[i]).map(|n| (i, n)))
 }
 
-/// What the app (and whatever is in front now, if another app opened) shows that you can click.
-fn read_buttons(pid: u32) -> Vec<super::uia::Named> {
-    let mut list = super::uia::clickable(pid);
-    if let Some(front) = super::uia::user_app().filter(|p| *p != pid) {
-        list.extend(super::uia::clickable(front));
-    }
-    list
-}
-
 /// « Where is…? » the lean way: the sentence he says, with the first click circled and the
 /// guide started; None when the app shares no names or no route was found from them (then
 /// the question goes the picture way, as before).
 pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Shot>) -> Option<String> {
-    let Some(pid) = super::uia::user_app() else {
+    let asked = ASKED.fetch_add(1, Ordering::Relaxed) + 1;
+    let Some((hwnd, pid)) = super::uia::user_window() else {
         crate::log::line("guide: no app found in front: the picture way");
         return None;
     };
@@ -384,6 +387,20 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         note.words.truncate(i + 1);
     }
     let open = open && goal.is_none();
+    // Safeguards (#96): asked again or Esc'd meanwhile, nothing is drawn; alt-tabbed away while
+    // he looked it up, the window it was asked from comes back first, and its buttons are read
+    // again where they now are.
+    if ASKED.load(Ordering::Relaxed) != asked {
+        crate::log::line("guide: a newer question or Esc meanwhile: nothing drawn");
+        return Some(said_or_route(&said, &note.route));
+    }
+    let mut list = list;
+    if super::uia::elsewhere(pid) {
+        let back = super::uia::bring_back(hwnd);
+        crate::log::line(format!("guide: you went to another app meanwhile: {}", if back { "brought the first one back" } else { "couldn't bring it back" }));
+        std::thread::sleep(Duration::from_millis(350));
+        list = super::uia::clickable(pid);
+    }
     let (start, first) = furthest(&list, pid, &note.route, 0)?;
     if start > 0 {
         crate::log::line(format!("guide: step {} already on screen, starting there", start + 1));
@@ -443,7 +460,17 @@ fn by_name(app: &AppHandle) {
         if GUIDE.lock().unwrap().as_ref().map(|g| g.id) != Some(id) {
             return;
         }
-        list = read_buttons(pid);
+        // Safeguard (#96): the app was closed: the guide ends quietly, his ring gone.
+        list = super::uia::clickable(pid);
+        if list.is_empty() {
+            crate::log::line("guide: the app is gone: ended");
+            let app = app.clone();
+            let _ = app.clone().run_on_main_thread(move || super::explain::close_all(&app));
+            return;
+        }
+        if let Some(front) = super::uia::user_app().filter(|p| *p != pid) {
+            list.extend(super::uia::clickable(front));
+        }
         found = furthest(&list, pid, &steps, at);
         if found.is_some() {
             break;
@@ -517,6 +544,11 @@ fn goal_at(question: &str, app_name: &str, route: &[String]) -> Option<usize> {
         let name = name.to_lowercase();
         words.iter().all(|w| name.contains(w.as_str()))
     })
+}
+
+/// His line: what he said, or the route in words.
+fn said_or_route(said: &str, route: &[String]) -> String {
+    if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said.to_string() }
 }
 
 /// The label's words for a step named « Settings »: « Click Settings ».
