@@ -147,7 +147,7 @@ pub fn find<'a>(list: &'a [Named], name: &str) -> Option<&'a Named> {
 }
 
 /// The names as sent to the AI, each with where it sits in the app (#96: the account button
-/// was « nullzeed Pro »; « bottom-left » is what tells it's the account menu): « nullzeed Pro
+/// was « Sam Pro »; « bottom-left » is what tells it's the account menu): « Sam Pro
 /// (bottom-left) ». Each once, short, at most `most`.
 pub fn described(list: &[Named], most: usize) -> Vec<String> {
     let (x0, y0) = list.iter().fold((f64::MAX, f64::MAX), |(x, y), n| (x.min(n.rect.0), y.min(n.rect.1)));
@@ -699,8 +699,8 @@ mod tests {
     #[test]
     fn each_name_says_where_it_sits() {
         let at = |name: &str, x: f64, y: f64| Named { name: name.into(), rect: (x, y, 10.0, 10.0) };
-        let list = [at("Menu", 0.0, 0.0), at("nullzeed Pro", 0.0, 990.0), at("Share", 990.0, 0.0), at("Send", 500.0, 500.0)];
-        assert_eq!(described(&list, 10), vec!["Menu (top-left)", "nullzeed Pro (bottom-left)", "Share (top-right)", "Send (middle-centre)"]);
+        let list = [at("Menu", 0.0, 0.0), at("Sam Pro", 0.0, 990.0), at("Share", 990.0, 0.0), at("Send", 500.0, 500.0)];
+        assert_eq!(described(&list, 10), vec!["Menu (top-left)", "Sam Pro (bottom-left)", "Share (top-right)", "Send (middle-centre)"]);
     }
 }
 

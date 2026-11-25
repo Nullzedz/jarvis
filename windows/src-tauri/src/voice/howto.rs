@@ -4,7 +4,7 @@
 // note is written once a guide got you there (the steps, the button names, the
 // page they came from) and rewritten when the app changed and it was looked up again.
 //
-// The route is in the note's front matter (`route: ["nullzeed Pro", "Settings", "Billing"]`):
+// The route is in the note's front matter (`route: ["Sam Pro", "Settings", "Billing"]`):
 // fix a name there and the next guide follows your fix.
 
 use std::path::PathBuf;
@@ -130,12 +130,12 @@ mod tests {
     #[test]
     fn a_note_reads_back_what_was_written() {
         let note = Note {
-            route: vec!["nullzeed Pro".into(), "Settings".into(), "Billing".into()],
+            route: vec!["Sam Pro".into(), "Settings".into(), "Billing".into()],
             words: vec!["Click your name at the bottom-left".into(), "Choose Settings".into()],
             source: "https://support.example.com/billing".into(),
         };
         let text = render("claude", "Where is billing?", "billing", &note, "2026-11-25");
-        assert!(text.contains("1. Click your name at the bottom-left — **nullzeed Pro**"));
+        assert!(text.contains("1. Click your name at the bottom-left — **Sam Pro**"));
         assert!(text.contains("3. Click **Billing**"));
         assert_eq!(parse(&text), Some(note));
     }

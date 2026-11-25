@@ -247,7 +247,7 @@ fn read_route(reply: &str) -> Option<(String, Vec<String>)> {
     Some((v["say"].as_str().unwrap_or("").trim().to_string(), route))
 }
 
-/// « nullzeed Pro (bottom-left) » copied with its place: the name only.
+/// « Sam Pro (bottom-left) » copied with its place: the name only.
 fn unplaced(s: &str) -> &str {
     let s = s.trim();
     match s.rfind(" (") {
@@ -294,7 +294,7 @@ fn look_up(question: &str, app_name: &str, list: &[super::uia::Named]) -> Option
 }
 
 /// The first step, found on the picture from its words (#96: « Open the account menu » is the
-/// button named « nullzeed Pro »), and its real name read at that spot: the note keeps the name,
+/// button named « Sam Pro »), and its real name read at that spot: the note keeps the name,
 /// so this picture is looked at once.
 fn locate(app: &AppHandle, question: &str, words: &str, shot: &super::sight::Shot) -> Option<super::uia::Named> {
     let ask = format!(
@@ -698,14 +698,14 @@ mod tests {
         assert_eq!(r, ("Profile, then Settings.".to_string(), vec!["Profile".to_string(), "Settings".to_string()]));
         assert_eq!(read_route(r#"{"say": "", "route": []}"#).unwrap().1.len(), 0);
         assert!(read_route("no idea").is_none());
-        assert_eq!(read_route(r#"{"say": "", "route": ["nullzeed Pro (bottom-left)", "Settings"]}"#).unwrap().1[0], "nullzeed Pro");
+        assert_eq!(read_route(r#"{"say": "", "route": ["Sam Pro (bottom-left)", "Settings"]}"#).unwrap().1[0], "Sam Pro");
     }
 
     #[test]
     fn the_web_steps_are_read_with_their_words() {
-        let (said, note) = read_lookup(r#"{"say": "Your name, then Settings, then Billing.", "steps": [{"do": "Click your name at the bottom-left", "name": "nullzeed Pro (bottom-left)"}, {"do": "Choose Settings", "name": "Settings"}, {"do": "Open Billing", "name": "Billing"}], "source": "https://support.example.com/a"}"#).unwrap();
+        let (said, note) = read_lookup(r#"{"say": "Your name, then Settings, then Billing.", "steps": [{"do": "Click your name at the bottom-left", "name": "Sam Pro (bottom-left)"}, {"do": "Choose Settings", "name": "Settings"}, {"do": "Open Billing", "name": "Billing"}], "source": "https://support.example.com/a"}"#).unwrap();
         assert_eq!(said, "Your name, then Settings, then Billing.");
-        assert_eq!(note.route, vec!["nullzeed Pro", "Settings", "Billing"]);
+        assert_eq!(note.route, vec!["Sam Pro", "Settings", "Billing"]);
         assert_eq!(note.words[0], "Click your name at the bottom-left");
         assert_eq!(note.source, "https://support.example.com/a");
         assert!(read_lookup(r#"{"say": "", "steps": [], "source": ""}"#).unwrap().1.route.is_empty());
@@ -722,7 +722,7 @@ mod tests {
         assert!(!reached("where is billing?", Some(&"Menu".to_string())));
         let word: Vec<String> = ["File Tab", "Export", "Change File Type", "Save As"].iter().map(|s| s.to_string()).collect();
         assert_eq!(goal_at("where is the export tab in word", "winword", &word), Some(1));
-        let dark: Vec<String> = ["nullzeed Pro", "Settings", "Appearance", "Dark mode"].iter().map(|s| s.to_string()).collect();
+        let dark: Vec<String> = ["Sam Pro", "Settings", "Appearance", "Dark mode"].iter().map(|s| s.to_string()).collect();
         assert_eq!(goal_at("where is dark mode", "claude", &dark), Some(3));
         assert_eq!(goal_at("where are the dark mode settings", "claude", &dark), None);
         assert_eq!(goal_at("where is it", "claude", &dark), None);
