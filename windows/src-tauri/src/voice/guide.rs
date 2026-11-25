@@ -196,11 +196,7 @@ fn by_picture(app: &AppHandle) {
             return;
         }
     };
-    let found = found.map(|(x, y, w, h)| {
-        let (x0, y0) = shot.to_screen(x, y);
-        let (x1, y1) = shot.to_screen(x + w, y + h);
-        (x0, y0, x1 - x0, y1 - y0)
-    });
+    let found = found.map(|r| on_screen(&shot, r));
     // The plan follows what he saw: this step named as he found it, one more if it ran out.
     guide.steps.truncate(at);
     guide.steps.push(step.clone());
@@ -239,10 +235,15 @@ fn plan(question: &str, app_name: &str, list: &[super::uia::Named], done: &[Stri
     route
 }
 
-/// {"say": …, "route": […]} from his reply, wherever it is in it.
-fn read_route(reply: &str) -> Option<(String, Vec<String>)> {
+/// The JSON object in his reply, wherever it is in it.
+fn json_in(reply: &str) -> Option<serde_json::Value> {
     let (a, b) = (reply.find('{')?, reply.rfind('}')?);
-    let v: serde_json::Value = serde_json::from_str(reply.get(a..=b)?).ok()?;
+    serde_json::from_str(reply.get(a..=b)?).ok()
+}
+
+/// {"say": …, "route": […]} from his reply.
+fn read_route(reply: &str) -> Option<(String, Vec<String>)> {
+    let v = json_in(reply)?;
     let route: Vec<String> = v["route"].as_array()?.iter().filter_map(|s| s.as_str()).map(|s| unplaced(s).chars().take(60).collect::<String>()).filter(|s| !s.is_empty()).take(MOST).collect();
     Some((v["say"].as_str().unwrap_or("").trim().to_string(), route))
 }
@@ -302,10 +303,7 @@ fn locate(app: &AppHandle, question: &str, words: &str, shot: &super::sight::Sho
     );
     let mut written = String::new();
     let _ = super::ask::brain().lock().unwrap().respond(app, &ask, Some(shot), &mut |d| written.push_str(d));
-    let (x, y, w, h) = super::window::split(&written).1.and_then(|v| super::window::target(&v, shot.size))?;
-    let (x0, y0) = shot.to_screen(x, y);
-    let (x1, y1) = shot.to_screen(x + w, y + h);
-    let rect = (x0, y0, x1 - x0, y1 - y0);
+    let rect = on_screen(shot, super::window::split(&written).1.and_then(|v| super::window::target(&v, shot.size))?);
     let named = super::uia::at(rect.0 + rect.2 / 2.0, rect.1 + rect.3 / 2.0);
     crate::log::line(format!("guide: \"{words}\" found on the picture: {:?}", named.as_ref().map(|n| &n.name)));
     Some(named.unwrap_or(super::uia::Named { name: String::new(), rect }))
@@ -313,8 +311,7 @@ fn locate(app: &AppHandle, question: &str, words: &str, shot: &super::sight::Sho
 
 /// {"say", "steps": [{"do", "name"}], "source"} from his reply.
 fn read_lookup(reply: &str) -> Option<(String, Note)> {
-    let (a, b) = (reply.find('{')?, reply.rfind('}')?);
-    let v: serde_json::Value = serde_json::from_str(reply.get(a..=b)?).ok()?;
+    let v = json_in(reply)?;
     let mut note = Note { source: v["source"].as_str().unwrap_or("").trim().to_string(), ..Note::default() };
     for s in v["steps"].as_array()?.iter().take(MOST) {
         let name = unplaced(s["name"].as_str().unwrap_or("")).chars().take(60).collect::<String>();
@@ -349,15 +346,15 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         crate::log::line("guide: no app found in front: the picture way");
         return None;
     };
-    crate::log::line(format!("guide: where is…? in {}", super::uia::app_name(pid)));
+    let app_name = super::uia::app_name(pid);
+    crate::log::line(format!("guide: where is…? in {app_name}"));
     let list = super::uia::clickable(pid);
-    let ai_list = super::uia::focused(pid, &[]).list;
-    let ai_list = if ai_list.len() >= 3 { ai_list } else { list.clone() };
     if list.len() < 3 {
         crate::log::line("guide: the app shares no button names: the picture way");
         return None;
     }
-    let app_name = super::uia::app_name(pid);
+    // The names for the AI, the panel you're in first: a whole layout read, so only when he asks.
+    let ai_list = || Some(super::uia::focused(pid, &[]).list).filter(|l| l.len() >= 3).unwrap_or_else(|| list.clone());
     let qkey = question_key(question);
     // His note first (free); else the web once; else the names alone; else the picture way.
     let note = super::howto::read(&app_name, &qkey).filter(|n| furthest(&list, pid, &n.route, 0).is_some());
@@ -366,7 +363,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
             crate::log::line(format!("guide: from his note, no AI: {:?}", n.route));
             (String::new(), n, false)
         }
-        None => match look_up(question, &app_name, &ai_list) {
+        None => match look_up(question, &app_name, &ai_list()) {
             // The first step had no name to go by: found on the picture from its words.
             Some((said, mut n)) if furthest(&list, pid, &n.route, 0).is_none() => {
                 let words = n.words.first().cloned().unwrap_or_else(|| n.route[0].clone());
@@ -376,7 +373,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
             }
             Some((said, n)) => (said, n, false),
             None => {
-                let (said, route) = plan(question, &app_name, &ai_list, &[])?;
+                let (said, route) = plan(question, &app_name, &ai_list(), &[])?;
                 (said, Note { route, ..Note::default() }, true)
             }
         },
@@ -418,7 +415,7 @@ pub fn where_is(app: &AppHandle, question: &str, seen: Option<&super::sight::Sho
         note.words.drain(..start.min(note.words.len()));
     }
     let route = note.route.clone();
-    let said = if said.is_empty() { format!("{}, sir.", route.join(", then ")) } else { said };
+    let said = said_or_route(&said, &route);
     if route.len() < 2 && goal.is_some() {
         cancel();
         super::explain::circle(app, first.rect, &[], None);
@@ -663,6 +660,13 @@ fn best_result(results: &[super::uia::Named], wanted: &str) -> Option<super::uia
     };
     let best = results.iter().max_by(|a, b| score(a).cmp(&score(b)).then(b.rect.1.total_cmp(&a.rect.1)))?;
     (score(best) > 0 || results.len() == 1).then(|| best.clone())
+}
+
+/// A box on the picture (its pixels), on the screen (physical px).
+fn on_screen(shot: &super::sight::Shot, (x, y, w, h): (f64, f64, f64, f64)) -> (f64, f64, f64, f64) {
+    let (x0, y0) = shot.to_screen(x, y);
+    let (x1, y1) = shot.to_screen(x + w, y + h);
+    (x0, y0, x1 - x0, y1 - y0)
 }
 
 /// His line: what he said, or the route in words.
