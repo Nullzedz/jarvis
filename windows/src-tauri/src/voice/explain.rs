@@ -162,12 +162,25 @@ pub fn show(app: &AppHandle, question: &str, said: &str, window: &Value, shot: O
             [px, py, w / scale, h / scale]
         })
     };
+    let target_phys = target;
     let (target, about) = (in_page(target), in_page(about));
     OPEN.store(true, Ordering::Relaxed);
     // "Where is…?" (#88): he goes to it and circles it, and nothing else; no card, no drawing.
     if point {
-        crate::log::line("explain: circled where it is");
-        let _ = win.emit("explain-point", json!({ "add": add, "target": target, "cursor": page(cursor) }));
+        // #94: several clicks away: the steps, one at a time; the first one is circled now.
+        let steps: Vec<String> = window["steps"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str()).map(|s| s.trim().chars().take(60).collect::<String>()).filter(|s| !s.is_empty()).take(8).collect())
+            .unwrap_or_default();
+        let guide = match (steps.len() >= 2, target_phys) {
+            (true, Some(rect)) => Some(super::guide::start(app, question, steps.clone(), rect)),
+            _ => {
+                super::guide::cancel();
+                None
+            }
+        };
+        crate::log::line(format!("explain: circled where it is{}", if guide.is_some() { format!(", step 1 of {}", steps.len()) } else { String::new() }));
+        let _ = win.emit("explain-point", json!({ "add": add, "target": target, "cursor": page(cursor), "steps": if guide.is_some() { steps } else { Vec::new() }, "guide": guide }));
         return;
     }
     // His line: one sentence, at most 15 words. A requested drawing opens empty (his eye
@@ -225,8 +238,15 @@ fn drawn(app: &AppHandle, id: u64, tried: &[String], fix: Option<&str>) {
     };
 }
 
+/// A box on the screen (physical px) in the layer's page px, as its last placement set it.
+pub fn to_page((x, y, w, h): (f64, f64, f64, f64)) -> [f64; 4] {
+    let ((ox, oy), scale) = *PLACE.lock().unwrap();
+    [(x - ox) / scale, (y - oy) / scale, w / scale, h / scale]
+}
+
 /// Every window goes (Esc, the ask shortcut again, a new question).
 pub fn close_all(app: &AppHandle) {
+    super::guide::cancel();
     OPEN.store(false, Ordering::Relaxed);
     HOT.lock().unwrap().clear();
     let _ = app.emit_to(LABEL, "explain-close", ());

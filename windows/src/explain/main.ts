@@ -28,7 +28,9 @@ const NS = "http://www.w3.org/2000/svg";
 type Box = [number, number, number, number];
 type Show = { add: boolean; draw: number; question: string; said: string; window: Record<string, any>; target: Box | null; about: Box | null; cursor: [number, number] };
 /** "Where is…?" (#88): only the place to circle. */
-type Point = { add: boolean; target: Box; cursor: [number, number] };
+type Point = { add: boolean; target: Box; cursor: [number, number]; steps?: string[]; guide?: number | null };
+/** #94: the next step of a guide: being looked for, found (target), or « you're there » (done). */
+type GuideStep = { id: number; at?: number; total?: number; step?: string; looking?: boolean; target?: Box | null; done?: boolean };
 type Drawn = { draw: number; window?: Record<string, any>; failed?: boolean };
 type Answer = { card: number; said?: string; draw?: number; window?: Record<string, any>; failed?: boolean };
 /** One answer in a window: the first, or a follow-up (`question`). `draw`: its drawing's id (0: none);
@@ -146,6 +148,7 @@ function remove(card: Card) {
 function closeAll() {
   era++;
   pointing = false;
+  if (guiding) { guiding.chip.remove(); guiding = null; }
   timers.forEach(clearTimeout);
   timers = [];
   loose.forEach(fadeMark);
@@ -576,7 +579,11 @@ function answered(a: Answer) {
   settle(card);
 }
 
-/** "Where is…?" (#88): he goes to it and circles it; the ring stays lit a while, then all of it goes. No card. */
+/** "Where is…?" (#88): he goes to it and circles it; the ring stays lit a while, then all of it goes. No card.
+ *  Several clicks away (#94, design C): the ring stays on the step to click, with a label by it
+ *  (« 1 of 3 · Click the gear ») and dots; each click on it moves to the next, until « you're there ». */
+let guiding: { id: number; ring: SVGElement | null; chip: HTMLElement; total: number } | null = null;
+
 function point(p: Point) {
   if (!p.add) closeAll();
   pointing = true;
@@ -584,12 +591,19 @@ function point(p: Point) {
   ptr.classList.remove("docked");
   at(p.cursor[0], p.cursor[1]);
   ptr.style.opacity = "1";
+  const steps = p.steps ?? [];
+  const guide = p.guide != null && steps.length >= 2 ? p.guide : null;
   later(0, () => at(target.x + target.w / 2, target.y - 12, PACE.go));
   later(PACE.go, () => {
     const r = ring(target, PACE.ring);
     loose.push(r);
     // Then he waits just outside it, below its left end, while you look.
     later(PACE.ring, () => at(Math.max(EDGE, target.x - 34), target.y + target.h + 8, PACE.to));
+    if (guide != null) {
+      guiding = { id: guide, ring: r, chip: chipFor(), total: steps.length };
+      showStep(0, steps[0], target);
+      return;
+    }
     later(PACE.ring + RING_STAYS, () => {
       ptr.style.opacity = "0";
       loose = loose.filter((m) => m !== r);
@@ -601,11 +615,87 @@ function point(p: Point) {
   });
 }
 
+/** The label by the ring: « 1 of 3 · Click the gear » and the progress dots. */
+function chipFor(): HTMLElement {
+  const c = Object.assign(document.createElement("div"), { className: "ex-step-chip" });
+  c.append(Object.assign(document.createElement("span"), { className: "k" }), Object.assign(document.createElement("span"), { className: "txt" }), Object.assign(document.createElement("span"), { className: "dots" }));
+  document.body.append(c);
+  return c;
+}
+
+function showStep(at: number, step: string, target: Rect | null, looking = false) {
+  const g = guiding;
+  if (!g) return;
+  const c = g.chip;
+  c.querySelector(".k")!.textContent = t("{n} of {total}", { n: at + 1, total: g.total });
+  c.querySelector(".txt")!.textContent = step;
+  c.classList.toggle("looking", looking);
+  c.querySelector(".dots")!.replaceChildren(...Array.from({ length: g.total }, (_, k) => Object.assign(document.createElement("i"), { className: k < at ? "done" : k === at ? "on" : "" })));
+  if (target) {
+    // Beside the ring, on whichever side has room.
+    const x = target.x + target.w + 24 + 240 < window.innerWidth ? target.x + target.w + 24 : Math.max(EDGE, target.x - 260);
+    c.style.left = `${x}px`;
+    c.style.top = `${Math.max(EDGE, target.y + target.h / 2 - 14)}px`;
+  }
+  c.classList.add("on");
+}
+
+/** A guide's next step from JARVIS: looking for it, found, or there. */
+function guideStep(s: GuideStep) {
+  const g = guiding;
+  if (!g || g.id !== s.id) return;
+  if (s.done) {
+    if (g.ring) fadeMark(g.ring);
+    loose = loose.filter((m) => m !== g.ring);
+    g.chip.querySelector(".k")!.textContent = t("Done");
+    g.chip.querySelector(".txt")!.textContent = t("You're there");
+    g.chip.classList.remove("looking");
+    g.chip.querySelectorAll(".dots i").forEach((d) => (d.className = "done"));
+    ptr.style.opacity = "0";
+    later(1800, () => endGuide());
+    return;
+  }
+  const idx = s.at ?? 0, step = s.step ?? "";
+  if (s.looking) {
+    // The click counted: the old ring goes, his eye sweeps while he looks for the next.
+    if (g.ring) { fadeMark(g.ring); loose = loose.filter((m) => m !== g.ring); g.ring = null; }
+    showStep(idx, step, null, true);
+    return;
+  }
+  if (s.target) {
+    const target = rectOf(s.target);
+    ptr.style.opacity = "1";
+    at_(target);
+    later(PACE.go, () => {
+      if (guiding !== g) return;
+      g.ring = ring(target, PACE.ring);
+      loose.push(g.ring);
+      later(PACE.ring, () => at(Math.max(EDGE, target.x - 34), target.y + target.h + 8, PACE.to));
+    });
+    showStep(idx, step, target);
+  } else {
+    // Not found on the screen: the step in words; your next click goes on.
+    showStep(idx, step, null);
+  }
+}
+const at_ = (target: Rect) => at(target.x + target.w / 2, target.y - 12, PACE.go);
+
+function endGuide() {
+  const g = guiding;
+  guiding = null;
+  if (!g) return;
+  g.chip.classList.remove("on");
+  window.setTimeout(() => g.chip.remove(), 300);
+  pointing = false;
+  if (!cards.length && !loose.length) window.setTimeout(report, 560);
+}
+
 async function main() {
   const boot = await Bridge.boot();
   setLanguage(resolveLanguage(boot?.settings.language, systemLanguages()));
   void onEvent<Show>("explain-show", (s) => show(s));
   void onEvent<Point>("explain-point", (p) => point(p));
+  void onEvent<GuideStep>("explain-guide", (s) => guideStep(s));
   // Esc in the page too, on every system (#88: only Rust's, on Windows).
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && (cards.length || loose.length)) closeAll();

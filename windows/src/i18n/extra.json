@@ -15364,6 +15364,36 @@
       "ru": "Удерживайте Ctrl + Shift + Z и обведите мышью: без щелчков.",
       "tr": "Ctrl + Shift + Z'yi basılı tutun, sonra fareyi etrafında gezdirin: tıklamak yok.",
       "zh-Hans": "按住 Ctrl + Shift + Z，然后用鼠标绕它一圈：不用点击。"
+    },
+    "{n} of {total}": {
+      "ar": "{n} من {total}",
+      "bn": "{total}-এর {n}",
+      "de": "{n} von {total}",
+      "es": "{n} de {total}",
+      "fr": "{n} sur {total}",
+      "hi": "{total} में से {n}",
+      "id": "{n} dari {total}",
+      "ja": "{n}/{total}",
+      "ko": "{n}/{total}",
+      "pt-BR": "{n} de {total}",
+      "ru": "{n} из {total}",
+      "tr": "{n}/{total}",
+      "zh-Hans": "第 {n}/{total} 步"
+    },
+    "You're there": {
+      "ar": "وصلت",
+      "bn": "পৌঁছে গেছ",
+      "de": "Du bist da",
+      "es": "Ya estás",
+      "fr": "Vous y êtes",
+      "hi": "आप पहुँच गए",
+      "id": "Sudah sampai",
+      "ja": "到着しました",
+      "ko": "도착했어요",
+      "pt-BR": "Chegou",
+      "ru": "Вы на месте",
+      "tr": "Oradasınız",
+      "zh-Hans": "到了"
     }
   }
 }
