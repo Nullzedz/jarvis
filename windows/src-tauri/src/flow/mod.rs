@@ -138,6 +138,12 @@ pub fn setup(app: &AppHandle) {
     });
     if prefs.enabled {
         enable(app, &flow);
+        // #117: on from the start, so the voice model comes down by itself the first time.
+        // shortcut: also after you remove the model with dictation still on; turn it off to stop that.
+        if matches!(crate::speech::status().parakeet, crate::speech::ModelState::Missing) {
+            crate::log::line("speech models missing: downloading them");
+            crate::speech::download(app.clone());
+        }
     }
     crate::voice::shortcut::apply(&prefs);
     crate::voice::sync(app);
