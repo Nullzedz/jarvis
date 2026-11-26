@@ -353,26 +353,6 @@ fn mail_of(a: &Answer) -> Option<(u32, Value)> {
     Some((seq, json!({ "from": sender(&header(&head, "From")), "subject": header(&head, "Subject"), "snippet": body, "date": date, "thread": thread })))
 }
 
-async fn fetch() -> Result<Value, String> {
-    with_live(LIMIT, |imap, address| Box::pin(fetch_on(imap, address.to_string()))).await
-}
-
-async fn fetch_on(imap: &mut Imap, address: String) -> Result<Value, String> {
-    let found = imap.run("SEARCH UNSEEN").await?;
-    let mut unseen: Vec<u32> = found.iter().filter_map(|a| a.text.strip_prefix("* SEARCH")).flat_map(|r| r.split_whitespace().filter_map(|n| n.parse().ok())).collect();
-    unseen.sort_unstable();
-    let newest: Vec<u32> = unseen.iter().rev().take(SHOWN).copied().collect();
-    let mut mails = Vec::new();
-    if !newest.is_empty() {
-        let set = newest.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(",");
-        let answers = imap.run(&format!("FETCH {set} (INTERNALDATE X-GM-THRID BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)] BODY.PEEK[1]<0.1500>)")).await?;
-        let mut got: Vec<(u32, Value)> = answers.iter().filter_map(mail_of).collect();
-        got.sort_by(|a, b| b.0.cmp(&a.0));
-        mails = got.into_iter().map(|(_, v)| v).collect();
-    }
-    Ok(json!({ "email": address, "unread": unseen.len(), "mails": mails }))
-}
-
 // ── The Mail page (#120): Gmail where Outlook isn't ──────────────────────────────────────
 //
 // The same shapes as Outlook's scripts (mail/outlook.rs), so the page draws Gmail as it draws
@@ -407,7 +387,7 @@ fn imap_date(days: i64) -> String {
     format!("{d}-{}-{y}", M[(m - 1) as usize])
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 struct Item {
     uid: u64,
     date: i64,
@@ -544,21 +524,16 @@ fn message_json(i: &Item, account: &str, off: i64) -> Value {
     })
 }
 
-/// The Mail page's month, as outlook::month_script gives it.
-pub async fn month(offset: i32) -> Result<Value, String> {
-    let off = local_offset_min();
+/// A month (`y`, `m`) of `list`, as outlook::month_script gives it.
+fn month_of(list: &[Item], y: i64, m: i64, off: i64) -> Value {
     let t = crate::platform::local_time();
-    let total = t.year as i64 * 12 + t.month as i64 - 1 + offset as i64;
-    let (y, m) = (total.div_euclid(12), total.rem_euclid(12) + 1);
     let first = days_from_civil(y, m, 1);
     let next = days_from_civil(y + (m == 12) as i64, if m == 12 { 1 } else { m + 1 }, 1);
     let today = if y == t.year as i64 && m == t.month as i64 { t.day as i64 } else { 0 };
-    let search = format!("SINCE {} BEFORE {}", imap_date(first - 1), imap_date(next + 1));
-    let list = with_live(24 * 1024 * 1024, |imap, _| { let s = search.clone(); Box::pin(async move { items(imap, &s, 5000).await }) }).await?;
     let mut days = serde_json::Map::new();
     let mut marks = serde_json::Map::new();
     let (mut hours, mut flagged, mut files) = (vec![0u32; 24], 0, 0);
-    for i in &list {
+    for i in list {
         let (iy, im, id, ih, _) = local_parts(i.date, off);
         if (iy, im) != (y, m) {
             continue;
@@ -583,41 +558,208 @@ pub async fn month(offset: i32) -> Result<Value, String> {
             }
         }
     }
-    Ok(json!({ "year": y, "month": m, "first": (first + 4).rem_euclid(7), "length": next - first, "today": today,
-        "days": days, "marks": marks, "hours": hours, "flagged": flagged, "files": files }))
+    json!({ "year": y, "month": m, "first": (first + 4).rem_euclid(7), "length": next - first, "today": today,
+        "days": days, "marks": marks, "hours": hours, "flagged": flagged, "files": files })
 }
 
-/// One day's messages ("yyyy-MM-dd"), newest first, as outlook::day_script gives them.
-pub async fn day(date: &str) -> Result<Value, String> {
-    // Clicking back to a day is instant: each kept two minutes.
-    static KEPT: std::sync::Mutex<Vec<(String, std::time::Instant, Value)>> = std::sync::Mutex::new(Vec::new());
-    if let Some(v) = KEPT.lock().ok().and_then(|k| k.iter().find(|(d, at, _)| d == date && at.elapsed() < Duration::from_secs(120)).map(|x| x.2.clone())) {
+/// The Mail page's month: from the synced copy when it holds the whole month, else from Gmail.
+pub async fn month(offset: i32) -> Result<Value, String> {
+    let off = local_offset_min();
+    let t = crate::platform::local_time();
+    let total = t.year as i64 * 12 + t.month as i64 - 1 + offset as i64;
+    let (y, m) = (total.div_euclid(12), total.rem_euclid(12) + 1);
+    let first = days_from_civil(y, m, 1);
+    let next = days_from_civil(y + (m == 12) as i64, if m == 12 { 1 } else { m + 1 }, 1);
+    ensure().await?;
+    if let Some(v) = held(|c| (c.since < first).then(|| month_of(&c.items, y, m, off))).flatten() {
         return Ok(v);
     }
-    let v = day_fresh(date).await?;
-    if let Ok(mut k) = KEPT.lock() {
-        k.retain(|(d, at, _)| d != date && at.elapsed() < Duration::from_secs(120));
-        k.push((date.to_string(), std::time::Instant::now(), v.clone()));
-    }
-    Ok(v)
+    let search = format!("SINCE {} BEFORE {}", imap_date(first - 1), imap_date(next + 1));
+    let list = with_live(24 * 1024 * 1024, |imap, _| { let s = search.clone(); Box::pin(async move { items(imap, &s, 5000).await }) }).await?;
+    Ok(month_of(&list, y, m, off))
 }
 
-async fn day_fresh(date: &str) -> Result<Value, String> {
+/// One day's messages ("yyyy-MM-dd"), newest first, as outlook::day_script gives them: from the
+/// synced copy, else from Gmail.
+pub async fn day(date: &str) -> Result<Value, String> {
     let p: Vec<i64> = date.split('-').filter_map(|x| x.parse().ok()).collect();
     let [y, m, d] = p[..] else { return Err(crate::i18n::t("Unexpected API response.")) };
     let off = local_offset_min();
     let at = days_from_civil(y, m, d);
+    let on_day = |i: &Item| { let (iy, im, id, _, _) = local_parts(i.date, off); (iy, im, id) == (y, m, d) };
+    ensure().await?;
+    if let Some(v) = held(|c| (c.since < at).then(|| json!({ "messages": c.items.iter().rev().filter(|i| on_day(i)).map(|i| message_json(i, &c.account, off)).collect::<Vec<_>>() }))).flatten() {
+        return Ok(v);
+    }
     let search = format!("SINCE {} BEFORE {}", imap_date(at - 1), imap_date(at + 2));
     let (list, account) = with_live(LIMIT * 4, |imap, a| { let (s, a) = (search.clone(), a.to_string()); Box::pin(async move { Ok((items(imap, &s, 1000).await?, a)) }) }).await?;
-    let messages: Vec<Value> = list.iter().rev().filter(|i| { let (iy, im, id, _, _) = local_parts(i.date, off); (iy, im, id) == (y, m, d) }).map(|i| message_json(i, &account, off)).collect();
-    Ok(json!({ "messages": messages }))
+    Ok(json!({ "messages": list.iter().rev().filter(|i| on_day(i)).map(|i| message_json(i, &account, off)).collect::<Vec<_>>() }))
 }
 
-/// Starred mail (« waiting on you »), newest first.
+/// Starred mail (« waiting on you »), newest first, from the synced copy.
 pub async fn starred(most: usize) -> Result<Vec<Value>, String> {
     let off = local_offset_min();
-    let (list, account) = with_live(LIMIT * 4, |imap, a| { let a = a.to_string(); Box::pin(async move { Ok((items(imap, "FLAGGED", most).await?, a)) }) }).await?;
-    Ok(list.iter().rev().map(|i| message_json(i, &account, off)).collect())
+    ensure().await?;
+    Ok(held(|c| c.starred.iter().rev().take(most).map(|i| message_json(i, &c.account, off)).collect()).unwrap_or_default())
+}
+
+// ── The synced copy (#120) ────────────────────────────────────────────────────────────────
+//
+// What makes mail apps feel instant: they answer from a copy they keep and sync only what
+// changed, never waiting on the server while you look (Superhuman's « 100 ms rule »; IMAP's
+// own incremental sync). JARVIS keeps the inbox's last WINDOW days and the starred mail, in
+// memory only (never written to disk), synced a minute apart: new mail by UID, read and star
+// marks for the rest, and what left the inbox dropped.
+
+const WINDOW: i64 = 62;
+
+#[derive(Default, Clone)]
+struct Copy {
+    account: String,
+    /// The first day held (days since 1970): the copy is whole from the day after.
+    since: i64,
+    /// Oldest first.
+    items: Vec<Item>,
+    starred: Vec<Item>,
+    unread: usize,
+    /// The first words of the newest few, by UID.
+    snippets: std::collections::HashMap<u64, String>,
+}
+
+static COPY: std::sync::Mutex<Option<Copy>> = std::sync::Mutex::new(None);
+
+fn held<T>(f: impl FnOnce(&Copy) -> T) -> Option<T> {
+    COPY.lock().ok()?.as_ref().map(f)
+}
+
+/// A first sync if there's no copy yet.
+async fn ensure() -> Result<(), String> {
+    if held(|_| ()).is_none() {
+        sync().await?;
+    }
+    Ok(())
+}
+
+/// What one sync found.
+#[derive(Default)]
+struct Delta {
+    present: Vec<u64>,
+    new: Vec<Item>,
+    flags: Vec<(u64, bool, bool)>,
+    unread: usize,
+    starred: Vec<u64>,
+    starred_new: Vec<Item>,
+}
+
+fn uids_of(answers: &[Answer]) -> Vec<u64> {
+    answers.iter().filter_map(|a| a.text.strip_prefix("* SEARCH")).flat_map(|r| r.split_whitespace().filter_map(|n| n.parse().ok())).collect()
+}
+
+/// « * 5 FETCH (UID 4401 FLAGS (\Seen)) » → (4401, seen, flagged).
+fn flags_of(a: &Answer) -> Option<(u64, bool, bool)> {
+    let uid = a.text.split("UID ").nth(1)?.split([' ', ')']).next()?.parse().ok()?;
+    let flags = a.text.split("FLAGS (").nth(1)?.split(')').next()?;
+    Some((uid, flags.contains("\\Seen"), flags.contains("\\Flagged")))
+}
+
+async fn fetch_uids(imap: &mut Imap, uids: &[u64]) -> Result<Vec<Item>, String> {
+    let mut out = Vec::new();
+    for chunk in uids.chunks(250) {
+        let set = chunk.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(",");
+        out.extend(imap.run(&format!("UID FETCH {set} {ITEM}")).await?.iter().filter_map(item_of));
+    }
+    Ok(out)
+}
+
+async fn delta_on(imap: &mut Imap, since: i64, known: std::collections::HashSet<u64>, known_starred: std::collections::HashSet<u64>) -> Result<Delta, String> {
+    let mut d = Delta { present: uids_of(&imap.run(&format!("UID SEARCH SINCE {}", imap_date(since))).await?), ..Delta::default() };
+    let new: Vec<u64> = d.present.iter().copied().filter(|u| !known.contains(u)).collect();
+    d.new = fetch_uids(imap, &new).await?;
+    if let (Some(lo), Some(hi)) = (known.iter().min(), known.iter().max()) {
+        d.flags = imap.run(&format!("UID FETCH {lo}:{hi} (UID FLAGS)")).await?.iter().filter_map(flags_of).collect();
+    }
+    d.unread = imap.run("SEARCH UNSEEN").await?.iter().filter_map(|a| a.text.strip_prefix("* SEARCH")).map(|r| r.split_whitespace().count()).sum();
+    d.starred = uids_of(&imap.run("UID SEARCH FLAGGED").await?);
+    let starred_new: Vec<u64> = d.starred.iter().rev().take(50).copied().filter(|u| !known_starred.contains(u)).collect();
+    d.starred_new = fetch_uids(imap, &starred_new).await?;
+    Ok(d)
+}
+
+/// One sync: what's new, what changed, what left. The first one fetches the whole window.
+pub async fn sync() -> Result<(), String> {
+    let address = crate::secrets::get(ADDRESS).map(|a| a.trim().to_string()).unwrap_or_default();
+    let today = days_from_civil(crate::platform::local_time().year as i64, crate::platform::local_time().month as i64, crate::platform::local_time().day as i64);
+    // Another account, or none yet: from scratch.
+    let mut copy = held(|c| c.clone()).filter(|c| c.account == address).unwrap_or_else(|| Copy { account: address.clone(), since: today - WINDOW, ..Copy::default() });
+    let since = copy.since;
+    let known: std::collections::HashSet<u64> = copy.items.iter().map(|i| i.uid).collect();
+    let known_starred: std::collections::HashSet<u64> = copy.starred.iter().map(|i| i.uid).collect();
+    let d = with_live(24 * 1024 * 1024, |imap, _| {
+        let (k, ks) = (known.clone(), known_starred.clone());
+        Box::pin(async move { delta_on(imap, since, k, ks).await })
+    })
+    .await?;
+    let present: std::collections::HashSet<u64> = d.present.iter().copied().collect();
+    let flags: std::collections::HashMap<u64, (bool, bool)> = d.flags.iter().map(|&(u, s, f)| (u, (s, f))).collect();
+    copy.items.retain(|i| present.contains(&i.uid));
+    copy.items.extend(d.new);
+    let starred: std::collections::HashSet<u64> = d.starred.iter().copied().collect();
+    copy.starred.retain(|i| starred.contains(&i.uid));
+    copy.starred.extend(d.starred_new);
+    for i in copy.items.iter_mut().chain(copy.starred.iter_mut()) {
+        if let Some(&(seen, flagged)) = flags.get(&i.uid) {
+            i.seen = seen;
+            i.flagged = flagged;
+        }
+        if starred.contains(&i.uid) {
+            i.flagged = true;
+        }
+    }
+    copy.items.sort_by_key(|i| i.date);
+    copy.starred.sort_by_key(|i| i.date);
+    copy.unread = d.unread;
+    // The first words of the newest three, once each.
+    let want: Vec<u64> = copy.items.iter().rev().take(3).map(|i| i.uid).filter(|u| !copy.snippets.contains_key(u)).collect();
+    if !want.is_empty() {
+        let set = want.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(",");
+        let answers = with_live(LIMIT, |imap, _| { let s = set.clone(); Box::pin(async move { imap.run(&format!("UID FETCH {s} (UID BODY.PEEK[1]<0.1500>)")).await }) }).await?;
+        for a in &answers {
+            let Some(uid) = a.text.split("UID ").nth(1).and_then(|r| r.split([' ', ')']).next()).and_then(|n| n.parse::<u64>().ok()) else { continue };
+            let text = a.lits.first().map(|b| snippet(b)).unwrap_or_default();
+            copy.snippets.insert(uid, text);
+        }
+    }
+    let keep: std::collections::HashSet<u64> = copy.items.iter().rev().take(10).map(|i| i.uid).collect();
+    copy.snippets.retain(|u, _| keep.contains(u));
+    if let Ok(mut c) = COPY.lock() {
+        *c = Some(copy);
+    }
+    Ok(())
+}
+
+/// The pill: the latest mail (read or not) with its first words, the next two, the unread count.
+fn pill() -> Option<Value> {
+    held(|c| {
+        let mails: Vec<Value> = c.items.iter().rev().take(SHOWN).map(|i| json!({
+            "from": i.name, "subject": i.subject, "snippet": c.snippets.get(&i.uid).cloned().unwrap_or_default(),
+            "date": i.date, "thread": i.thread, "unread": !i.seen,
+        })).collect();
+        json!({ "email": c.account, "unread": c.unread, "mails": mails })
+    })
+}
+
+/// Synced a minute apart while Gmail is connected (the Mail page reads the copy whether or not
+/// the pill is on); the pill is told after each sync. Nothing while JARVIS is paused.
+pub fn start(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(5)).await;
+        loop {
+            if configured() && !integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
+                poll(app.clone()).await;
+            }
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        }
+    });
 }
 
 /// A message's first `most` characters and its files, for the page's card.
@@ -639,7 +781,11 @@ pub async fn poll(app: AppHandle) {
     if !configured() {
         return;
     }
-    let (data, error) = match fetch().await {
+    let result = sync().await.and_then(|_| pill().ok_or_else(|| crate::i18n::t("Not connected")));
+    if !integrations::enabled(&app, ID) {
+        return;
+    }
+    let (data, error) = match result {
         Ok(data) => (data, None),
         Err(error) => {
             crate::log::line(format!("gmail: {error}"));
@@ -723,4 +869,5 @@ mod tests {
         assert_eq!(m["hour"], 9);
     }
 }
+
 

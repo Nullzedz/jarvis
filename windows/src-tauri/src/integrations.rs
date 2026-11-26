@@ -73,7 +73,8 @@ pub fn start(app: AppHandle) {
     spawn(app.clone(), "integration_gitea", 7, 300, poll_gitea);
     spawn_github_loops(app.clone());
     spawn(app.clone(), "integration_calcom", 8, 300, crate::calcom::poll);
-    spawn(app.clone(), "integration_gmail", 8, 120, crate::gmail::poll);
+    // Gmail syncs on its own, for the Mail page too (gmail.rs).
+    crate::gmail::start(app.clone());
     spawn(app, "integration_notion", 9, 300, poll_notion);
 }
 

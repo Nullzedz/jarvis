@@ -261,21 +261,13 @@ pub struct Detail {
     pub attachments: Vec<String>,
 }
 
-/// #120: Outlook found closed, with Gmail there to answer instead: asked again after a minute,
-/// not on every click (each try starts PowerShell, almost half a second).
-static OUTLOOK_DOWN: Mutex<Option<std::time::Instant>> = Mutex::new(None);
-
-/// The page's script answered by Outlook, or None (closed, or known closed a moment ago).
+/// The page's script answered by Outlook; None when it's closed. #120: with Gmail there to answer,
+/// a closed Outlook costs nothing (no PowerShell started), as for the Mail pill.
 async fn outlook_page(script: String) -> Option<Value> {
-    let gmail = crate::gmail::configured();
-    if gmail && OUTLOOK_DOWN.lock().ok().and_then(|d| *d).is_some_and(|t| t.elapsed() < Duration::from_secs(60)) {
+    if crate::gmail::configured() && !crate::platform::process_running("OUTLOOK.EXE") {
         return None;
     }
-    let v = outlook::run(script, TIMEOUT).await.ok().filter(|v| v.get("error").is_none());
-    if let Ok(mut d) = OUTLOOK_DOWN.lock() {
-        *d = if v.is_none() && gmail { Some(std::time::Instant::now()) } else { None };
-    }
-    v
+    outlook::run(script, TIMEOUT).await.ok().filter(|v| v.get("error").is_none())
 }
 
 async fn detail(m: &Message, limit: usize) -> Option<Detail> {
@@ -341,7 +333,10 @@ pub async fn mail_month_at(offset: i32) -> Option<Value> {
     // #120: no Outlook, Gmail connected: Gmail's month.
     let v = match outlook_page(outlook::month_script(offset)).await {
         Some(v) => v,
-        None if crate::gmail::configured() => crate::gmail::month(offset).await.map_err(|e| crate::log::line(format!("gmail month: {e}"))).ok()?,
+        None if crate::gmail::configured() => {
+            let v = crate::gmail::month(offset).await.map_err(|e| crate::log::line(format!("gmail month: {e}"))).ok()?;
+            return Some(month_view(v, &rt().store.settings.vip.clone()));
+        }
         None => return None,
     };
     let vip = rt().store.settings.vip.clone();
