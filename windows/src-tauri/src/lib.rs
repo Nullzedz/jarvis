@@ -634,25 +634,7 @@ fn ingest_file(path: String) -> Result<DroppedFile, String> {
     files::ingest(&path)
 }
 
-/// JARVIS (#120): « Sign in with Google » for the Gmail pill; its inbox is fetched at once.
-#[tauri::command]
-async fn gmail_sign_in(app: AppHandle) -> Result<(), String> {
-    gmail::sign_in().await?;
-    integrations::poll_once(app, gmail::ID).await;
-    Ok(())
-}
-
-#[tauri::command]
-async fn gmail_sign_out(app: AppHandle) {
-    gmail::sign_out().await;
-    integrations::poll_once(app, gmail::ID).await;
-}
-
-#[tauri::command]
-fn gmail_connected() -> bool {
-    gmail::connected()
-}
-
+/// JARVIS (#120): a mail from the Gmail pill opened in Gmail.
 #[tauri::command]
 fn gmail_open(email: String, thread: String) {
     gmail::open(&email, &thread);
@@ -1107,9 +1089,6 @@ pub fn run() {
             chat_reset,
             ingest_file,
             secret_present,
-            gmail_sign_in,
-            gmail_sign_out,
-            gmail_connected,
             gmail_open,
             claude_ready,
             subscription_status,

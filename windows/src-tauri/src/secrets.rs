@@ -27,6 +27,9 @@ pub const KNOWN_KEYS: &[&str] = &[
     "resend-api-key",
     "notion-api-key",
     "calcom-api-key",
+    // JARVIS (#120): Gmail's address and app password (gmail.rs).
+    "gmail-address",
+    "gmail-app-password",
     // « Hey JARVIS »'s answers in an ElevenLabs voice.
     "elevenlabs-api-key",
     // JARVIS: his answers in a Gemini voice (voice/gemini.rs).
@@ -134,8 +137,6 @@ pub fn warm_up() {
 pub const INTERNAL_KEYS: &[&str] = &[
     // JARVIS: the Google Calendar secret iCal address (gcal.rs). Rust only: the island never reads it.
     "gcal-ics-url",
-    // JARVIS (#120): Gmail's refresh token (gmail.rs). Rust only.
-    "gmail-refresh-token",
     // JARVIS (#102): the passkey, as its salted hash only (profile.rs).
     "passkey",
     "phone-link-cert",

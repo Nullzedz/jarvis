@@ -885,8 +885,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: N_("Integration token"), placeholder: "ntn_…", secret: true }] },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
-  // No key to paste: « Sign in with Google » (#120, src-tauri/src/gmail.rs).
-  { id: "integration_gmail", name: "Gmail", color: "#EA4335", fields: [] },
+  // Read-only, with an app password (#120, src-tauri/src/gmail.rs): no Google Cloud project, no review.
+  { id: "integration_gmail", name: "Gmail", color: "#EA4335",
+    fields: [
+      { key: "gmail-address", label: N_("Gmail address"), placeholder: "you@gmail.com", secret: false },
+      { key: "gmail-app-password", label: N_("App password"), placeholder: "abcd efgh ijkl mnop", secret: true },
+    ],
+    hint: N_("Make an app password in your Google account: Security › 2-Step Verification › App passwords. Read-only: JARVIS shows your unread mail and never changes your inbox.") },
   // Nothing to enter: Spotify is read from the OS (src-tauri/src/spotify.rs).
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", fields: [] },
 ];
@@ -899,40 +904,6 @@ const declaredViews: (() => void)[] = [];
 function declaredChanged() {
   for (const redraw of declaredViews) redraw();
   void save();
-}
-
-/** Gmail's setup (#120): Google's own sign-in, read-only; no key to paste. */
-function gmailRow(): HTMLElement {
-  const said = h("span", { class: "keystate" });
-  const dotEl = statusDot(false);
-  const btn = h("button", {}) as HTMLButtonElement;
-  const show = (on: boolean) => {
-    dotEl.style.background = on ? "#22c55e" : "#f4505e";
-    said.textContent = on ? t("Signed in") : t("Not signed in");
-    btn.textContent = on ? t("Sign out") : t("Sign in with Google");
-    btn.dataset.on = String(on);
-  };
-  btn.addEventListener("click", async () => {
-    const on = btn.dataset.on === "true";
-    btn.disabled = true;
-    try {
-      if (on) await Bridge.gmailSignOut();
-      else {
-        said.textContent = t("Finish in your browser…");
-        await Bridge.gmailSignIn();
-      }
-      show(!on);
-    } catch (e) {
-      show(on);
-      said.textContent = String(e);
-    }
-    btn.disabled = false;
-  });
-  show(false);
-  void Bridge.keyReady("gmail-refresh-token").then((on) => show(!!on));
-  return h("div", {},
-    h("div", { class: "row" }, h("label", { style: "min-width:104px", text: t("Account") }), btn, dotEl, said),
-    h("div", { class: "hint", text: t("Read-only: JARVIS shows your unread mail and never changes your inbox.") }));
 }
 
 function integrationsSection(present: Record<string, boolean>): HTMLElement {
@@ -1011,7 +982,6 @@ function integrationsSection(present: Record<string, boolean>): HTMLElement {
     }
 
     if (def.hint) rows.append(h("div", { class: "hint", text: t(def.hint) }));
-    if (def.id === "integration_gmail") rows.append(gmailRow());
     if (def.id === "integration_spotify") {
       // As on the Mac's row: said only when there is no Spotify to launch.
       const hint = h("div", { class: "hint", style: "padding-top:5px" });
@@ -1572,7 +1542,7 @@ async function render() {
 
   const keys = [
     "stripe-api-key", "github-token", "gitlab-url", "gitlab-token", "gitea-url", "gitea-token", "vercel-token",
-    "n8n-url", "n8n-api-key", "resend-api-key", "notion-api-key", "calcom-api-key",
+    "n8n-url", "n8n-api-key", "resend-api-key", "notion-api-key", "calcom-api-key", "gmail-address", "gmail-app-password",
   ];
   const present: Record<string, boolean> = {};
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
