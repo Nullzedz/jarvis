@@ -183,7 +183,10 @@ fn header_text(s: &str) -> String {
     let mut out = String::new();
     let mut rest = s;
     while let Some(start) = rest.find("=?") {
-        let Some(end) = rest[start + 2..].find("?=").map(|e| start + 2 + e) else { break };
+        // The end is after « charset?B? » or « charset?Q? »: a Q text may itself start with « = »
+        // (« =?UTF-8?Q?=F0=9F… », an emoji), whose « ?= » isn't the end.
+        let text_at = rest[start + 2..].find('?').map(|q| start + 2 + q + 3).filter(|&t| t <= rest.len());
+        let Some(end) = text_at.and_then(|t| rest[t..].find("?=").map(|e| t + e)) else { break };
         let word = &rest[start + 2..end];
         let parts: Vec<&str> = word.splitn(3, '?').collect();
         let between = &rest[..start];
@@ -368,6 +371,9 @@ mod tests {
         assert_eq!(header_text("=?UTF-8?B?Q2Fmw6k=?= ouvert"), "Café ouvert");
         assert_eq!(header_text("=?utf-8?Q?R=C3=A9union_demain?="), "Réunion demain");
         assert_eq!(header_text("=?UTF-8?Q?a?= =?UTF-8?Q?b?="), "ab");
+        // A Q text that starts with « = » (an emoji first): not cut at « Q?= ».
+        assert_eq!(header_text("=?UTF-8?Q?=F0=9F=8E=A8_New_shots?="), "🎨 New shots");
+        assert_eq!(header_text("=?utf-8?B?8J+OqA==?= New"), "🎨 New");
         assert_eq!(header("From: \"Sam Example\"\r\n <sam@example.com>\r\nSubject: Hi\r\n", "From"), "\"Sam Example\" <sam@example.com>");
         assert_eq!(sender("\"Sam Example\" <sam@example.com>"), "Sam Example");
         assert_eq!(sender("<sam@example.com>"), "sam@example.com");
