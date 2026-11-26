@@ -279,6 +279,7 @@ export class Island {
         else if (task.id === "integration_whatsapp") void Bridge.whatsappOpenApp();
         else if (task.id === "integration_gitea") void Bridge.openGitea();
         else if (task.id === SPOTIFY_ID) void Bridge.spotifyOpen();
+        else if (task.id === "integration_gmail") void Bridge.gmailOpen(String((State.integrations[task.id]?.data as { email?: string } | undefined)?.email ?? ""), "");
         else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
       },
       openUrl: (url) => {

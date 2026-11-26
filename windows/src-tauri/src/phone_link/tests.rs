@@ -1846,9 +1846,10 @@ fn every_secret_the_phone_link_stores_is_in_the_keystores_key_list() {
     let whatsapp = crate::secrets::INTERNAL_KEYS.iter().filter(|k| k.starts_with("whatsapp-")).count();
     let gcal = crate::secrets::INTERNAL_KEYS.iter().filter(|k| k.starts_with("gcal-")).count();
     assert_eq!(gcal, 1);
-    // And the passkey's hash (profile.rs, #102).
+    // And the passkey's hash (profile.rs, #102), and Gmail's refresh token (gmail.rs, #120).
     assert!(crate::secrets::INTERNAL_KEYS.contains(&"passkey"));
-    assert_eq!(crate::secrets::INTERNAL_KEYS.len() - whatsapp - gcal - 1, 6);
+    assert!(crate::secrets::INTERNAL_KEYS.contains(&crate::gmail::KEY));
+    assert_eq!(crate::secrets::INTERNAL_KEYS.len() - whatsapp - gcal - 2, 6);
 }
 
 #[test]

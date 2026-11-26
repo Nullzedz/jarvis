@@ -371,6 +371,39 @@ function calcomCard(openDetail: () => void): HTMLElement {
     h("div", { class: "int-actions" }, h("button", { class: "link-btn", text: t("Details"), onclick: openDetail })));
 }
 
+// ── Gmail (#120, design C) ────────────────────────────────────────────────────
+
+/** The newest unread as a card with its first lines; the next three under it. A click opens it in Gmail. */
+function gmailCard(): HTMLElement {
+  const d = get("integration_gmail");
+  const email = String(d.email ?? "");
+  const mails = arr("integration_gmail", "mails");
+  const unread = Number(d.unread ?? 0);
+  const open = (thread: string) => () => void Bridge.gmailOpen(email, thread);
+  const when = (ms: unknown) => {
+    const at = new Date(Number(ms));
+    return at.toDateString() === new Date().toDateString()
+      ? at.toLocaleTimeString(language(), { hour: "2-digit", minute: "2-digit" })
+      : at.toLocaleDateString(language(), { day: "numeric", month: "short" });
+  };
+  const body = h("div", { class: "int-rows tight gm" });
+  if (!mails.length) body.append(h("div", { class: "int-empty", text: t("No unread mail") }));
+  const [first, ...rest] = mails;
+  if (first) {
+    body.append(h("button", { class: "gm-hero", onclick: open(String(first.thread ?? "")) },
+      h("span", { class: "gm-top" }, h("b", { text: String(first.from ?? "") }), h("span", { class: "int-ago", text: when(first.date) })),
+      h("span", { class: "gm-sub", text: String(first.subject || t("(no subject)")) }),
+      h("span", { class: "gm-snip", text: String(first.snippet ?? "") })));
+  }
+  for (const m of rest.slice(0, 3)) {
+    body.append(h("button", { class: "int-row gm-row", onclick: open(String(m.thread ?? "")) },
+      h("span", { class: "int-name", text: String(m.from ?? "") }),
+      h("span", { class: "int-sub", text: String(m.subject || t("(no subject)")) }),
+      h("span", { class: "int-ago", text: when(m.date) })));
+  }
+  return h("div", { class: "int-card" }, header("#EA4335", "Gmail", t("{n} unread", { n: unread })), body);
+}
+
 // ── n8n ───────────────────────────────────────────────────────────────────────
 
 function n8nCard(task: AgentTask, onDetail: () => void, openSettings: () => void): HTMLElement {
@@ -456,6 +489,7 @@ export function hasIntegrationData(id: string): boolean {
     case "integration_notion":
       return arr(id, "pages").length > 0;
     case "integration_calcom":
+    case "integration_gmail":
       return info.loaded;
     default:
       return false;
@@ -511,6 +545,8 @@ export function renderIntegrationCard(task: AgentTask, hooks: IntegrationCardHoo
       return notionCard();
     case "integration_calcom":
       return hooks.detailOpen ? calendarDetail(get(task.id), hooks.closeDetail, () => void Bridge.openUrl(OPEN_URLS[task.id])) : calcomCard(hooks.openDetail);
+    case "integration_gmail":
+      return gmailCard();
     default:
       return idleCard(task, hooks.openSettings);
   }

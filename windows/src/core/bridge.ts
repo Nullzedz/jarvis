@@ -573,7 +573,14 @@ export const Bridge = {
     call<SubscriptionStatus[]>("subscription_set", { provider, on }),
   /** Whether a provider can answer with this key: Claude Code stands in for a missing Anthropic one. */
   keyReady: (key: string) =>
-    key === "anthropic-api-key" ? call<boolean>("claude_ready") : call<boolean>("secret_present", { key }),
+    key === "anthropic-api-key" ? call<boolean>("claude_ready")
+      : key === "gmail-refresh-token" ? call<boolean>("gmail_connected")
+      : call<boolean>("secret_present", { key }),
+  /** JARVIS (#120): Google's sign-in page in the browser; resolves once Gmail is connected. */
+  gmailSignIn: () => callOrThrow<void>("gmail_sign_in"),
+  gmailSignOut: () => call<void>("gmail_sign_out"),
+  /** A mail (its thread) opened in Gmail, in the account it came from; no thread: the inbox. */
+  gmailOpen: (email: string, thread: string) => call<void>("gmail_open", { email, thread }),
   secretSet: (key: string, value: string) => callOrThrow<void>("secret_set", { key, value }),
   secretClear: (key: string) => callOrThrow<void>("secret_clear", { key }),
 
