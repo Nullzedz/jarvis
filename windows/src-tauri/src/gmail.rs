@@ -748,16 +748,80 @@ fn pill() -> Option<Value> {
     })
 }
 
-/// Synced a minute apart while Gmail is connected (the Mail page reads the copy whether or not
-/// the pill is on); the pill is told after each sync. Nothing while JARVIS is paused.
+fn running() -> bool {
+    configured() && !integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Push: a second connection waits in IDLE on the inbox, and Gmail says so the moment mail lands
+/// (« * n EXISTS »), leaves (« EXPUNGE ») or is read or starred (« FETCH »): synced at once. IDLE
+/// is renewed every 25 minutes (Gmail ends it at 29). Returns when JARVIS pauses or Gmail goes.
+async fn idle(app: &AppHandle) -> Result<(), String> {
+    let (Some(address), Some(password)) = (crate::secrets::get(ADDRESS), crate::secrets::get(PASSWORD)) else { return Ok(()) };
+    let password: String = password.chars().filter(|c| !c.is_whitespace()).collect();
+    let mut imap = Imap::connect().await?;
+    imap.run(&format!("LOGIN {} {}", quote(address.trim()), quote(&password))).await?;
+    imap.run("EXAMINE INBOX").await?;
+    crate::log::line("gmail: push on");
+    while running() {
+        imap.tag += 1;
+        let tag = format!("J{}", imap.tag);
+        imap.s.get_mut().write_all(format!("{tag} IDLE\r\n").as_bytes()).await.map_err(|e| e.to_string())?;
+        imap.read = 0;
+        if !imap.line().await?.starts_with(b"+") {
+            return Err(crate::i18n::t("Gmail closed the connection."));
+        }
+        let renew = std::time::Instant::now() + Duration::from_secs(25 * 60);
+        let changed = loop {
+            let left = renew.saturating_duration_since(std::time::Instant::now());
+            // Checked every 30 s, so a pause or a sign-out ends it without waiting 25 minutes.
+            match tokio::time::timeout(left.min(Duration::from_secs(30)), imap.line()).await {
+                Err(_) if left > Duration::from_secs(30) && running() => continue,
+                Err(_) => break false,
+                Ok(line) => {
+                    imap.read = 0;
+                    let line = String::from_utf8_lossy(&line?).to_string();
+                    if line.contains("EXISTS") || line.contains("EXPUNGE") || line.contains("FETCH") {
+                        let kind = ["EXISTS", "EXPUNGE", "FETCH"].into_iter().find(|k| line.contains(k)).unwrap_or("");
+                        crate::log::line(format!("gmail: push ({kind})"));
+                        break true;
+                    }
+                }
+            }
+        };
+        imap.s.get_mut().write_all(b"DONE\r\n").await.map_err(|e| e.to_string())?;
+        while !imap.line().await?.starts_with(tag.as_bytes()) {}
+        if changed {
+            // A few changes often come together (a new mail, then its labels): one sync for them.
+            tokio::time::sleep(Duration::from_millis(400)).await;
+            poll(app.clone()).await;
+        }
+    }
+    Ok(())
+}
+
+/// While Gmail is connected (the Mail page reads the copy whether or not the pill is on): a first
+/// sync, push from then on, and a sync every 5 minutes in case a push went missing. The pill is
+/// told after each sync. Nothing while JARVIS is paused.
 pub fn start(app: AppHandle) {
+    let push = app.clone();
     tauri::async_runtime::spawn(async move {
         tokio::time::sleep(Duration::from_secs(5)).await;
         loop {
-            if configured() && !integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed) {
+            if running() {
                 poll(app.clone()).await;
             }
-            tokio::time::sleep(Duration::from_secs(60)).await;
+            tokio::time::sleep(Duration::from_secs(5 * 60)).await;
+        }
+    });
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(Duration::from_secs(8)).await;
+        loop {
+            if running() {
+                if let Err(e) = idle(&push).await {
+                    crate::log::line(format!("gmail: push dropped ({e}), again in 30 s"));
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(30)).await;
         }
     });
 }
