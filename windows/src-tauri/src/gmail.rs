@@ -337,22 +337,6 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
     (yoe + era * 400 + if m <= 2 { 1 } else { 0 }, m, d)
 }
 
-/// One « * n FETCH (…) » answer, as the pill shows it.
-fn mail_of(a: &Answer) -> Option<(u32, Value)> {
-    let seq: u32 = a.text.strip_prefix("* ")?.split(' ').next()?.parse().ok()?;
-    let lit_after = |key: &str| -> Option<&Vec<u8>> {
-        let at = a.text.find(key)? + key.len();
-        let rest = a.text[at..].trim_start();
-        let i: usize = rest.strip_prefix("{#")?.split('}').next()?.parse().ok()?;
-        a.lits.get(i)
-    };
-    let head = String::from_utf8_lossy(lit_after("BODY[HEADER.FIELDS (FROM SUBJECT)]")?).into_owned();
-    let body = lit_after("BODY[1]<0>").map(|b| snippet(b)).unwrap_or_default();
-    let date = a.text.split("INTERNALDATE \"").nth(1).and_then(|r| r.split('"').next()).map(internal_date).unwrap_or(0);
-    let thread = a.text.split("X-GM-THRID ").nth(1).and_then(|r| r.split([' ', ')']).next()).and_then(|n| n.parse::<u64>().ok()).map(|n| format!("{n:x}")).unwrap_or_default();
-    Some((seq, json!({ "from": sender(&header(&head, "From")), "subject": header(&head, "Subject"), "snippet": body, "date": date, "thread": thread })))
-}
-
 // ── The Mail page (#120): Gmail where Outlook isn't ──────────────────────────────────────
 //
 // The same shapes as Outlook's scripts (mail/outlook.rs), so the page draws Gmail as it draws
@@ -752,11 +736,22 @@ fn running() -> bool {
     configured() && !integrations::PAUSED.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// Gmail disconnected (its address or app password cleared): the mail it held goes from memory
+/// at once, and so does the open connection.
+async fn forget() {
+    if let Ok(mut c) = COPY.lock() {
+        *c = None;
+    }
+    *LIVE.lock().await = None;
+}
+
 /// Push: a second connection waits in IDLE on the inbox, and Gmail says so the moment mail lands
 /// (« * n EXISTS »), leaves (« EXPUNGE ») or is read or starred (« FETCH »): synced at once. IDLE
 /// is renewed every 25 minutes (Gmail ends it at 29). Returns when JARVIS pauses or Gmail goes.
 async fn idle(app: &AppHandle) -> Result<(), String> {
     let (Some(address), Some(password)) = (crate::secrets::get(ADDRESS), crate::secrets::get(PASSWORD)) else { return Ok(()) };
+    let signed = (address.clone(), password.clone());
+    let same = move || crate::secrets::get(ADDRESS).zip(crate::secrets::get(PASSWORD)).as_ref() == Some(&signed);
     let password: String = password.chars().filter(|c| !c.is_whitespace()).collect();
     let mut imap = Imap::connect().await?;
     imap.run(&format!("LOGIN {} {}", quote(address.trim()), quote(&password))).await?;
@@ -775,7 +770,7 @@ async fn idle(app: &AppHandle) -> Result<(), String> {
             let left = renew.saturating_duration_since(std::time::Instant::now());
             // Checked every 30 s, so a pause or a sign-out ends it without waiting 25 minutes.
             match tokio::time::timeout(left.min(Duration::from_secs(30)), imap.line()).await {
-                Err(_) if left > Duration::from_secs(30) && running() => continue,
+                Err(_) if left > Duration::from_secs(30) && running() && same() => continue,
                 Err(_) => break false,
                 Ok(line) => {
                     imap.read = 0;
@@ -790,6 +785,9 @@ async fn idle(app: &AppHandle) -> Result<(), String> {
         };
         imap.s.get_mut().write_all(b"DONE\r\n").await.map_err(|e| e.to_string())?;
         while !imap.line().await?.starts_with(tag.as_bytes()) {}
+        if !same() {
+            return Ok(());
+        }
         if changed {
             // A few changes often come together (a new mail, then its labels): one sync for them.
             tokio::time::sleep(Duration::from_millis(400)).await;
@@ -810,7 +808,14 @@ pub fn start(app: AppHandle) {
             if running() {
                 poll(app.clone()).await;
             }
-            tokio::time::sleep(Duration::from_secs(5 * 60)).await;
+            // Checked every 30 s so a disconnect clears the copy quickly; a sync every 5 minutes.
+            for _ in 0..10 {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+                if !configured() && held(|_| ()).is_some() {
+                    forget().await;
+                    crate::log::line("gmail: disconnected, its mail forgotten");
+                }
+            }
         }
     });
     tauri::async_runtime::spawn(async move {
@@ -901,20 +906,6 @@ mod tests {
         assert_eq!(imap_date(days_from_civil(2026, 11, 1)), "1-Nov-2026");
         assert_eq!(local_parts(internal_date("26-Nov-2026 23:30:00 +0000"), 60), (2026, 11, 27, 0, 30));
         assert_eq!(quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
-    }
-
-    #[test]
-    fn a_fetch_answer_becomes_a_mail() {
-        let a = Answer {
-            text: "* 7 FETCH (X-GM-THRID 1795686120000123 INTERNALDATE \"26-Nov-2026 09:42:00 +0000\" BODY[HEADER.FIELDS (FROM SUBJECT)] {#0} BODY[1]<0> {#1})".into(),
-            lits: vec![b"From: Sam Example <sam@example.com>\r\nSubject: Contract draft\r\n\r\n".to_vec(), b"Two small changes.".to_vec()],
-        };
-        let (seq, m) = mail_of(&a).unwrap();
-        assert_eq!(seq, 7);
-        assert_eq!(m["from"], "Sam Example");
-        assert_eq!(m["subject"], "Contract draft");
-        assert_eq!(m["snippet"], "Two small changes.");
-        assert_eq!(m["thread"], format!("{:x}", 1795686120000123u64));
     }
 
     #[test]
