@@ -262,6 +262,11 @@ pub struct Detail {
 }
 
 async fn detail(m: &Message, limit: usize) -> Option<Detail> {
+    // #120: a Gmail message of the Mail page, read from Gmail (read-only).
+    if m.store_id == crate::gmail::STORE {
+        let (text, attachments) = crate::gmail::detail(&m.entry_id, limit).await.ok()?;
+        return Some(Detail { text, attachments });
+    }
     let v = outlook::run(outlook::detail_script(&m.entry_id, &m.store_id, limit), TIMEOUT).await.ok()?;
     serde_json::from_value(v).ok()
 }
@@ -316,10 +321,12 @@ pub async fn mail_month_at(offset: i32) -> Option<Value> {
     if let Some(v) = LAST.lock().ok().and_then(|l| l.iter().find(|(o, at, _)| *o == offset && at.elapsed() < Duration::from_secs(300)).map(|x| x.2.clone())) {
         return Some(v);
     }
-    let v = outlook::run(outlook::month_script(offset), TIMEOUT).await.ok()?;
-    if v.get("error").is_some() {
-        return None;
-    }
+    // #120: no Outlook, Gmail connected: Gmail's month.
+    let v = match outlook::run(outlook::month_script(offset), TIMEOUT).await.ok().filter(|v| v.get("error").is_none()) {
+        Some(v) => v,
+        None if crate::gmail::configured() => crate::gmail::month(offset).await.map_err(|e| crate::log::line(format!("gmail month: {e}"))).ok()?,
+        None => return None,
+    };
     let vip = rt().store.settings.vip.clone();
     let v = month_view(v, &vip);
     if let Ok(mut l) = LAST.lock() {
@@ -342,10 +349,11 @@ pub async fn mail_day(date: String) -> Option<Value> {
     if date.len() != 10 || !date.chars().all(|c| c.is_ascii_digit() || c == '-') {
         return None;
     }
-    let mut v = outlook::run(outlook::day_script(&date), TIMEOUT).await.ok()?;
-    if v.get("error").is_some() {
-        return None;
-    }
+    let mut v = match outlook::run(outlook::day_script(&date), TIMEOUT).await.ok().filter(|v| v.get("error").is_none()) {
+        Some(v) => v,
+        None if crate::gmail::configured() => crate::gmail::day(&date).await.map_err(|e| crate::log::line(format!("gmail day: {e}"))).ok()?,
+        None => return None,
+    };
     let vip = rt().store.settings.vip.clone();
     if let Some(list) = v.get_mut("messages").and_then(Value::as_array_mut) {
         for m in list.iter_mut() {
@@ -363,7 +371,15 @@ pub async fn mail_day(date: String) -> Option<Value> {
 #[tauri::command]
 pub async fn mail_search(query: String, filter: Filter) -> Result<Vec<Message>, String> {
     let Some(dasl) = outlook::dasl(&Query::parse(&query), filter) else { return Ok(rt().last.clone()) };
-    let v = outlook::run(outlook::search_script(&dasl, MAX_SHOWN), TIMEOUT).await.map_err(|e| e.to_string())?;
+    let v = match outlook::run(outlook::search_script(&dasl, MAX_SHOWN), TIMEOUT).await {
+        Ok(v) => v,
+        // #120: the page's « waiting on you » from Gmail's starred mail when there's no Outlook.
+        Err(_) if crate::gmail::configured() && query.trim().is_empty() && matches!(filter, Filter::Flagged) => {
+            let list = crate::gmail::starred(MAX_SHOWN).await?;
+            return Ok(list.into_iter().filter_map(|m| serde_json::from_value(m).ok()).collect());
+        }
+        Err(e) => return Err(e.to_string()),
+    };
     let mut list = serde_json::from_value::<outlook::Listing>(v).unwrap_or_default().messages;
     list.sort_by(|a, b| b.date.cmp(&a.date));
     list.truncate(MAX_SHOWN);
@@ -379,6 +395,11 @@ pub async fn mail_detail(message: Message) -> Result<Detail, String> {
 /// Opens the message (or a reply to it) in Outlook's own window. Nothing is sent.
 #[tauri::command]
 pub async fn mail_open(message: Message, reply: bool) -> Result<(), String> {
+    // #120: a Gmail message opens in Gmail (where you reply too).
+    if message.store_id == crate::gmail::STORE {
+        crate::gmail::open_message(&message.account, &message.entry_id);
+        return Ok(());
+    }
     let body = reply.then_some("");
     outlook::run(outlook::open_script(&message.entry_id, &message.store_id, body), TIMEOUT)
         .await
@@ -389,6 +410,10 @@ pub async fn mail_open(message: Message, reply: bool) -> Result<(), String> {
 /// An action on a message, from the user's click in the card.
 #[tauri::command]
 pub async fn mail_act(app: AppHandle, message: Message, kind: String) -> Result<(), String> {
+    // #120: JARVIS only reads Gmail.
+    if message.store_id == crate::gmail::STORE {
+        return Err(crate::i18n::t("JARVIS only reads Gmail: change it in Gmail."));
+    }
     match kind.as_str() {
         "read" => perform(&Action::MarkRead, &message, Reason::Manual).await?,
         "flag" => perform(&Action::Important, &message, Reason::Manual).await?,

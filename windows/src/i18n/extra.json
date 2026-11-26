@@ -9529,21 +9529,6 @@
       "tr": "{n} dosya",
       "zh-Hans": "{n} 个附件"
     },
-    "Open Outlook to see your mail here.": {
-      "ar": "افتح Outlook لترى بريدك هنا.",
-      "bn": "এখানে মেল দেখতে Outlook খুলুন।",
-      "de": "Öffne Outlook, um deine Mails hier zu sehen.",
-      "es": "Abre Outlook para ver tu correo aquí.",
-      "fr": "Ouvrez Outlook pour voir vos mails ici.",
-      "hi": "अपना मेल यहाँ देखने के लिए Outlook खोलें।",
-      "id": "Buka Outlook untuk melihat email Anda di sini.",
-      "ja": "Outlook を開くとここにメールが表示されます。",
-      "ko": "Outlook을 열면 메일이 여기에 표시됩니다.",
-      "pt-BR": "Abra o Outlook para ver seus e-mails aqui.",
-      "ru": "Откройте Outlook, чтобы видеть почту здесь.",
-      "tr": "Postanızı burada görmek için Outlook'u açın.",
-      "zh-Hans": "打开 Outlook 即可在此查看邮件。"
-    },
     "words today": {
       "ar": "كلمة اليوم",
       "bn": "শব্দ আজ",
@@ -16399,6 +16384,51 @@
       "ru": "Создайте пароль приложения в аккаунте Google: Безопасность › Двухэтапная аутентификация › Пароли приложений. Только чтение: JARVIS показывает непрочитанные письма и никогда не меняет ваш ящик.",
       "tr": "Google hesabınızda bir uygulama şifresi oluşturun: Güvenlik › 2 Adımlı Doğrulama › Uygulama şifreleri. Salt okunur: JARVIS okunmamış e-postalarınızı gösterir, gelen kutunuzu asla değiştirmez.",
       "zh-Hans": "在 Google 账号中创建应用专用密码：安全性 › 两步验证 › 应用专用密码。只读：JARVIS 只显示未读邮件，绝不更改你的收件箱。"
+    },
+    "Open in Gmail": {
+      "ar": "فتح في Gmail",
+      "bn": "Gmail-এ খুলুন",
+      "de": "In Gmail öffnen",
+      "es": "Abrir en Gmail",
+      "fr": "Ouvrir dans Gmail",
+      "hi": "Gmail में खोलें",
+      "id": "Buka di Gmail",
+      "ja": "Gmail で開く",
+      "ko": "Gmail에서 열기",
+      "pt-BR": "Abrir no Gmail",
+      "ru": "Открыть в Gmail",
+      "tr": "Gmail'de aç",
+      "zh-Hans": "在 Gmail 中打开"
+    },
+    "Open Outlook, or connect Gmail in Connections, to see your mail here.": {
+      "ar": "افتح Outlook أو اربط Gmail من «الاتصالات» لترى بريدك هنا.",
+      "bn": "এখানে মেইল দেখতে Outlook খুলুন, অথবা Connections-এ Gmail যুক্ত করুন।",
+      "de": "Öffne Outlook oder verbinde Gmail unter „Verbindungen“, um deine Mails hier zu sehen.",
+      "es": "Abre Outlook o conecta Gmail en Conexiones para ver tu correo aquí.",
+      "fr": "Ouvrez Outlook, ou connectez Gmail dans Connexions, pour voir vos mails ici.",
+      "hi": "यहाँ मेल देखने के लिए Outlook खोलें, या Connections में Gmail जोड़ें।",
+      "id": "Buka Outlook, atau sambungkan Gmail di Koneksi, untuk melihat surel Anda di sini.",
+      "ja": "ここにメールを表示するには、Outlook を開くか、接続で Gmail をつなげてください。",
+      "ko": "여기서 메일을 보려면 Outlook을 열거나 연결에서 Gmail을 연결하세요.",
+      "pt-BR": "Abra o Outlook ou conecte o Gmail em Conexões para ver seus e-mails aqui.",
+      "ru": "Откройте Outlook или подключите Gmail в разделе «Подключения», чтобы видеть почту здесь.",
+      "tr": "Postanızı burada görmek için Outlook'u açın veya Bağlantılar'dan Gmail'i bağlayın.",
+      "zh-Hans": "打开 Outlook，或在“连接”中连接 Gmail，即可在此查看邮件。"
+    },
+    "JARVIS only reads Gmail: change it in Gmail.": {
+      "ar": "JARVIS يقرأ Gmail فقط: غيّره من Gmail.",
+      "bn": "JARVIS শুধু Gmail পড়ে: পরিবর্তন Gmail-এ করুন।",
+      "de": "JARVIS liest Gmail nur: Ändere es in Gmail.",
+      "es": "JARVIS solo lee Gmail: cámbialo en Gmail.",
+      "fr": "JARVIS ne fait que lire Gmail : modifiez-le dans Gmail.",
+      "hi": "JARVIS सिर्फ़ Gmail पढ़ता है: बदलाव Gmail में करें।",
+      "id": "JARVIS hanya membaca Gmail: ubah di Gmail.",
+      "ja": "JARVIS は Gmail を読むだけです。変更は Gmail で行ってください。",
+      "ko": "JARVIS는 Gmail을 읽기만 합니다. Gmail에서 바꾸세요.",
+      "pt-BR": "O JARVIS só lê o Gmail: altere no Gmail.",
+      "ru": "JARVIS только читает Gmail: меняйте в Gmail.",
+      "tr": "JARVIS yalnızca Gmail'i okur: değişikliği Gmail'de yapın.",
+      "zh-Hans": "JARVIS 只读取 Gmail：请在 Gmail 中更改。"
     }
   }
 }

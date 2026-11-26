@@ -373,7 +373,12 @@ function calcomCard(openDetail: () => void): HTMLElement {
 
 // ── Gmail (#120, design C) ────────────────────────────────────────────────────
 
-/** The newest unread as a card with its first lines; the next three under it. A click opens it in Gmail. */
+/** Gmail is the card on Home (design 3): it takes the whole left card, and JARVIS's face steps aside. */
+export function gmailFillsHome(): boolean {
+  return State.view === "overview" && State.focusTask?.id === "integration_gmail" && hasIntegrationData("integration_gmail");
+}
+
+/** The newest unread with its first line; the next two under it. A click opens it in Gmail. */
 function gmailCard(): HTMLElement {
   const d = get("integration_gmail");
   const email = String(d.email ?? "");
@@ -395,13 +400,13 @@ function gmailCard(): HTMLElement {
       h("span", { class: "gm-sub", text: String(first.subject || t("(no subject)")) }),
       h("span", { class: "gm-snip", text: String(first.snippet ?? "") })));
   }
-  for (const m of rest.slice(0, 3)) {
+  for (const m of rest.slice(0, 2)) {
     body.append(h("button", { class: "int-row gm-row", onclick: open(String(m.thread ?? "")) },
       h("span", { class: "int-name", text: String(m.from ?? "") }),
       h("span", { class: "int-sub", text: String(m.subject || t("(no subject)")) }),
       h("span", { class: "int-ago", text: when(m.date) })));
   }
-  return h("div", { class: "int-card" }, header("#EA4335", "Gmail", t("{n} unread", { n: unread })), body);
+  return h("div", { class: "int-card gm-full" }, header("#EA4335", "Gmail", t("{n} unread", { n: unread })), body);
 }
 
 // ── n8n ───────────────────────────────────────────────────────────────────────

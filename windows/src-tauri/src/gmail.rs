@@ -36,6 +36,7 @@ struct Imap {
     s: Stream,
     tag: u32,
     read: usize,
+    limit: usize,
 }
 
 impl Imap {
@@ -49,7 +50,7 @@ impl Imap {
         let tcp = tokio::net::TcpStream::connect((HOST, 993)).await.map_err(|_| crate::i18n::t("Couldn't reach Gmail."))?;
         let name = ServerName::try_from(HOST).map_err(|e| e.to_string())?;
         let tls = tokio_rustls::TlsConnector::from(Arc::new(config)).connect(name, tcp).await.map_err(|_| crate::i18n::t("Couldn't reach Gmail."))?;
-        let mut imap = Imap { s: BufReader::new(tls), tag: 0, read: 0 };
+        let mut imap = Imap { s: BufReader::new(tls), tag: 0, read: 0, limit: LIMIT };
         imap.line().await?; // the greeting
         Ok(imap)
     }
@@ -61,7 +62,7 @@ impl Imap {
         if buf.is_empty() {
             return Err(crate::i18n::t("Gmail closed the connection."));
         }
-        if self.read > LIMIT {
+        if self.read > self.limit {
             return Err(crate::i18n::t("The server's answer is too large."));
         }
         Ok(buf)
@@ -94,7 +95,7 @@ impl Imap {
                 let head = &text[..text.rfind('{').unwrap_or(text.len())];
                 a.text.push_str(head);
                 a.text.push_str(&format!("{{#{}}}", a.lits.len()));
-                if self.read + n > LIMIT {
+                if self.read + n > self.limit {
                     return Err(crate::i18n::t("The server's answer is too large."));
                 }
                 let mut lit = vec![0u8; n];
@@ -237,6 +238,10 @@ fn sender(from: &str) -> String {
 
 /// The first lines of a mail, best effort: its first part, decoded, without markup.
 fn snippet(raw: &[u8]) -> String {
+    snippet_of(raw, 220)
+}
+
+fn snippet_of(raw: &[u8], most: usize) -> String {
     let s = String::from_utf8_lossy(raw);
     // A part that is itself multipart: skip its boundaries and headers.
     let body: String = if s.trim_start().starts_with("--") {
@@ -277,7 +282,7 @@ fn snippet(raw: &[u8]) -> String {
         }
     }
     let text = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">");
-    text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(220).collect()
+    text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(most).collect()
 }
 
 /// « 26-Nov-2026 09:42:00 +0100 » → milliseconds since 1970.
@@ -292,14 +297,30 @@ fn internal_date(s: &str) -> i64 {
     let sign = if zone.starts_with('-') { -1 } else { 1 };
     let z = zone.trim_start_matches(['+', '-']);
     let off = sign * (z.get(..2).and_then(|x| x.parse::<i64>().ok()).unwrap_or(0) * 60 + z.get(2..4).and_then(|x| x.parse::<i64>().ok()).unwrap_or(0));
-    // Days from 1970-01-01 to y-m-d (civil calendar).
-    let (y2, m2) = if m < 2 { (y - 1, m as i64 + 13) } else { (y, m as i64 + 1) };
-    let era = y2.div_euclid(400);
-    let yoe = y2 - era * 400;
-    let doy = (153 * (m2 - 3) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    let days = era * 146097 + doe - 719468;
+    let days = days_from_civil(y, m as i64 + 1, d);
     ((days * 86400 + h * 3600 + mi * 60 + se) - off * 60) * 1000
+}
+
+/// Days from 1970-01-01 to y-m-d (`m` 1–12), and back.
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
+}
+
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (yoe + era * 400 + if m <= 2 { 1 } else { 0 }, m, d)
 }
 
 /// One « * n FETCH (…) » answer, as the pill shows it.
@@ -338,6 +359,220 @@ async fn fetch(address: &str, password: &str) -> Result<Value, String> {
     }
     let _ = imap.run("LOGOUT").await;
     Ok(json!({ "email": address, "unread": unseen.len(), "mails": mails }))
+}
+
+// ── The Mail page (#120): Gmail where Outlook isn't ──────────────────────────────────────
+//
+// The same shapes as Outlook's scripts (mail/outlook.rs), so the page draws Gmail as it draws
+// Outlook. A Gmail message's `storeId` is « gmail » and its `entryId` « uid:thread ».
+
+pub const STORE: &str = "gmail";
+
+pub fn configured() -> bool {
+    crate::secrets::present(ADDRESS) && crate::secrets::present(PASSWORD)
+}
+
+/// Minutes this computer's clock is ahead of UTC.
+fn local_offset_min() -> i64 {
+    let t = crate::platform::local_time();
+    let local = days_from_civil(t.year as i64, t.month as i64, t.day as i64) * 86400 + t.hour as i64 * 3600 + t.minute as i64 * 60 + t.second as i64;
+    let utc = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
+    ((local - utc) as f64 / 900.0).round() as i64 * 15
+}
+
+/// A time (ms) on this computer's calendar: (year, month, day, hour, minute).
+fn local_parts(ms: i64, off: i64) -> (i64, i64, i64, i64, i64) {
+    let s = ms.div_euclid(1000) + off * 60;
+    let (y, m, d) = civil_from_days(s.div_euclid(86400));
+    let r = s.rem_euclid(86400);
+    (y, m, d, r / 3600, r % 3600 / 60)
+}
+
+/// « 1-Nov-2026 », as IMAP's SEARCH takes a date.
+fn imap_date(days: i64) -> String {
+    const M: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let (y, m, d) = civil_from_days(days);
+    format!("{d}-{}-{y}", M[(m - 1) as usize])
+}
+
+#[derive(Debug, Default)]
+struct Item {
+    uid: u64,
+    date: i64,
+    seen: bool,
+    flagged: bool,
+    thread: String,
+    name: String,
+    address: String,
+    subject: String,
+    files: Vec<String>,
+}
+
+const ITEM: &str = "(UID INTERNALDATE FLAGS X-GM-THRID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)])";
+
+fn item_of(a: &Answer) -> Option<Item> {
+    a.text.strip_prefix("* ")?.split(' ').nth(1).filter(|w| *w == "FETCH")?;
+    let after = |key: &str| a.text.split(key).nth(1);
+    let uid = after("UID ")?.split([' ', ')']).next()?.parse().ok()?;
+    let flags = after("FLAGS (").and_then(|r| r.split(')').next()).unwrap_or("");
+    let head_at = a.text.find("BODY[HEADER.FIELDS (FROM SUBJECT)]").map(|i| &a.text[i..]);
+    let head = head_at
+        .and_then(|r| r.split("{#").nth(1))
+        .and_then(|r| r.split('}').next())
+        .and_then(|i| i.parse::<usize>().ok())
+        .and_then(|i| a.lits.get(i))
+        .map(|b| String::from_utf8_lossy(b).into_owned())
+        .unwrap_or_default();
+    let from = header(&head, "From");
+    let address = from.rsplit('<').next().map(|r| r.trim_end_matches('>').trim().to_string()).filter(|s| s.contains('@')).unwrap_or_else(|| from.trim().to_string());
+    // An attachment's name, as BODYSTRUCTURE gives it: « "FILENAME" "report.pdf" » (or "NAME").
+    let lower = a.text.to_lowercase();
+    let mut files = Vec::new();
+    for key in ["\"filename\" \"", "\"name\" \""] {
+        let mut at = 0;
+        while let Some(i) = lower[at..].find(key) {
+            let start = at + i + key.len();
+            let Some(end) = a.text[start..].find('"') else { break };
+            let name = header_text(&a.text[start..start + end]);
+            if !name.is_empty() && !files.contains(&name) && lower.contains("\"attachment\"") {
+                files.push(name);
+            }
+            at = start + end;
+        }
+    }
+    Some(Item {
+        uid,
+        date: after("INTERNALDATE \"").and_then(|r| r.split('"').next()).map(internal_date).unwrap_or(0),
+        seen: flags.contains("\\Seen"),
+        flagged: flags.contains("\\Flagged"),
+        thread: after("X-GM-THRID ").and_then(|r| r.split([' ', ')']).next()).and_then(|n| n.parse::<u64>().ok()).map(|n| format!("{n:x}")).unwrap_or_default(),
+        name: sender(&from),
+        address: address.to_lowercase(),
+        subject: header(&head, "Subject"),
+        files,
+    })
+}
+
+/// Signed in, the inbox opened read-only; the address.
+async fn session(limit: usize) -> Result<(Imap, String), String> {
+    let (Some(address), Some(password)) = (crate::secrets::get(ADDRESS), crate::secrets::get(PASSWORD)) else {
+        return Err(crate::i18n::t("Not connected"));
+    };
+    let address = address.trim().to_string();
+    let mut imap = Imap::connect().await?;
+    imap.limit = limit;
+    let password: String = password.chars().filter(|c| !c.is_whitespace()).collect();
+    imap.run(&format!("LOGIN {} {}", quote(&address), quote(&password))).await?;
+    imap.run("EXAMINE INBOX").await?;
+    Ok((imap, address))
+}
+
+/// The messages a SEARCH finds, newest last; `most` of the newest at most.
+async fn items(imap: &mut Imap, search: &str, most: usize) -> Result<Vec<Item>, String> {
+    let found = imap.run(&format!("SEARCH {search}")).await?;
+    let mut seqs: Vec<u32> = found.iter().filter_map(|a| a.text.strip_prefix("* SEARCH")).flat_map(|r| r.split_whitespace().filter_map(|n| n.parse().ok())).collect();
+    seqs.sort_unstable();
+    let skip = seqs.len().saturating_sub(most);
+    let mut out = Vec::new();
+    for chunk in seqs[skip..].chunks(250) {
+        let set = chunk.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(",");
+        out.extend(imap.run(&format!("FETCH {set} {ITEM}")).await?.iter().filter_map(item_of));
+    }
+    out.sort_by_key(|i| i.date);
+    Ok(out)
+}
+
+fn message_json(i: &Item, account: &str, off: i64) -> Value {
+    let (y, mo, d, h, mi) = local_parts(i.date, off);
+    json!({
+        "entryId": format!("{}:{}", i.uid, i.thread), "storeId": STORE, "account": account,
+        "senderName": i.name, "address": i.address, "subject": i.subject, "date": i.date,
+        "unread": !i.seen, "flagged": i.flagged, "local": format!("{y:04}-{mo:02}-{d:02} {h:02}:{mi:02}"),
+        "files": i.files, "hour": h,
+    })
+}
+
+/// The Mail page's month, as outlook::month_script gives it.
+pub async fn month(offset: i32) -> Result<Value, String> {
+    let off = local_offset_min();
+    let t = crate::platform::local_time();
+    let total = t.year as i64 * 12 + t.month as i64 - 1 + offset as i64;
+    let (y, m) = (total.div_euclid(12), total.rem_euclid(12) + 1);
+    let first = days_from_civil(y, m, 1);
+    let next = days_from_civil(y + (m == 12) as i64, if m == 12 { 1 } else { m + 1 }, 1);
+    let today = if y == t.year as i64 && m == t.month as i64 { t.day as i64 } else { 0 };
+    let (mut imap, _) = session(24 * 1024 * 1024).await?;
+    let list = items(&mut imap, &format!("SINCE {} BEFORE {}", imap_date(first - 1), imap_date(next + 1)), 5000).await?;
+    let _ = imap.run("LOGOUT").await;
+    let mut days = serde_json::Map::new();
+    let mut marks = serde_json::Map::new();
+    let (mut hours, mut flagged, mut files) = (vec![0u32; 24], 0, 0);
+    for i in &list {
+        let (iy, im, id, ih, _) = local_parts(i.date, off);
+        if (iy, im) != (y, m) {
+            continue;
+        }
+        let k = id.to_string();
+        let count = days.get(&k).and_then(Value::as_i64).unwrap_or(0) + 1;
+        days.insert(k.clone(), json!(count));
+        let mark = marks.entry(k).or_insert_with(|| json!({ "flagged": 0, "files": 0, "senders": {} }));
+        if i.flagged {
+            flagged += 1;
+            mark["flagged"] = json!(mark["flagged"].as_i64().unwrap_or(0) + 1);
+        }
+        if !i.files.is_empty() {
+            mark["files"] = json!(mark["files"].as_i64().unwrap_or(0) + 1);
+        }
+        let n = mark["senders"][&i.address].as_i64().unwrap_or(0) + 1;
+        mark["senders"][&i.address] = json!(n);
+        if id == today {
+            hours[ih as usize] += 1;
+            if !i.files.is_empty() {
+                files += 1;
+            }
+        }
+    }
+    Ok(json!({ "year": y, "month": m, "first": (first + 4).rem_euclid(7), "length": next - first, "today": today,
+        "days": days, "marks": marks, "hours": hours, "flagged": flagged, "files": files }))
+}
+
+/// One day's messages ("yyyy-MM-dd"), newest first, as outlook::day_script gives them.
+pub async fn day(date: &str) -> Result<Value, String> {
+    let p: Vec<i64> = date.split('-').filter_map(|x| x.parse().ok()).collect();
+    let [y, m, d] = p[..] else { return Err(crate::i18n::t("Unexpected API response.")) };
+    let off = local_offset_min();
+    let at = days_from_civil(y, m, d);
+    let (mut imap, account) = session(LIMIT * 4).await?;
+    let list = items(&mut imap, &format!("SINCE {} BEFORE {}", imap_date(at - 1), imap_date(at + 2)), 1000).await?;
+    let _ = imap.run("LOGOUT").await;
+    let messages: Vec<Value> = list.iter().rev().filter(|i| { let (iy, im, id, _, _) = local_parts(i.date, off); (iy, im, id) == (y, m, d) }).map(|i| message_json(i, &account, off)).collect();
+    Ok(json!({ "messages": messages }))
+}
+
+/// Starred mail (« waiting on you »), newest first.
+pub async fn starred(most: usize) -> Result<Vec<Value>, String> {
+    let off = local_offset_min();
+    let (mut imap, account) = session(LIMIT * 4).await?;
+    let list = items(&mut imap, "FLAGGED", most).await?;
+    let _ = imap.run("LOGOUT").await;
+    Ok(list.iter().rev().map(|i| message_json(i, &account, off)).collect())
+}
+
+/// A message's first `most` characters and its files, for the page's card.
+pub async fn detail(entry_id: &str, most: usize) -> Result<(String, Vec<String>), String> {
+    let uid: u64 = entry_id.split(':').next().and_then(|u| u.parse().ok()).ok_or_else(|| crate::i18n::t("Unexpected API response."))?;
+    let (mut imap, _) = session(LIMIT).await?;
+    let answers = imap.run(&format!("UID FETCH {uid} (UID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)] BODY.PEEK[1]<0.8000>)")).await?;
+    let _ = imap.run("LOGOUT").await;
+    let a = answers.iter().find(|a| a.text.contains("FETCH")).ok_or_else(|| crate::i18n::t("Unexpected API response."))?;
+    let files = item_of(a).map(|i| i.files).unwrap_or_default();
+    let text = a.text.find("BODY[1]").and_then(|i| a.text[i..].split("{#").nth(1)).and_then(|r| r.split('}').next()).and_then(|i| i.parse::<usize>().ok()).and_then(|i| a.lits.get(i)).map(|b| snippet_of(b, most)).unwrap_or_default();
+    Ok((text, files))
+}
+
+/// A Gmail message of the page opened in Gmail.
+pub fn open_message(account: &str, entry_id: &str) {
+    open(account, entry_id.split(':').nth(1).unwrap_or(""));
 }
 
 pub async fn poll(app: AppHandle) {
@@ -383,6 +618,12 @@ mod tests {
         assert_eq!(internal_date("01-Jan-1970 01:00:00 +0100"), 0);
         assert_eq!(internal_date("26-Nov-2026 09:42:00 +0000"), 1795686120000);
         assert_eq!(literal("* 3 FETCH (BODY[1]<0> {42}"), Some(42));
+        for z in [-1, 0, 19000, 20783] {
+            let (y, m, d) = civil_from_days(z);
+            assert_eq!(days_from_civil(y, m, d), z);
+        }
+        assert_eq!(imap_date(days_from_civil(2026, 11, 1)), "1-Nov-2026");
+        assert_eq!(local_parts(internal_date("26-Nov-2026 23:30:00 +0000"), 60), (2026, 11, 27, 0, 30));
         assert_eq!(quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
     }
 
@@ -398,5 +639,21 @@ mod tests {
         assert_eq!(m["subject"], "Contract draft");
         assert_eq!(m["snippet"], "Two small changes.");
         assert_eq!(m["thread"], format!("{:x}", 1795686120000123u64));
+    }
+
+    #[test]
+    fn a_page_item_has_its_flags_sender_and_files() {
+        let a = Answer {
+            text: "* 12 FETCH (UID 4401 X-GM-THRID 255 INTERNALDATE \"26-Nov-2026 09:42:00 +0000\" FLAGS (\\Flagged) BODYSTRUCTURE ((\"TEXT\" \"PLAIN\") (\"APPLICATION\" \"PDF\" (\"NAME\" \"invoice.pdf\") NIL NIL \"BASE64\" 100 NIL (\"ATTACHMENT\" (\"FILENAME\" \"invoice.pdf\"))) \"MIXED\") BODY[HEADER.FIELDS (FROM SUBJECT)] {#0})".into(),
+            lits: vec![b"From: Acme Billing <Billing@Acme.example>\r\nSubject: Invoice\r\n\r\n".to_vec()],
+        };
+        let i = item_of(&a).unwrap();
+        assert_eq!((i.uid, i.seen, i.flagged), (4401, false, true));
+        assert_eq!((i.name.as_str(), i.address.as_str(), i.thread.as_str()), ("Acme Billing", "billing@acme.example", "ff"));
+        assert_eq!(i.files, vec!["invoice.pdf"]);
+        let m = message_json(&i, "me@gmail.com", 0);
+        assert_eq!(m["entryId"], "4401:ff");
+        assert_eq!(m["storeId"], "gmail");
+        assert_eq!(m["hour"], 9);
     }
 }
