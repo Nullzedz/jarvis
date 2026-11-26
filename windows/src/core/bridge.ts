@@ -574,6 +574,8 @@ export const Bridge = {
   /** Whether a provider can answer with this key: Claude Code stands in for a missing Anthropic one. */
   keyReady: (key: string) =>
     key === "anthropic-api-key" ? call<boolean>("claude_ready") : call<boolean>("secret_present", { key }),
+  /** A mail (its thread) opened in Gmail, in the account it came from; no thread: the inbox. */
+  gmailOpen: (email: string, thread: string) => call<void>("gmail_open", { email, thread }),
   secretSet: (key: string, value: string) => callOrThrow<void>("secret_set", { key, value }),
   secretClear: (key: string) => callOrThrow<void>("secret_clear", { key }),
 

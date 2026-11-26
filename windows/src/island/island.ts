@@ -31,6 +31,7 @@ import { USC, UploadSeq, uploadProgressCurve } from "../upload/sequence";
 import { dominantPct, planColor } from "../core/plan";
 import { language, t, tl } from "../i18n/i18n";
 import { closePlanCard, openPlanColor, planCardOpen } from "../views/usage";
+import { gmailFillsHome } from "../views/integrations";
 import { buildHeader, buildViews, type ViewActions, type ViewHost } from "../views/views";
 import { h } from "../views/dom";
 import { buildSessionDropList, type SessionDropList } from "../views/session-drop";
@@ -279,6 +280,7 @@ export class Island {
         else if (task.id === "integration_whatsapp") void Bridge.whatsappOpenApp();
         else if (task.id === "integration_gitea") void Bridge.openGitea();
         else if (task.id === SPOTIFY_ID) void Bridge.spotifyOpen();
+        else if (task.id === "integration_gmail") void Bridge.gmailOpen(String((State.integrations[task.id]?.data as { email?: string } | undefined)?.email ?? ""), "");
         else if (urls[task.id]) void Bridge.openUrl(urls[task.id]);
       },
       openUrl: (url) => {
@@ -1694,7 +1696,8 @@ export class Island {
     // The drop canvas draws its own Mochi; two of them would overlap. Out on the
     // desktop, he isn't here at all.
     const away = State.mochiOnDesktop;
-    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !away;
+    // #120: Gmail on Home takes his card (design 3): he steps aside.
+    const visible = p.opacity > 0 && !greetingActive && !this.uploadActive && !away && !(State.mode === "expanded" && gmailFillsHome());
     this.botCanvas.style.opacity = visible ? "1" : "0";
 
     // JARVIS: no glow behind him (the prototype has none; glows read "too AI").

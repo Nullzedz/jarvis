@@ -142,6 +142,9 @@ export const PILL_CATALOG: readonly PillDefinition[] = [
   // (src-tauri/src/mail). The new Outlook has none, and Linux has no Outlook.
   { id: "integration_mail", name: "Mail", color: "#2F8CFF", category: "service",
     subtitle: N_("Integration"), source: "n8n", support: "windows", connect: none },
+  // Gmail (#120): read-only, with the address and an app password (src-tauri/src/gmail.rs).
+  { id: "integration_gmail", name: "Gmail", color: "#EA4335", category: "service",
+    subtitle: N_("Integration"), source: "n8n", support: "yes", connect: key("gmail-app-password") },
   // WhatsApp (experimental) through a gateway on this computer (src-tauri/src/whatsapp): set up,
   // linked and turned on in Settings → Integrations → WhatsApp, off until then.
   { id: "integration_whatsapp", name: "WhatsApp", color: "#25D366", category: "service",

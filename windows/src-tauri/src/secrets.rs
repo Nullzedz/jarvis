@@ -27,6 +27,9 @@ pub const KNOWN_KEYS: &[&str] = &[
     "resend-api-key",
     "notion-api-key",
     "calcom-api-key",
+    // JARVIS (#120): Gmail's address and app password (gmail.rs).
+    "gmail-address",
+    "gmail-app-password",
     // « Hey JARVIS »'s answers in an ElevenLabs voice.
     "elevenlabs-api-key",
     // JARVIS: his answers in a Gemini voice (voice/gemini.rs).

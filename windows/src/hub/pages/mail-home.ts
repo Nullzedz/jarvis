@@ -133,6 +133,9 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
     });
   };
   let redrawWaiting = () => drawWaiting();
+  // #120: Gmail is only read (no « Done », which would change it), and opens in Gmail.
+  const gmail = (m: DayMessage) => m.storeId === "gmail";
+  const openIn = (m: DayMessage) => (gmail(m) ? t("Open in Gmail") : t("Open in Outlook"));
 
   const mon = h("div", { class: "jv-mon" });
   const dayBox = h("div", { class: "jv-mp" });
@@ -201,7 +204,7 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
     }
     legend.append(h("span", { class: "end", text: t("bar = how much mail") }));
     mon.append(legend);
-    if (!month) mon.append(h("p", { class: "cap jv-mnote", text: t("Open Outlook to see your mail here.") }));
+    if (!month) mon.append(h("p", { class: "cap jv-mnote", text: t("Open Outlook, or connect Gmail in Connections, to see your mail here.") }));
   };
 
   // ── The chosen day ──
@@ -282,8 +285,8 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
           h("span", { class: "cap", style: m.vip ? `color:${VIP}` : "", text: m.vip ? t("VIP") : "" })),
         h("div", { class: "jv-mrow acts" },
           rb("↩", BLUE, "#fff", t("Reply"), () => void MailBridge.open(m, true)),
-          rb("✓", "#30d158", "#000", t("Done"), () => done(m)),
-          rb("↗", "#3a3a3c", "#fff", t("Open in Outlook"), () => void MailBridge.open(m, false))));
+          ...(gmail(m) ? [] : [rb("✓", "#30d158", "#000", t("Done"), () => done(m))]),
+          rb("↗", "#3a3a3c", "#fff", openIn(m), () => void MailBridge.open(m, false))));
       waitBox.append(card);
     });
   };
@@ -392,10 +395,10 @@ export async function mailHomePage(page: HTMLElement, ctx: HubContext) {
         h("div", { class: "jv-mrow who" }, rb((senderName(m)[0] ?? "?").toUpperCase(), m.vip ? VIP : BUSY, m.vip ? "#000" : "#fff", senderName(m), undefined, 34),
           h("div", {}, h("p", { class: "subj", text: m.subject || t("(no subject)") }), h("p", { class: "cap", text: `${senderName(m)} · ${m.address}` }))),
         text, filesRow,
-        h("div", { class: "jv-mrow acts end-row" }, h("span", { class: "cap grow", text: `${t("Reply")} · ${t("Done")} · ${t("Open in Outlook")}` }),
+        h("div", { class: "jv-mrow acts end-row" }, h("span", { class: "cap grow", text: gmail(m) ? `${t("Reply")} · ${openIn(m)}` : `${t("Reply")} · ${t("Done")} · ${openIn(m)}` }),
           rb("↩", BLUE, "#fff", t("Reply"), () => void MailBridge.open(m, true), 32),
-          rb("✓", "#30d158", "#000", t("Done"), () => done(m), 32),
-          rb("↗", "#3a3a3c", "#fff", t("Open in Outlook"), () => void MailBridge.open(m, false), 32)));
+          ...(gmail(m) ? [] : [rb("✓", "#30d158", "#000", t("Done"), () => done(m), 32)]),
+          rb("↗", "#3a3a3c", "#fff", openIn(m), () => void MailBridge.open(m, false), 32)));
       grid.append(card);
       void MailBridge.detail(m).then((d) => {
         if (!d) return;

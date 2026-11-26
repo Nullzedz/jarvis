@@ -231,9 +231,9 @@ pub fn passkey_present() -> bool {
 // ── What he keeps an eye on (#106) ──
 
 /// What the tour offers for the island: the connections it can show.
-const PICKABLE: [&str; 11] = [
+const PICKABLE: [&str; 12] = [
     "integration_github", "integration_gitlab", "integration_vercel", "integration_n8n", "integration_stripe", "integration_resend",
-    "integration_spotify", "integration_calcom", "integration_notion", "integration_mail", "integration_whatsapp",
+    "integration_spotify", "integration_calcom", "integration_notion", "integration_mail", "integration_gmail", "integration_whatsapp",
 ];
 
 /// The tour's picks, at most four, in the order tapped: the island shows them (their keys come later).

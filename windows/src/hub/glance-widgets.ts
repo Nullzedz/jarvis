@@ -84,7 +84,7 @@ export function renderMail(box: HTMLElement, m: MailMonth | null, now = new Date
     arr.append(bar);
   }
   const sub = h("p", { class: "jv-wsub" });
-  if (!m) sub.textContent = t("Open Outlook to see your mail here.");
+  if (!m) sub.textContent = t("Open Outlook, or connect Gmail in Connections, to see your mail here.");
   else {
     if (m.flagged) sub.append(h("span", { style: "color:#30d158", text: t("{n} waiting on you", { n: m.flagged }) }), document.createTextNode(" · "));
     sub.append(document.createTextNode(t("{n} files", { n: m.files })));

@@ -73,6 +73,8 @@ pub fn start(app: AppHandle) {
     spawn(app.clone(), "integration_gitea", 7, 300, poll_gitea);
     spawn_github_loops(app.clone());
     spawn(app.clone(), "integration_calcom", 8, 300, crate::calcom::poll);
+    // Gmail syncs on its own, for the Mail page too (gmail.rs).
+    crate::gmail::start(app.clone());
     spawn(app, "integration_notion", 9, 300, poll_notion);
 }
 
@@ -124,6 +126,7 @@ pub async fn poll_once(app: AppHandle, id: &str) {
         "integration_resend" => poll_resend(app).await,
         "integration_notion" => poll_notion(app).await,
         "integration_calcom" => crate::calcom::poll(app).await,
+        "integration_gmail" => crate::gmail::poll(app).await,
         _ => {}
     }
 }

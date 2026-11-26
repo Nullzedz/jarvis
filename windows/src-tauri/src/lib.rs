@@ -26,6 +26,7 @@ mod i18n;
 mod identity;
 mod integrations;
 mod calcom;
+mod gmail;
 mod gcal;
 mod live;
 mod tts;
@@ -633,6 +634,12 @@ fn ingest_file(path: String) -> Result<DroppedFile, String> {
     files::ingest(&path)
 }
 
+/// JARVIS (#120): a mail from the Gmail pill opened in Gmail.
+#[tauri::command]
+fn gmail_open(email: String, thread: String) {
+    gmail::open(&email, &thread);
+}
+
 /// The island may only ask whether a key exists — never read it.
 #[tauri::command]
 fn secret_present(key: String) -> bool {
@@ -1082,6 +1089,7 @@ pub fn run() {
             chat_reset,
             ingest_file,
             secret_present,
+            gmail_open,
             claude_ready,
             subscription_status,
             subscription_set,

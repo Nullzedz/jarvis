@@ -885,6 +885,13 @@ const INTEGRATIONS: IntegrationDef[] = [
     fields: [{ key: "notion-api-key", label: N_("Integration token"), placeholder: "ntn_…", secret: true }] },
   { id: "integration_calcom", name: "Cal.com", color: "#C9956A",
     fields: [{ key: "calcom-api-key", label: N_("API key"), placeholder: "cal_…", secret: true }] },
+  // Read-only, with an app password (#120, src-tauri/src/gmail.rs): no Google Cloud project, no review.
+  { id: "integration_gmail", name: "Gmail", color: "#EA4335",
+    fields: [
+      { key: "gmail-address", label: N_("Gmail address"), placeholder: "you@gmail.com", secret: false },
+      { key: "gmail-app-password", label: N_("App password"), placeholder: "abcd efgh ijkl mnop", secret: true },
+    ],
+    hint: N_("Make an app password in your Google account: Security › 2-Step Verification › App passwords. Read-only: JARVIS shows your unread mail and never changes your inbox.") },
   // Nothing to enter: Spotify is read from the OS (src-tauri/src/spotify.rs).
   { id: "integration_spotify", name: "Spotify", color: "#1DB954", fields: [] },
 ];
@@ -1535,7 +1542,7 @@ async function render() {
 
   const keys = [
     "stripe-api-key", "github-token", "gitlab-url", "gitlab-token", "gitea-url", "gitea-token", "vercel-token",
-    "n8n-url", "n8n-api-key", "resend-api-key", "notion-api-key", "calcom-api-key",
+    "n8n-url", "n8n-api-key", "resend-api-key", "notion-api-key", "calcom-api-key", "gmail-address", "gmail-app-password",
   ];
   const present: Record<string, boolean> = {};
   for (const k of keys) present[k] = (await Bridge.secretPresent(k)) ?? false;
