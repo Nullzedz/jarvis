@@ -2,6 +2,151 @@
   "about": "What's new, shown once in the island after JARVIS updates itself (src/whats-new/). Every Windows and Linux release adds its entry here, in the 14 languages: 1 to 4 items, a short title and one line each, an icon from scripts/test-whats-new.py. python3 scripts/test-whats-new.py checks it.",
   "releases": [
     {
+      "version": "0.1.1",
+      "items": [
+        {
+          "icon": "puzzle",
+          "title": {
+            "en": "Gmail in the island",
+            "zh-Hans": "岛中的 Gmail",
+            "hi": "आइलैंड में Gmail",
+            "es": "Gmail en la isla",
+            "ar": "Gmail في الجزيرة",
+            "fr": "Gmail dans l'île",
+            "bn": "আইল্যান্ডে Gmail",
+            "pt-BR": "Gmail na ilha",
+            "ru": "Gmail в острове",
+            "id": "Gmail di pulau",
+            "de": "Gmail in der Insel",
+            "tr": "Adada Gmail",
+            "ko": "아일랜드의 Gmail",
+            "ja": "アイランドに Gmail"
+          },
+          "detail": {
+            "en": "Connect it with an app password: your latest mail at the top of the screen and on the Mail page. Read-only.",
+            "zh-Hans": "用应用专用密码连接：最新邮件显示在屏幕顶部和“邮件”页面。只读。",
+            "hi": "ऐप पासवर्ड से जोड़ें: आपका नया मेल स्क्रीन के ऊपर और Mail पेज पर। सिर्फ़ पढ़ने के लिए।",
+            "es": "Conéctalo con una contraseña de aplicación: tu último correo arriba y en la página Correo. Solo lectura.",
+            "ar": "اربطه بكلمة مرور تطبيق: أحدث بريدك أعلى الشاشة وفي صفحة البريد. للقراءة فقط.",
+            "fr": "Avec un mot de passe d'application : votre dernier mail en haut de l'écran et dans Mail. Lecture seule.",
+            "bn": "অ্যাপ পাসওয়ার্ড দিয়ে যুক্ত করুন: সর্বশেষ মেইল স্ক্রিনের উপরে ও Mail পেজে। শুধু পড়ার জন্য।",
+            "pt-BR": "Conecte com uma senha de app: seu e-mail mais recente no topo da tela e na página Mail. Só leitura.",
+            "ru": "Подключите паролем приложения: свежая почта вверху экрана и на странице «Почта». Только чтение.",
+            "id": "Sambungkan dengan sandi aplikasi: surel terbaru di atas layar dan di halaman Mail. Hanya baca.",
+            "de": "Mit einem App-Passwort verbinden: deine neueste Mail oben am Bildschirm und auf der Mail-Seite. Nur lesen.",
+            "tr": "Uygulama şifresiyle bağlayın: en yeni postanız ekranın üstünde ve Posta sayfasında. Salt okunur.",
+            "ko": "앱 비밀번호로 연결: 최신 메일이 화면 위와 메일 페이지에. 읽기 전용.",
+            "ja": "アプリ パスワードで接続：最新のメールを画面上部とメール ページに。読み取り専用。"
+          }
+        },
+        {
+          "icon": "bolt",
+          "title": {
+            "en": "New mail in a second",
+            "zh-Hans": "新邮件一秒即达",
+            "hi": "नया मेल एक सेकंड में",
+            "es": "Correo nuevo en un segundo",
+            "ar": "البريد الجديد خلال ثانية",
+            "fr": "Le nouveau mail en une seconde",
+            "bn": "নতুন মেইল এক সেকেন্ডে",
+            "pt-BR": "E-mail novo em um segundo",
+            "ru": "Новая почта за секунду",
+            "id": "Surel baru dalam sedetik",
+            "de": "Neue Mail in einer Sekunde",
+            "tr": "Yeni posta bir saniyede",
+            "ko": "새 메일을 1초 만에",
+            "ja": "新着メールを 1 秒で"
+          },
+          "detail": {
+            "en": "Gmail tells JARVIS the moment mail arrives, and the Mail page opens instantly.",
+            "zh-Hans": "邮件一到，Gmail 立即通知 JARVIS；“邮件”页面瞬间打开。",
+            "hi": "मेल आते ही Gmail JARVIS को बताता है, और Mail पेज तुरंत खुलता है।",
+            "es": "Gmail avisa a JARVIS en cuanto llega un correo, y la página Correo se abre al instante.",
+            "ar": "يخبر Gmail ‏JARVIS لحظة وصول البريد، وتُفتح صفحة البريد فورًا.",
+            "fr": "Gmail prévient JARVIS dès qu'un mail arrive, et la page Mail s'ouvre aussitôt.",
+            "bn": "মেইল আসামাত্র Gmail JARVIS-কে জানায়, আর Mail পেজ সঙ্গে সঙ্গে খোলে।",
+            "pt-BR": "O Gmail avisa o JARVIS assim que o e-mail chega, e a página Mail abre na hora.",
+            "ru": "Gmail сообщает JARVIS о письме сразу, а страница «Почта» открывается мгновенно.",
+            "id": "Gmail memberi tahu JARVIS begitu surel tiba, dan halaman Mail terbuka seketika.",
+            "de": "Gmail meldet JARVIS jede Mail sofort, und die Mail-Seite öffnet sich ohne Warten.",
+            "tr": "Gmail posta gelir gelmez JARVIS'e haber verir; Posta sayfası anında açılır.",
+            "ko": "메일이 오면 Gmail이 바로 JARVIS에 알리고, 메일 페이지가 즉시 열립니다.",
+            "ja": "メールが届くと Gmail がすぐ JARVIS に知らせ、メール ページも一瞬で開きます。"
+          }
+        },
+        {
+          "icon": "mic",
+          "title": {
+            "en": "Dictation, on from the start",
+            "zh-Hans": "听写，开箱即用",
+            "hi": "डिक्टेशन, शुरू से चालू",
+            "es": "Dictado, activo desde el inicio",
+            "ar": "الإملاء مفعّل من البداية",
+            "fr": "La dictée, active d'emblée",
+            "bn": "ডিক্টেশন, শুরু থেকেই চালু",
+            "pt-BR": "Ditado ativo desde o início",
+            "ru": "Диктовка включена сразу",
+            "id": "Dikte aktif sejak awal",
+            "de": "Diktieren, von Anfang an an",
+            "tr": "Dikte baştan açık",
+            "ko": "받아쓰기, 처음부터 켜짐",
+            "ja": "音声入力は最初からオン"
+          },
+          "detail": {
+            "en": "Hold Right Ctrl and speak. The voice model downloads by itself the first time.",
+            "zh-Hans": "按住右 Ctrl 说话。语音模型首次会自动下载。",
+            "hi": "Right Ctrl दबाकर बोलें। वॉइस मॉडल पहली बार अपने-आप डाउनलोड होता है।",
+            "es": "Mantén Ctrl derecho y habla. El modelo de voz se descarga solo la primera vez.",
+            "ar": "اضغط Ctrl الأيمن مطوّلًا وتكلّم. يُنزَّل نموذج الصوت تلقائيًا في المرة الأولى.",
+            "fr": "Maintenez Ctrl droit et parlez. Le modèle de voix se télécharge seul la première fois.",
+            "bn": "ডান Ctrl চেপে কথা বলুন। প্রথমবার ভয়েস মডেল নিজে থেকেই ডাউনলোড হয়।",
+            "pt-BR": "Segure o Ctrl direito e fale. O modelo de voz é baixado sozinho na primeira vez.",
+            "ru": "Удерживайте правый Ctrl и говорите. Голосовая модель скачается сама в первый раз.",
+            "id": "Tahan Ctrl kanan dan bicara. Model suara terunduh sendiri pertama kali.",
+            "de": "Rechte Strg-Taste halten und sprechen. Das Sprachmodell lädt sich beim ersten Mal selbst.",
+            "tr": "Sağ Ctrl'yi basılı tutup konuşun. Ses modeli ilk seferde kendiliğinden iner.",
+            "ko": "오른쪽 Ctrl을 누른 채 말하세요. 음성 모델은 처음에 자동으로 받아집니다.",
+            "ja": "右 Ctrl を押しながら話すだけ。音声モデルは初回に自動でダウンロードされます。"
+          }
+        },
+        {
+          "icon": "eye",
+          "title": {
+            "en": "Did that help?",
+            "zh-Hans": "有帮助吗？",
+            "hi": "क्या इससे मदद मिली?",
+            "es": "¿Te ha ayudado?",
+            "ar": "هل ساعدك ذلك؟",
+            "fr": "Ça vous a aidé ?",
+            "bn": "এটা কি কাজে এল?",
+            "pt-BR": "Isso ajudou?",
+            "ru": "Это помогло?",
+            "id": "Apakah itu membantu?",
+            "de": "Hat das geholfen?",
+            "tr": "Bu yardımcı oldu mu?",
+            "ko": "도움이 되었나요?",
+            "ja": "お役に立ちましたか？"
+          },
+          "detail": {
+            "en": "After « where is… », say if it helped: he only remembers the ways that did. And the island opens in place.",
+            "zh-Hans": "“在哪里…”之后告诉他是否有帮助：他只记住有用的路线。岛也会在原位打开。",
+            "hi": "« कहाँ है… » के बाद बताएँ कि मदद मिली या नहीं: वह सिर्फ़ काम के रास्ते याद रखता है। आइलैंड सही जगह खुलता है।",
+            "es": "Tras « dónde está… », dile si te ayudó: solo recuerda los caminos útiles. Y la isla se abre en su sitio.",
+            "ar": "بعد « أين… » قل إن كان ذلك مفيدًا: يتذكر الطرق المفيدة فقط. وتُفتح الجزيرة في مكانها.",
+            "fr": "Après « où est… », dites si ça a aidé : il ne retient que les bons chemins. Et l'île s'ouvre à sa place.",
+            "bn": "« কোথায়… » এর পর বলুন কাজে এল কি না: তিনি শুধু কাজের পথ মনে রাখেন। আইল্যান্ড ঠিক জায়গায় খোলে।",
+            "pt-BR": "Depois de « onde fica… », diga se ajudou: ele só guarda os caminhos úteis. E a ilha abre no lugar.",
+            "ru": "После « где… » скажите, помогло ли: он запомнит только удачные пути. А остров открывается на месте.",
+            "id": "Setelah « di mana… », katakan apakah membantu: ia hanya ingat jalan yang berguna. Pulau terbuka di tempatnya.",
+            "de": "Nach « wo ist… » sagen, ob es half: er merkt sich nur hilfreiche Wege. Und die Insel öffnet an ihrem Platz.",
+            "tr": "« Nerede… » sonrası yardımcı olduysa söyleyin: yalnızca işe yarayan yolları hatırlar. Ada yerinde açılır.",
+            "ko": "« 어디에… » 다음에 도움이 됐는지 말해 주세요. 도움 된 길만 기억합니다. 아일랜드도 제자리에서 열립니다.",
+            "ja": "「どこ…」の後に役立ったか教えてください。役立った道だけを覚えます。アイランドも定位置で開きます。"
+          }
+        }
+      ]
+    },
+    {
       "version": "0.1.0",
       "items": [
         {
