@@ -262,15 +262,18 @@ fn snippet_of(raw: &[u8], most: usize) -> String {
     } else {
         body
     };
-    // Markup out: tags, styles, entities.
+    // Markup out: style and head blocks and comments (to the end when the cut came first), then
+    // tags, then CSS rules left as text (« .mj-outlook-group-fix { width:100% } », #120).
+    let mut decoded = decoded;
+    for (open, close) in [("<style", "</style>"), ("<head", "</head>"), ("<!--", "-->")] {
+        // ASCII lowercase keeps every byte where it is, so its positions fit `decoded`.
+        while let Some(a) = decoded.to_ascii_lowercase().find(open) {
+            let end = decoded.to_ascii_lowercase()[a..].find(close).map(|e| a + e + close.len()).unwrap_or(decoded.len());
+            decoded.replace_range(a..end, " ");
+        }
+    }
     let mut text = String::new();
     let mut tag = false;
-    let lower = decoded.to_lowercase();
-    let cut = ["<style", "<head"].iter().filter_map(|t| lower.find(t)).min();
-    let decoded = match (cut, lower.find("</style>").or(lower.find("</head>"))) {
-        (Some(a), Some(b)) if b > a => format!("{}{}", &decoded[..a], &decoded[b..]),
-        _ => decoded,
-    };
     for c in decoded.chars() {
         match c {
             '<' => tag = true,
@@ -281,6 +284,16 @@ fn snippet_of(raw: &[u8], most: usize) -> String {
             _ if !tag => text.push(c),
             _ => {}
         }
+    }
+    while let Some(open) = text.find('{') {
+        let Some(close) = text[open..].find('}').map(|c| open + c + 1) else {
+            text.truncate(open);
+            break;
+        };
+        // The selector before it, back to the last rule's end.
+        let from = text[..open].rfind('}').map(|i| i + 1).unwrap_or(0);
+        let from = if text[open..close].contains(':') { from } else { open };
+        text.replace_range(from..close, " ");
     }
     let text = text.replace("&nbsp;", " ").replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">");
     text.split_whitespace().collect::<Vec<_>>().join(" ").chars().take(most).collect()
@@ -664,6 +677,10 @@ mod tests {
         assert_eq!(snippet(b"Hello =3D there,=\r\n see you"), "Hello = there, see you");
         assert_eq!(snippet(b"<html><style>p{}</style><p>Hi&nbsp;Sam</p></html>"), "Hi Sam");
         assert_eq!(snippet(b"SGVsbG8gdGhlcmUsIHRoaXMgaXMgYmFzZTY0IHRleHQ="), "Hello there, this is base64 text");
+        // A newsletter's CSS isn't its first line (#120: « .mj-outlook-group-fix { width:100% } »).
+        assert_eq!(snippet(b".mj-outlook-group-fix { width:100% !important; } <!--[if mso]><x></x><![endif]--><p>Someone mentioned you</p>"), "Someone mentioned you");
+        assert_eq!(snippet(b"<html><head><title>x</title><style>p{color:red}"), "");
+        assert_eq!(snippet("Caf\u{e9} <STYLE>a{}</STYLE>ouvert".as_bytes()), "Caf\u{e9} ouvert");
         assert_eq!(internal_date("01-Jan-1970 01:00:00 +0100"), 0);
         assert_eq!(internal_date("26-Nov-2026 09:42:00 +0000"), 1795686120000);
         assert_eq!(literal("* 3 FETCH (BODY[1]<0> {42}"), Some(42));

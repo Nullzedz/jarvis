@@ -395,10 +395,12 @@ function gmailCard(): HTMLElement {
   if (!mails.length) body.append(h("div", { class: "int-empty", text: t("No unread mail") }));
   const [first, ...rest] = mails;
   if (first) {
+    // Two lines (#120: three ran past the card): the subject and when, then who and its first words.
+    const who = String(first.from ?? "");
+    const snip = String(first.snippet ?? "");
     body.append(h("button", { class: "gm-hero", onclick: open(String(first.thread ?? "")) },
-      h("span", { class: "gm-top" }, h("b", { text: String(first.from ?? "") }), h("span", { class: "int-ago", text: when(first.date) })),
-      h("span", { class: "gm-sub", text: String(first.subject || t("(no subject)")) }),
-      h("span", { class: "gm-snip", text: String(first.snippet ?? "") })));
+      h("span", { class: "gm-top" }, h("b", { class: "gm-sub", text: String(first.subject || t("(no subject)")) }), h("span", { class: "int-ago", text: when(first.date) })),
+      h("span", { class: "gm-snip", text: snip ? `${who} · ${snip}` : who })));
   }
   for (const m of rest.slice(0, 2)) {
     body.append(h("button", { class: "int-row gm-row", onclick: open(String(m.thread ?? "")) },
