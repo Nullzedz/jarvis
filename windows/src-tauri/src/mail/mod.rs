@@ -261,6 +261,23 @@ pub struct Detail {
     pub attachments: Vec<String>,
 }
 
+/// #120: Outlook found closed, with Gmail there to answer instead: asked again after a minute,
+/// not on every click (each try starts PowerShell, almost half a second).
+static OUTLOOK_DOWN: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+
+/// The page's script answered by Outlook, or None (closed, or known closed a moment ago).
+async fn outlook_page(script: String) -> Option<Value> {
+    let gmail = crate::gmail::configured();
+    if gmail && OUTLOOK_DOWN.lock().ok().and_then(|d| *d).is_some_and(|t| t.elapsed() < Duration::from_secs(60)) {
+        return None;
+    }
+    let v = outlook::run(script, TIMEOUT).await.ok().filter(|v| v.get("error").is_none());
+    if let Ok(mut d) = OUTLOOK_DOWN.lock() {
+        *d = if v.is_none() && gmail { Some(std::time::Instant::now()) } else { None };
+    }
+    v
+}
+
 async fn detail(m: &Message, limit: usize) -> Option<Detail> {
     // #120: a Gmail message of the Mail page, read from Gmail (read-only).
     if m.store_id == crate::gmail::STORE {
@@ -322,7 +339,7 @@ pub async fn mail_month_at(offset: i32) -> Option<Value> {
         return Some(v);
     }
     // #120: no Outlook, Gmail connected: Gmail's month.
-    let v = match outlook::run(outlook::month_script(offset), TIMEOUT).await.ok().filter(|v| v.get("error").is_none()) {
+    let v = match outlook_page(outlook::month_script(offset)).await {
         Some(v) => v,
         None if crate::gmail::configured() => crate::gmail::month(offset).await.map_err(|e| crate::log::line(format!("gmail month: {e}"))).ok()?,
         None => return None,
@@ -349,7 +366,7 @@ pub async fn mail_day(date: String) -> Option<Value> {
     if date.len() != 10 || !date.chars().all(|c| c.is_ascii_digit() || c == '-') {
         return None;
     }
-    let mut v = match outlook::run(outlook::day_script(&date), TIMEOUT).await.ok().filter(|v| v.get("error").is_none()) {
+    let mut v = match outlook_page(outlook::day_script(&date)).await {
         Some(v) => v,
         None if crate::gmail::configured() => crate::gmail::day(&date).await.map_err(|e| crate::log::line(format!("gmail day: {e}"))).ok()?,
         None => return None,
@@ -371,10 +388,12 @@ pub async fn mail_day(date: String) -> Option<Value> {
 #[tauri::command]
 pub async fn mail_search(query: String, filter: Filter) -> Result<Vec<Message>, String> {
     let Some(dasl) = outlook::dasl(&Query::parse(&query), filter) else { return Ok(rt().last.clone()) };
-    let v = match outlook::run(outlook::search_script(&dasl, MAX_SHOWN), TIMEOUT).await {
+    let page_waiting = crate::gmail::configured() && query.trim().is_empty() && matches!(filter, Filter::Flagged);
+    let tried = if page_waiting { outlook_page(outlook::search_script(&dasl, MAX_SHOWN)).await.ok_or(RunError::Failed(String::new())) } else { outlook::run(outlook::search_script(&dasl, MAX_SHOWN), TIMEOUT).await };
+    let v = match tried {
         Ok(v) => v,
         // #120: the page's « waiting on you » from Gmail's starred mail when there's no Outlook.
-        Err(_) if crate::gmail::configured() && query.trim().is_empty() && matches!(filter, Filter::Flagged) => {
+        Err(_) if page_waiting => {
             let list = crate::gmail::starred(MAX_SHOWN).await?;
             return Ok(list.into_iter().filter_map(|m| serde_json::from_value(m).ok()).collect());
         }

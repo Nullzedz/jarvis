@@ -71,6 +71,7 @@ impl Imap {
     /// Sends a command; its untagged answers, once the server says OK to it.
     async fn run(&mut self, command: &str) -> Result<Vec<Answer>, String> {
         self.tag += 1;
+        self.read = 0;
         let tag = format!("J{}", self.tag);
         self.s.get_mut().write_all(format!("{tag} {command}\r\n").as_bytes()).await.map_err(|e| e.to_string())?;
         let mut out = Vec::new();
@@ -339,12 +340,11 @@ fn mail_of(a: &Answer) -> Option<(u32, Value)> {
     Some((seq, json!({ "from": sender(&header(&head, "From")), "subject": header(&head, "Subject"), "snippet": body, "date": date, "thread": thread })))
 }
 
-async fn fetch(address: &str, password: &str) -> Result<Value, String> {
-    let mut imap = Imap::connect().await?;
-    // App passwords are shown in groups of four; Google takes them without the spaces.
-    let password: String = password.chars().filter(|c| !c.is_whitespace()).collect();
-    imap.run(&format!("LOGIN {} {}", quote(address), quote(&password))).await?;
-    imap.run("EXAMINE INBOX").await?;
+async fn fetch() -> Result<Value, String> {
+    with_live(LIMIT, |imap, address| Box::pin(fetch_on(imap, address.to_string()))).await
+}
+
+async fn fetch_on(imap: &mut Imap, address: String) -> Result<Value, String> {
     let found = imap.run("SEARCH UNSEEN").await?;
     let mut unseen: Vec<u32> = found.iter().filter_map(|a| a.text.strip_prefix("* SEARCH")).flat_map(|r| r.split_whitespace().filter_map(|n| n.parse().ok())).collect();
     unseen.sort_unstable();
@@ -357,7 +357,6 @@ async fn fetch(address: &str, password: &str) -> Result<Value, String> {
         got.sort_by(|a, b| b.0.cmp(&a.0));
         mails = got.into_iter().map(|(_, v)| v).collect();
     }
-    let _ = imap.run("LOGOUT").await;
     Ok(json!({ "email": address, "unread": unseen.len(), "mails": mails }))
 }
 
@@ -453,18 +452,58 @@ fn item_of(a: &Answer) -> Option<Item> {
     })
 }
 
-/// Signed in, the inbox opened read-only; the address.
-async fn session(limit: usize) -> Result<(Imap, String), String> {
+/// The signed-in connection with the inbox open read-only, kept for the next call: a new one
+/// costs a TLS handshake and a login, about a second (the Mail page asks several things at once).
+struct Live {
+    imap: Imap,
+    address: String,
+    password: String,
+    used: std::time::Instant,
+}
+
+static LIVE: tokio::sync::Mutex<Option<Live>> = tokio::sync::Mutex::const_new(None);
+
+type Job<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, String>> + Send + 'a>>;
+
+/// `job` on the live connection (one call at a time); a fresh connection after 10 idle minutes,
+/// a new address or app password, or once more when the old one has dropped.
+async fn with_live<T>(limit: usize, job: impl for<'a> Fn(&'a mut Imap, &'a str) -> Job<'a, T>) -> Result<T, String> {
     let (Some(address), Some(password)) = (crate::secrets::get(ADDRESS), crate::secrets::get(PASSWORD)) else {
         return Err(crate::i18n::t("Not connected"));
     };
     let address = address.trim().to_string();
-    let mut imap = Imap::connect().await?;
-    imap.limit = limit;
+    // App passwords are shown in groups of four; Google takes them without the spaces.
     let password: String = password.chars().filter(|c| !c.is_whitespace()).collect();
-    imap.run(&format!("LOGIN {} {}", quote(&address), quote(&password))).await?;
-    imap.run("EXAMINE INBOX").await?;
-    Ok((imap, address))
+    let mut g = LIVE.lock().await;
+    for attempt in 0..2 {
+        let reuse = attempt == 0 && g.as_ref().is_some_and(|l| l.address == address && l.password == password && l.used.elapsed() < Duration::from_secs(600));
+        if !reuse {
+            *g = None;
+            let mut imap = Imap::connect().await?;
+            imap.run(&format!("LOGIN {} {}", quote(&address), quote(&password))).await?;
+            imap.run("EXAMINE INBOX").await?;
+            *g = Some(Live { imap, address: address.clone(), password: password.clone(), used: std::time::Instant::now() });
+        }
+        let live = g.as_mut().expect("just opened");
+        live.imap.limit = limit;
+        match tokio::time::timeout(Duration::from_secs(40), job(&mut live.imap, &live.address)).await {
+            Ok(Ok(v)) => {
+                live.used = std::time::Instant::now();
+                return Ok(v);
+            }
+            // A dropped connection fails here: once more on a new one.
+            Ok(Err(e)) if reuse => crate::log::line(format!("gmail: connection reopened ({e})")),
+            Ok(Err(e)) => {
+                *g = None;
+                return Err(e);
+            }
+            Err(_) => {
+                *g = None;
+                return Err(crate::i18n::t("No response text."));
+            }
+        }
+    }
+    Err(crate::i18n::t("Couldn't reach Gmail."))
 }
 
 /// The messages a SEARCH finds, newest last; `most` of the newest at most.
@@ -501,9 +540,8 @@ pub async fn month(offset: i32) -> Result<Value, String> {
     let first = days_from_civil(y, m, 1);
     let next = days_from_civil(y + (m == 12) as i64, if m == 12 { 1 } else { m + 1 }, 1);
     let today = if y == t.year as i64 && m == t.month as i64 { t.day as i64 } else { 0 };
-    let (mut imap, _) = session(24 * 1024 * 1024).await?;
-    let list = items(&mut imap, &format!("SINCE {} BEFORE {}", imap_date(first - 1), imap_date(next + 1)), 5000).await?;
-    let _ = imap.run("LOGOUT").await;
+    let search = format!("SINCE {} BEFORE {}", imap_date(first - 1), imap_date(next + 1));
+    let list = with_live(24 * 1024 * 1024, |imap, _| { let s = search.clone(); Box::pin(async move { items(imap, &s, 5000).await }) }).await?;
     let mut days = serde_json::Map::new();
     let mut marks = serde_json::Map::new();
     let (mut hours, mut flagged, mut files) = (vec![0u32; 24], 0, 0);
@@ -538,13 +576,26 @@ pub async fn month(offset: i32) -> Result<Value, String> {
 
 /// One day's messages ("yyyy-MM-dd"), newest first, as outlook::day_script gives them.
 pub async fn day(date: &str) -> Result<Value, String> {
+    // Clicking back to a day is instant: each kept two minutes.
+    static KEPT: std::sync::Mutex<Vec<(String, std::time::Instant, Value)>> = std::sync::Mutex::new(Vec::new());
+    if let Some(v) = KEPT.lock().ok().and_then(|k| k.iter().find(|(d, at, _)| d == date && at.elapsed() < Duration::from_secs(120)).map(|x| x.2.clone())) {
+        return Ok(v);
+    }
+    let v = day_fresh(date).await?;
+    if let Ok(mut k) = KEPT.lock() {
+        k.retain(|(d, at, _)| d != date && at.elapsed() < Duration::from_secs(120));
+        k.push((date.to_string(), std::time::Instant::now(), v.clone()));
+    }
+    Ok(v)
+}
+
+async fn day_fresh(date: &str) -> Result<Value, String> {
     let p: Vec<i64> = date.split('-').filter_map(|x| x.parse().ok()).collect();
     let [y, m, d] = p[..] else { return Err(crate::i18n::t("Unexpected API response.")) };
     let off = local_offset_min();
     let at = days_from_civil(y, m, d);
-    let (mut imap, account) = session(LIMIT * 4).await?;
-    let list = items(&mut imap, &format!("SINCE {} BEFORE {}", imap_date(at - 1), imap_date(at + 2)), 1000).await?;
-    let _ = imap.run("LOGOUT").await;
+    let search = format!("SINCE {} BEFORE {}", imap_date(at - 1), imap_date(at + 2));
+    let (list, account) = with_live(LIMIT * 4, |imap, a| { let (s, a) = (search.clone(), a.to_string()); Box::pin(async move { Ok((items(imap, &s, 1000).await?, a)) }) }).await?;
     let messages: Vec<Value> = list.iter().rev().filter(|i| { let (iy, im, id, _, _) = local_parts(i.date, off); (iy, im, id) == (y, m, d) }).map(|i| message_json(i, &account, off)).collect();
     Ok(json!({ "messages": messages }))
 }
@@ -552,18 +603,14 @@ pub async fn day(date: &str) -> Result<Value, String> {
 /// Starred mail (« waiting on you »), newest first.
 pub async fn starred(most: usize) -> Result<Vec<Value>, String> {
     let off = local_offset_min();
-    let (mut imap, account) = session(LIMIT * 4).await?;
-    let list = items(&mut imap, "FLAGGED", most).await?;
-    let _ = imap.run("LOGOUT").await;
+    let (list, account) = with_live(LIMIT * 4, |imap, a| { let a = a.to_string(); Box::pin(async move { Ok((items(imap, "FLAGGED", most).await?, a)) }) }).await?;
     Ok(list.iter().rev().map(|i| message_json(i, &account, off)).collect())
 }
 
 /// A message's first `most` characters and its files, for the page's card.
 pub async fn detail(entry_id: &str, most: usize) -> Result<(String, Vec<String>), String> {
     let uid: u64 = entry_id.split(':').next().and_then(|u| u.parse().ok()).ok_or_else(|| crate::i18n::t("Unexpected API response."))?;
-    let (mut imap, _) = session(LIMIT).await?;
-    let answers = imap.run(&format!("UID FETCH {uid} (UID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)] BODY.PEEK[1]<0.8000>)")).await?;
-    let _ = imap.run("LOGOUT").await;
+    let answers = with_live(LIMIT, |imap, _| Box::pin(async move { imap.run(&format!("UID FETCH {uid} (UID BODYSTRUCTURE BODY.PEEK[HEADER.FIELDS (FROM SUBJECT)] BODY.PEEK[1]<0.8000>)")).await })).await?;
     let a = answers.iter().find(|a| a.text.contains("FETCH")).ok_or_else(|| crate::i18n::t("Unexpected API response."))?;
     let files = item_of(a).map(|i| i.files).unwrap_or_default();
     let text = a.text.find("BODY[1]").and_then(|i| a.text[i..].split("{#").nth(1)).and_then(|r| r.split('}').next()).and_then(|i| i.parse::<usize>().ok()).and_then(|i| a.lits.get(i)).map(|b| snippet_of(b, most)).unwrap_or_default();
@@ -576,8 +623,10 @@ pub fn open_message(account: &str, entry_id: &str) {
 }
 
 pub async fn poll(app: AppHandle) {
-    let (Some(address), Some(password)) = (crate::secrets::get(ADDRESS), crate::secrets::get(PASSWORD)) else { return };
-    let (data, error) = match tokio::time::timeout(Duration::from_secs(40), fetch(address.trim(), &password)).await.unwrap_or_else(|_| Err(crate::i18n::t("No response text."))) {
+    if !configured() {
+        return;
+    }
+    let (data, error) = match fetch().await {
         Ok(data) => (data, None),
         Err(error) => {
             crate::log::line(format!("gmail: {error}"));
@@ -657,3 +706,4 @@ mod tests {
         assert_eq!(m["hour"], 9);
     }
 }
+
